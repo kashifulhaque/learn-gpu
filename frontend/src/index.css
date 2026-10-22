@@ -1,0 +1,1319 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import "@fontsource-variable/source-serif-4/opsz.css";
+@import "@fontsource-variable/source-serif-4/opsz-italic.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+
+/* Theme ---------------------------------------------------------------------
+
+   Every colour in the app is one of the semantic tokens below. Components use
+   them through Tailwind (`bg-paper`, `text-fg-muted`, `border-line`,
+   `bg-accent/10`), never a raw hex value, so the light and dark themes are one
+   set of variables apart.
+
+   The theme follows the system unless the reader picks one; the choice is an
+   attribute on <html>, set before first paint by the script in index.html. */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces, from the page outward. */
+  --paper: #fcfbf8; /* the reading surface */
+  --well: #f4f2ed; /* sidebars, bars, and the lab chrome */
+  --card: #ffffff; /* inputs, menus, and raised panels */
+  --tint: #ebe8e1; /* hover and selected rows */
+  --line: #e4e0d7;
+  --line-strong: #cdc7ba;
+
+  /* Text, from most to least important. */
+  --fg: #1d1b18;
+  --fg-muted: #48443d;
+  --fg-subtle: #706a60;
+  --fg-faint: #a09a8f;
+
+  /* One accent, used for the primary action, links, and "you are here". */
+  --accent: #c2410c;
+  --accent-strong: #9a330a;
+  --on-accent: #ffffff;
+
+  /* Status. */
+  --ok: #2d7a4c;
+  --bad: #b42318;
+  --warn: #9a5b06;
+  --info: #2c5ea8;
+  --violet: #6d4fb0;
+
+  /* Code, in the chapter and in the editor. Monaco's themes mirror these. */
+  --code-bg: #f4f2ed;
+  --syn-keyword: #a13d12;
+  --syn-string: #3b7738;
+  --syn-number: #8a5a00;
+  --syn-comment: #8d877c;
+  --syn-function: #2c5ea8;
+  --syn-type: #7446b0;
+  --syn-punct: #6b655b;
+
+  /* The four maths colours, \hla to \hld. */
+  --hl-a: #2d7a4c;
+  --hl-b: #2c5ea8;
+  --hl-c: #a15c07;
+  --hl-d: #b4335a;
+
+  --pop-shadow: 0 1px 2px rgb(40 30 10 / 0.06), 0 8px 24px -6px rgb(40 30 10 / 0.14);
+}
+
+/* Dark is written out twice: once for a system preference the reader has not
+   overridden, and once for an explicit choice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #171614;
+    --well: #121110;
+    --card: #1f1d1b;
+    --tint: #282623;
+    --line: #2c2a26;
+    --line-strong: #3d3a35;
+    --fg: #ece8e1;
+    --fg-muted: #c5bfb4;
+    --fg-subtle: #968f83;
+    --fg-faint: #6c665c;
+    --accent: #f0864a;
+    --accent-strong: #f6a574;
+    --on-accent: #1c0e05;
+    --ok: #74c291;
+    --bad: #f2806f;
+    --warn: #e2a954;
+    --info: #8db1ee;
+    --violet: #b8a0ea;
+    --code-bg: #1d1b19;
+    --syn-keyword: #f0955f;
+    --syn-string: #a3cf8c;
+    --syn-number: #e6b566;
+    --syn-comment: #7f786d;
+    --syn-function: #8db1ee;
+    --syn-type: #c2a8f0;
+    --syn-punct: #a39c90;
+    --hl-a: #7fcf9a;
+    --hl-b: #8db1ee;
+    --hl-c: #e6b566;
+    --hl-d: #f08aa6;
+    --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #171614;
+  --well: #121110;
+  --card: #1f1d1b;
+  --tint: #282623;
+  --line: #2c2a26;
+  --line-strong: #3d3a35;
+  --fg: #ece8e1;
+  --fg-muted: #c5bfb4;
+  --fg-subtle: #968f83;
+  --fg-faint: #6c665c;
+  --accent: #f0864a;
+  --accent-strong: #f6a574;
+  --on-accent: #1c0e05;
+  --ok: #74c291;
+  --bad: #f2806f;
+  --warn: #e2a954;
+  --info: #8db1ee;
+  --violet: #b8a0ea;
+  --code-bg: #1d1b19;
+  --syn-keyword: #f0955f;
+  --syn-string: #a3cf8c;
+  --syn-number: #e6b566;
+  --syn-comment: #7f786d;
+  --syn-function: #8db1ee;
+  --syn-type: #c2a8f0;
+  --syn-punct: #a39c90;
+  --hl-a: #7fcf9a;
+  --hl-b: #8db1ee;
+  --hl-c: #e6b566;
+  --hl-d: #f08aa6;
+  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.55);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-well: var(--well);
+  --color-card: var(--card);
+  --color-tint: var(--tint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-violet: var(--violet);
+  --color-code: var(--code-bg);
+  --shadow-pop: var(--pop-shadow);
+}
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Base ---------------------------------------------------------------------- */
+
+html,
+body,
+#root {
+  height: 100%;
+  /* A phone browser's address bar grows and shrinks as you scroll. With `100%`
+     alone the app shell is measured against the taller viewport, so its bottom
+     row hides behind the toolbar. `dvh` follows the bar. */
+  height: 100dvh;
+}
+
+body {
+  background: var(--paper);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* iOS Safari zooms the page when a control smaller than 16px takes focus, and
+   never zooms back out. The controls here are deliberately small on a desktop,
+   so raise them to 16px only where a touch keyboard is what opens. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fg-faint);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+kbd {
+  font-family: var(--font-mono);
+}
+
+/* Chapter body ------------------------------------------------------------- */
+
+.prose-chapter {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--fg-muted);
+  hanging-punctuation: first;
+}
+.prose-chapter h1,
+.prose-chapter h2,
+.prose-chapter h3,
+.prose-chapter h4 {
+  font-family: var(--font-sans);
+  color: var(--fg);
+  text-wrap: balance;
+}
+.prose-chapter h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 1.25rem;
+  letter-spacing: -0.015em;
+}
+.prose-chapter h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  scroll-margin-top: 1.25rem;
+}
+/* Each section carries its number, so the tracker's "03 / 11" has something on
+   the page to point at. */
+.prose-chapter h2::before {
+  content: counter(section, decimal-leading-zero);
+  counter-increment: section;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--accent);
+  transform: translateY(-0.08em);
+}
+.prose-chapter h3 {
+  font-size: 1.075rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 2rem 0 0.6rem;
+}
+.prose-chapter h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+.prose-chapter p {
+  margin: 0 0 1.05rem;
+}
+.prose-chapter strong {
+  color: var(--fg);
+  font-weight: 620;
+}
+/* Italics mark a term on first use (see content/STYLE.md). */
+.prose-chapter em {
+  color: var(--fg);
+  font-style: italic;
+}
+/* ==highlight== marks the phrase a skimming reader must not miss. */
+.prose-chapter mark {
+  color: var(--fg);
+  background: linear-gradient(
+    180deg,
+    transparent 58%,
+    color-mix(in srgb, var(--warn) 30%, transparent) 58%
+  );
+  padding: 0 0.1em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.prose-chapter a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: text-decoration-color 0.15s;
+}
+.prose-chapter a:hover {
+  text-decoration-color: var(--accent);
+}
+.prose-chapter ul,
+.prose-chapter ol {
+  margin: 0 0 1.05rem;
+  padding-left: 1.35rem;
+}
+.prose-chapter ul {
+  list-style: disc;
+}
+.prose-chapter ol {
+  list-style: decimal;
+}
+.prose-chapter li {
+  margin: 0.3rem 0;
+  padding-left: 0.2rem;
+}
+.prose-chapter li::marker {
+  color: var(--fg-faint);
+}
+.prose-chapter ol > li::marker {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+.prose-chapter code {
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.08em 0.32em;
+  color: var(--fg);
+  /* A long identifier breaks rather than pushing a narrow column sideways. */
+  overflow-wrap: anywhere;
+}
+.prose-chapter .code-block {
+  margin: 0.25rem 0 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+.prose-chapter .code-block-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2rem;
+  padding: 0 0.4rem 0 0.9rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--fg-subtle);
+}
+.prose-chapter .code-block-bar button {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  color: var(--fg-subtle);
+  transition: background 0.15s, color 0.15s;
+}
+.prose-chapter .code-block-bar button:hover {
+  background: var(--tint);
+  color: var(--fg);
+}
+.prose-chapter pre {
+  padding: 0.85rem 1rem 0.95rem;
+  overflow-x: auto;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.prose-chapter pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  overflow-wrap: normal;
+  color: var(--fg);
+  font-size: inherit;
+}
+.prose-chapter blockquote {
+  border-left: 2px solid var(--line-strong);
+  padding-left: 1rem;
+  margin: 0 0 1.2rem;
+  color: var(--fg-subtle);
+}
+/* A table wider than the column scrolls inside its own frame. */
+.prose-chapter .table-wrap {
+  margin: 0.25rem 0 1.4rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.prose-chapter table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.prose-chapter th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--well);
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.8rem;
+  white-space: nowrap;
+}
+.prose-chapter td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.8rem;
+  vertical-align: top;
+}
+.prose-chapter tbody tr:last-child td {
+  border-bottom: none;
+}
+.prose-chapter tbody tr:hover td {
+  background: color-mix(in srgb, var(--tint) 55%, transparent);
+}
+.prose-chapter hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 2rem 0;
+}
+.prose-chapter .katex {
+  font-size: 1.05em;
+  color: var(--fg);
+}
+/* A display equation wider than the column scrolls inside its own box, so the
+   page body never scrolls sideways. The padding keeps a tall fraction's
+   descenders off the scrollbar. */
+.prose-chapter .katex-display {
+  margin: 1.1rem 0 1.25rem;
+  padding: 0.4rem 0 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.prose-chapter .katex-display > .katex {
+  text-align: center;
+  white-space: nowrap;
+}
+.prose-chapter .katex .boxed {
+  border-color: var(--line-strong) !important;
+}
+/* KaTeX renders an error as red inline text. Make it obvious rather than
+   something that reads as emphasis. */
+.prose-chapter .katex-error {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border-radius: 3px;
+  padding: 0 0.25em;
+}
+/* The maths colour macros, \hla to \hld. */
+.hl-a {
+  color: var(--hl-a);
+}
+.hl-b {
+  color: var(--hl-b);
+}
+.hl-c {
+  color: var(--hl-c);
+}
+.hl-d {
+  color: var(--hl-d);
+}
+
+/* Syntax colours for fenced code, as highlight.js classes. */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal,
+.hljs-selector-tag,
+.hljs-meta .hljs-keyword {
+  color: var(--syn-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute {
+  color: var(--syn-string);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--syn-number);
+}
+.hljs-comment,
+.hljs-quote,
+.hljs-meta {
+  color: var(--syn-comment);
+  font-style: italic;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: var(--syn-function);
+}
+.hljs-type,
+.hljs-title.class_,
+.hljs-class .hljs-title,
+.hljs-params,
+.hljs-variable.language_ {
+  color: var(--syn-type);
+}
+.hljs-punctuation,
+.hljs-operator {
+  color: var(--syn-punct);
+}
+.hljs-deletion {
+  color: var(--bad);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* Chapter structure --------------------------------------------------------- */
+
+/* The page header shows the title, so the body's own H1 would repeat it. */
+.chapter-article .chapter-intro > h1:first-child {
+  display: none;
+}
+.chapter-article .prose-chapter {
+  counter-reset: section;
+}
+.chapter-article .chapter-section {
+  transition: opacity 0.3s ease;
+}
+.chapter-article .chapter-section + .chapter-section {
+  margin-top: 3rem;
+}
+/* Focus mode dims everything but the section being read. Pointing at a dimmed
+   section brings it back, so nothing is ever out of reach. */
+.chapter-article.focus-mode .chapter-section:not(.is-active) {
+  opacity: 0.32;
+}
+.chapter-article.focus-mode .chapter-section:not(.is-active):hover {
+  opacity: 0.8;
+}
+
+/* Callouts ------------------------------------------------------------------
+
+   A callout is a rule down the left edge in its tone, a label, and a faint
+   wash. The tones come from the status palette, so there are only a handful. */
+
+.prose-chapter .callout {
+  --tone: var(--info);
+  margin: 1.5rem 0;
+  border-left: 2px solid var(--tone);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--tone) 5%, var(--paper));
+  color: var(--fg-muted);
+}
+.prose-chapter .callout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-family: var(--font-sans);
+}
+.prose-chapter .callout-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--tone);
+  white-space: nowrap;
+}
+.prose-chapter .callout-label::before {
+  content: "";
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  background: var(--tone);
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.prose-chapter .callout-title {
+  flex-basis: 100%;
+  font-size: 0.975rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--fg);
+}
+.prose-chapter .callout-body {
+  padding: 0.4rem 1rem 0.1rem;
+}
+.prose-chapter .callout-body > :last-child {
+  margin-bottom: 0.8rem;
+}
+.prose-chapter .callout ul,
+.prose-chapter .callout ol {
+  margin-bottom: 0.8rem;
+}
+.prose-chapter .callout .code-block {
+  background: var(--card);
+}
+
+/* The one idea to carry out of a section. */
+.prose-chapter .callout-key {
+  --tone: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--paper));
+}
+.prose-chapter .callout-key .callout-body {
+  color: var(--fg);
+}
+/* The chapter summary reads as a boxed abstract, not an alert. */
+.prose-chapter .callout-tldr {
+  --tone: var(--fg-subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--well);
+}
+.prose-chapter .callout-tldr .callout-label {
+  color: var(--fg-subtle);
+}
+.prose-chapter .callout-recap {
+  --tone: var(--ok);
+}
+.prose-chapter .callout-intuition,
+.prose-chapter .callout-note {
+  --tone: var(--info);
+}
+.prose-chapter .callout-example {
+  --tone: var(--warn);
+}
+.prose-chapter .callout-tip,
+.prose-chapter .callout-try {
+  --tone: var(--ok);
+}
+.prose-chapter .callout-try {
+  --tone: var(--accent);
+}
+.prose-chapter .callout-warning {
+  --tone: var(--bad);
+}
+.prose-chapter .callout-deepdive {
+  --tone: var(--violet);
+}
+.prose-chapter .callout-question {
+  --tone: var(--info);
+}
+
+/* Collapsible callouts: a deep dive and a self-check question. */
+.prose-chapter details.callout > summary {
+  cursor: pointer;
+  list-style: none;
+  padding-bottom: 0.75rem;
+  border-radius: 0 6px 6px 0;
+  transition: background 0.15s;
+}
+.prose-chapter details.callout > summary::-webkit-details-marker {
+  display: none;
+}
+.prose-chapter details.callout > summary:hover {
+  background: color-mix(in srgb, var(--tone) 6%, transparent);
+}
+.prose-chapter details.callout[open] > summary {
+  padding-bottom: 0;
+}
+.prose-chapter .callout-hint {
+  margin-left: auto;
+  order: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.prose-chapter .callout-hint::after {
+  content: "";
+  width: 0.7rem;
+  height: 0.7rem;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: transform 0.2s;
+}
+.prose-chapter details[open] .callout-hint {
+  font-size: 0;
+  gap: 0;
+}
+.prose-chapter details[open] .callout-hint::after {
+  transform: rotate(180deg);
+}
+.prose-chapter details.callout > summary .callout-title {
+  order: 3;
+}
+.prose-chapter details.callout[open] > .callout-body {
+  animation: callout-reveal 0.2s ease;
+}
+@keyframes callout-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prose-chapter details.callout[open] > .callout-body {
+    animation: none;
+  }
+  .chapter-article .chapter-section {
+    transition: none;
+  }
+}
+
+/* Icons, as masks so each takes its callout's colour. */
+.prose-chapter .callout {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-key {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='7.5' cy='15.5' r='4.5'/%3E%3Cpath d='m10.7 12.3 9.3-9.3M16 7l3 3M14 9l2 2'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-tldr {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h16M4 12h16M4 18h10'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-intuition {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2z'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-example {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='2' width='16' height='20' rx='2'/%3E%3Cpath d='M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h4'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-warning {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-deepdive {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-question {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-recap {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-tip {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 7'/%3E%3C/svg%3E");
+}
+.prose-chapter .callout-try {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 3 14 9-14 9z'/%3E%3C/svg%3E");
+}
+
+/* Figures -------------------------------------------------------------------
+
+   An interactive figure from a ```viz fence: a frame on the card surface, its
+   controls, an SVG drawing that scales with the column, a readout, and a
+   caption. components/viz/kit.tsx renders the markup. */
+
+.viz {
+  margin: 1.75rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  overflow: hidden;
+}
+.viz-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  padding: 0.7rem 1rem 0;
+}
+.viz-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.viz-title {
+  font-weight: 600;
+  color: var(--fg);
+}
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  padding: 0.7rem 1rem 0;
+}
+.viz-body {
+  padding: 0.75rem 1rem;
+}
+.viz-body svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-sans);
+}
+.viz-body svg text {
+  fill: var(--fg-subtle);
+  font-size: 11px;
+}
+.viz-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0 1rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
+.viz-caption {
+  padding: 0.6rem 1rem 0.8rem;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fg-subtle);
+}
+.viz-caption code,
+.viz-stat-value code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.viz-control-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.viz-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+/* A long label wraps rather than pushing the value out of a phone's frame. */
+.viz-slider .viz-control-label {
+  min-width: 0;
+  white-space: normal;
+}
+.viz-slider input[type="range"] {
+  /* The track takes whatever the label and value leave, not its own default
+     width, so it gives way first on a narrow screen. */
+  flex: 1 1 0;
+  min-width: 4rem;
+  accent-color: var(--accent);
+}
+.viz-value {
+  min-width: 3.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  text-align: right;
+  white-space: nowrap;
+}
+.viz-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+.viz-segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.viz-segments button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  cursor: pointer;
+}
+.viz-segments button:last-child {
+  border-right: 0;
+}
+.viz-segments button:hover {
+  background: var(--tint);
+  color: var(--fg);
+}
+.viz-segments button.is-on {
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  color: var(--accent-strong);
+  font-weight: 500;
+}
+.viz-button {
+  height: 1.6rem;
+  min-width: 1.6rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.viz-button:hover {
+  border-color: var(--line-strong);
+  color: var(--fg);
+}
+.viz-button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  color: var(--accent-strong);
+}
+.viz-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.viz-step-count {
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.viz-stat-label {
+  font-size: 0.7rem;
+  color: var(--fg-faint);
+}
+.viz-stat-value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+}
+.viz-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.viz-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.5rem;
+  border-radius: 2px;
+}
+
+.viz-missing {
+  margin: 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--bad);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--bad);
+}
+
+/* Slides ----------------------------------------------------------------------
+
+   The presenter, the print layout, and the slide PDF share these, so a slide
+   looks the same on the speaker's screen, on the projector, and on paper.
+   Sizes are in container units, so a slide scales with its stage and not with
+   the window. */
+
+.icon-btn {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--fg-subtle);
+  transition: background 0.15s, color 0.15s;
+}
+.icon-btn:hover {
+  background: var(--tint);
+  color: var(--fg);
+}
+.deck-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  transition: background 0.15s, color 0.15s;
+}
+.deck-btn:hover:not(:disabled) {
+  background: var(--tint);
+  color: var(--fg);
+}
+.deck-btn:disabled {
+  opacity: 0.4;
+}
+.deck-btn[aria-pressed="true"] {
+  background: var(--tint);
+  color: var(--fg);
+}
+.deck-btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.deck-btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+.deck-kbd {
+  padding: 0 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.slide-stage {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line), var(--pop-shadow);
+}
+.slide-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 5cqw 6.5cqw 4cqw;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* `--fit` shrinks the type when the content would overflow the stage; see
+     SlideFrame. */
+  font-size: calc(max(10px, 2.1cqw) * var(--fit, 1));
+}
+.slide-eyebrow {
+  margin-bottom: 0.6em;
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.slide-title {
+  font-family: var(--font-serif);
+  font-size: 1.9em;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+.slide-title::before {
+  content: "";
+  display: block;
+  width: 2.2em;
+  height: 3px;
+  margin-bottom: 0.55em;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.slide-title code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+.slide-frame[data-kind="slide"] .slide-eyebrow + .slide-title::before {
+  display: none;
+}
+.slide-body {
+  margin-top: 1em;
+}
+/* The chapter's reading styles, rescaled to the slide's own type size. */
+.slide-body .prose-chapter {
+  font-size: 1em;
+  line-height: 1.45;
+}
+.slide-body .prose-chapter p {
+  margin: 0 0 0.6em;
+}
+.slide-body .prose-chapter ul,
+.slide-body .prose-chapter ol {
+  margin: 0 0 0.6em;
+}
+.slide-body .prose-chapter li {
+  margin: 0.25em 0;
+}
+.slide-body .prose-chapter .katex-display {
+  margin: 0.6em 0;
+  overflow: visible;
+}
+.slide-body .prose-chapter .table-wrap {
+  margin: 0.6em 0;
+}
+.slide-body .prose-chapter table {
+  font-size: 0.8em;
+}
+.slide-body .prose-chapter pre {
+  font-size: 0.7em;
+}
+.slide-body .prose-chapter .code-block {
+  margin: 0.6em 0;
+}
+.slide-body .prose-chapter .code-block-bar {
+  display: none;
+}
+.slide-body .prose-chapter .callout {
+  margin: 0.8em 0;
+}
+.slide-body .prose-chapter .callout-head {
+  padding: 0.6em 0.9em 0;
+}
+.slide-body .prose-chapter .callout-label {
+  font-size: 0.62em;
+}
+.slide-body .prose-chapter .callout-title {
+  font-size: 0.95em;
+}
+.slide-body .prose-chapter .callout-hint {
+  font-size: 0.6em;
+}
+.slide-body .prose-chapter .callout-body {
+  padding: 0.3em 0.9em 0.1em;
+}
+.slide-body .prose-chapter details.callout > summary {
+  padding-bottom: 0.6em;
+}
+/* Diagrams and figures shrink to fit the stage rather than spill out of it.
+   The stage is 16:9, so 30cqw is a little over half its height. */
+.slide-body .mermaid-block {
+  display: flex;
+  justify-content: center;
+}
+.slide-body .mermaid-block svg {
+  max-width: 100%;
+  max-height: calc(31cqw * var(--fit, 1));
+  height: auto;
+}
+.slide-body .viz {
+  margin: 0.6em 0;
+  font-size: 0.62em;
+}
+.slide-body .viz-body svg {
+  max-height: 36cqw;
+  margin-inline: auto;
+}
+/* The opening slide and the section dividers sit in the middle of the stage. */
+.slide-frame[data-kind="title"],
+.slide-frame[data-kind="section"] {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide-frame[data-kind="title"] .slide-title {
+  font-size: 2.6em;
+}
+.slide-frame[data-kind="section"] .slide-title {
+  font-size: 2.4em;
+}
+.slide-frame[data-kind="title"] .slide-title::before,
+.slide-frame[data-kind="section"] .slide-title::before {
+  margin-inline: auto;
+}
+.slide-frame[data-kind="title"] .slide-body .prose-chapter,
+.slide-frame[data-kind="section"] .slide-body .prose-chapter {
+  font-size: 1.1em;
+  color: var(--fg-subtle);
+}
+.slide-frame[data-kind="section"] .slide-body {
+  max-width: 40em;
+}
+
+/* The speaker notes, in the presenter's side column. */
+.slide-notes .prose-chapter {
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.slide-notes .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* The presenter fits the largest 16:9 stage the window has room for. */
+.presenter-well {
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.presenter .slide-stage {
+  width: min(100cqw, calc(100cqh * 16 / 9));
+}
+.presenter .slide-thumb {
+  width: 100%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.presenter .slide-thumb .slide-frame {
+  pointer-events: none;
+}
+/* A phone held upright has no room for 16:9, so the slide fills the height and
+   scrolls instead. */
+@media (max-aspect-ratio: 4 / 5) {
+  .presenter-well .slide-stage {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+  .presenter-well .slide-frame {
+    font-size: calc(max(15px, 4.2cqw) * var(--fit, 1));
+    padding: 6cqw 6cqw 5cqw;
+  }
+}
+.presenter:fullscreen .slide-stage,
+:fullscreen .presenter .slide-stage {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Print layout. One slide per page, on its own page size, so printing the
+   site's other pages keeps the printer's default. */
+@page slides {
+  size: 13.333in 7.5in;
+  margin: 0;
+}
+.slides-print {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1rem 3rem;
+}
+.slides-print .print-slide {
+  width: min(100%, 64rem);
+}
+@media print {
+  html,
+  body,
+  #root,
+  #slides,
+  .slides-print-page {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .print-toolbar {
+    display: none !important;
+  }
+  .slides-print {
+    page: slides;
+    display: block;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slides-print .print-slide {
+    width: 13.333in;
+    height: 7.5in;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .slides-print .print-slide:last-child {
+    break-after: auto;
+  }
+}

@@ -1,0 +1,177 @@
+# Guards the course content: every chapter's and slide deck's maths must render
+# with the same KaTeX build the site uses, every chapter's front matter must be
+# loadable, every deck must meet docs/SLIDES.md, every lab must pass its static
+# checks, and the whole course must print as a PDF book.
+#
+# The lab checker skips labs that need CUDA, because a hosted runner has no GPU.
+# Those are covered by running the lab in the app.
+
+name: Check content
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - content/**
+      - docs/**
+      - backend/**
+      - scripts/**
+      - frontend/src/lib/katexMacros.json
+      - frontend/src/**
+      - frontend/scripts/**
+      - frontend/book.html
+      - frontend/vite.book.config.ts
+      - frontend/package-lock.json
+      - .github/workflows/check-content.yml
+  pull_request:
+    paths:
+      - content/**
+      - docs/**
+      - backend/**
+      - scripts/**
+      - frontend/src/lib/katexMacros.json
+      - frontend/src/**
+      - frontend/scripts/**
+      - frontend/book.html
+      - frontend/vite.book.config.ts
+      - frontend/package-lock.json
+      - .github/workflows/check-content.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the frontend's dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Render every chapter's and deck's maths
+        run: node scripts/check_math.mjs
+
+      - name: Parse every Mermaid diagram in the decks
+        working-directory: frontend
+        run: npm run check:mermaid
+
+      - name: Typecheck the frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+  chapters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the backend's dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Run the backend's tests
+        run: python -m pytest backend -q
+
+      - name: Check every chapter's callouts and outline
+        run: python scripts/check_chapters.py
+
+      - name: Check every slide deck against docs/SLIDES.md
+        run: python scripts/check_slides.py
+
+      - name: Load every chapter and lab
+        run: |
+          python - <<'PY'
+          from backend.app.curriculum import chapter_list, load_labs
+
+          chapters = chapter_list()
+          labs = load_labs()
+          print(f"{len(chapters)} chapters, {len(labs)} labs")
+
+          missing = [
+              (c["slug"], c["lab"])
+              for c in chapters
+              if c.get("lab") and c["lab"] not in labs
+          ]
+          if missing:
+              for slug, lab in missing:
+                  print(f"{slug} points at a lab that does not exist: {lab}")
+              raise SystemExit(1)
+
+          for chapter in chapters:
+              for field in ("title", "part", "summary"):
+                  if not chapter.get(field):
+                      raise SystemExit(f"{chapter['slug']} has no {field}")
+              # An unquoted objective containing ": " parses as a mapping,
+              # which the reader cannot render.
+              for objective in chapter["objectives"]:
+                  if not isinstance(objective, str):
+                      raise SystemExit(
+                          f"{chapter['slug']} has an objective that is not a string; "
+                          f"quote it: {objective!r}"
+                      )
+          PY
+
+  labs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install torch for CPU
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install numpy
+
+      - name: Run every lab's reference solution
+        run: python scripts/check_labs.py
+
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the loader's dependencies
+        run: pip install -r backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the frontend's dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      # Fails on maths KaTeX can't render and on anything wider than the page,
+      # either of which would make a page of the book wrong.
+      - name: Build the PDF book
+        run: node frontend/scripts/build-book.mjs --force
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PYTHON: python
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: book
+          path: book/*.pdf
+          retention-days: 7

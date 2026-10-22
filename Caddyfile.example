@@ -1,0 +1,25 @@
+# Add this block to the VM's Caddyfile, then reload Caddy:
+#
+#   cd ~/docs/caddy && docker compose exec caddy caddy reload \
+#       --config /etc/caddy/Caddyfile --adapter caddyfile
+#
+# Point an A record for the host at this machine first, or the ACME HTTP-01
+# challenge cannot complete. Validate before reloading:
+#
+#   docker compose exec caddy caddy validate \
+#       --config /etc/caddy/Caddyfile --adapter caddyfile
+
+gpu.ifkash.dev {
+	encode zstd gzip
+
+	# Lab output is a server-sent event stream that stays open for the length of
+	# a GPU run, so response buffering must be off and the timeouts must outlast
+	# the longest lab.
+	reverse_proxy learn-gpu:8000 {
+		flush_interval -1
+		transport http {
+			response_header_timeout 30m
+			read_timeout 30m
+		}
+	}
+}

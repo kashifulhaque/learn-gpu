@@ -1,0 +1,60 @@
+# learn-gpu — the course app and its lab runner.
+#
+# Caddy on this host terminates TLS and proxies to learn-gpu:8000 over the
+# shared `edge` network, the same way the other services here are reached.
+#
+#   docker compose up -d --build
+#
+# This directory is a clone of the repository. A deploy is `git fetch` to the
+# commit being released, then the line above; scripts/deploy.sh does both from a
+# workstation. The PDF book in ./book is built on that workstation too, copied
+# here, and mounted read-only; without it the app runs as before, with no
+# download link.
+
+name: learn-gpu
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # scripts/deploy.sh sets this to the commit being deployed.
+        GIT_SHA: ${GIT_SHA:-unknown}
+    image: learn-gpu:local
+    container_name: learn-gpu
+    restart: unless-stopped
+    expose:
+      - "8000"
+    ports:
+      # Localhost only. Caddy reaches the container over `edge`, so this is not
+      # a route in from outside; it exists so the app can be reached through an
+      # SSH tunnel before its DNS record lands:
+      #   ssh -L 8091:127.0.0.1:8091 ifkash@vm.ifkash.dev
+      - "127.0.0.1:8091:8000"
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - learn-gpu-data:/data
+      - ./book:/app/book:ro
+    networks:
+      - edge
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  learn-gpu-data:
+
+networks:
+  edge:
+    external: true

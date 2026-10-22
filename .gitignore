@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+.vite/
+
+# Env & secrets
+.env
+.env.local
+*.pem
+
+# Data
+data/
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+
+# Build metadata
+frontend/tsconfig.tsbuildinfo
+
+# The PDF book, built by frontend/scripts/build-book.mjs at deploy time.
+/book/
+frontend/dist-book/

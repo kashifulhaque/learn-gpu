@@ -1,0 +1,41 @@
+# RunPod serverless worker. Carries the labs and a full CUDA toolkit, so every
+# run gets the code it was built with and can compile CUDA C++ with nvcc.
+#
+# The base image is a *devel* image: the runtime variant has no nvcc, and
+# `torch.utils.cpp_extension.load_inline` needs it. Its CUDA toolkit (12.8) is
+# the one this torch wheel was built against, which is what load_inline wants.
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel
+
+ENV PYTHONUNBUFFERED=1 \
+    CUDA_HOME=/usr/local/cuda \
+    # Build for the A100 only. Compiling for every architecture multiplies
+    # nvcc's time and the lab's first-run wait.
+    TORCH_CUDA_ARCH_LIST=8.0 \
+    TORCH_EXTENSIONS_DIR=/tmp/torch_extensions \
+    MAX_JOBS=4 \
+    LG_LABS_DIR=/repo/content/labs
+
+RUN sed -i 's|http://|https://|g' /etc/apt/sources.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        git build-essential ninja-build \
+    && rm -rf /var/lib/apt/lists/*
+
+# triton 3.4.0 is the release torch 2.8.0 pins; it is named here so a change to
+# the base image cannot move it silently.
+RUN pip install --no-cache-dir \
+        numpy==2.1.3 \
+        ninja==1.11.1.4 \
+        triton==3.4.0 \
+        einops==0.8.1 \
+        runpod==1.7.7
+
+WORKDIR /repo
+COPY content/labs /repo/content/labs
+COPY gpu/harness.py /repo/gpu/harness.py
+COPY gpu/lab_runner.py /repo/gpu/lab_runner.py
+COPY gpu/runpod_worker/handler.py /repo/gpu/handler.py
+
+# Fail the build, not the first lab, if the toolchain is missing.
+RUN nvcc --version && ninja --version && python -c "import triton, torch; print(torch.__version__, torch.version.cuda, triton.__version__)"
+
+CMD ["python", "-u", "/repo/gpu/handler.py"]

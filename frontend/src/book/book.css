@@ -1,0 +1,833 @@
+/* ------------------------------------------------------------------------
+   The print layout for the PDF book. It sits on top of index.css, so the
+   chapter bodies keep the site's typography, and changes only what a
+   printed page needs: a page box, running heads, no scrolling, no folding,
+   and breaks.
+   ------------------------------------------------------------------------ */
+
+/* ISO B5, the usual textbook trim, with the wider margin on the spine side. */
+@page {
+  size: 176mm 250mm;
+  margin: 19mm 17mm 20mm 21mm;
+
+  @top-left {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 7.5pt;
+    color: #706a60;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+  @top-right {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 7.5pt;
+    color: #706a60;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+  @bottom-left {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 8pt;
+    color: #48443d;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+  @bottom-right {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 8pt;
+    color: #48443d;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+}
+@page :left {
+  margin-left: 17mm;
+  margin-right: 21mm;
+  @bottom-left {
+    content: counter(page);
+  }
+}
+@page :right {
+  margin-left: 21mm;
+  margin-right: 17mm;
+  @bottom-right {
+    content: counter(page);
+  }
+}
+
+/* The cover bleeds and carries nothing in its margins. */
+@page cover {
+  margin: 0;
+  @top-left {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+  @bottom-left {
+    content: none;
+  }
+  @bottom-right {
+    content: none;
+  }
+}
+
+/* Front matter and chapter openers keep their folio but carry no running
+   head, the way a printed book does. Part pages carry neither. */
+@page front {
+  @top-left {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+}
+@page part {
+  @top-left {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+  @bottom-left {
+    content: none;
+  }
+  @bottom-right {
+    content: none;
+  }
+}
+@page opener {
+  @top-left {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+}
+
+html,
+body,
+#root,
+#book {
+  height: auto !important;
+}
+html,
+body {
+  background: #fff;
+  /* 12.5px puts the chapter text, at 1.0625rem, on 10pt. */
+  font-size: 12.5px;
+}
+body {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.book {
+  --paper: #fff;
+}
+
+/* ------------------------------------------------------------------------
+   The cover.
+   ------------------------------------------------------------------------ */
+
+.cover {
+  page: cover;
+  display: flex;
+  flex-direction: column;
+  height: 250mm;
+  box-sizing: border-box;
+  padding: 22mm 20mm 18mm 24mm;
+  background: var(--well);
+  break-after: page;
+  font-family: var(--font-sans);
+}
+.cover-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cover-site {
+  font-size: 9pt;
+  color: var(--fg-subtle);
+}
+.cover-main {
+  margin-top: 40mm;
+}
+.cover-kicker {
+  font-size: 9.5pt;
+  font-weight: 500;
+  color: var(--accent);
+}
+.cover-title {
+  margin-top: 4mm;
+  max-width: 120mm;
+  font-family: var(--font-serif);
+  font-size: 46pt;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+.cover-subtitle {
+  margin-top: 6mm;
+  max-width: 115mm;
+  font-family: var(--font-serif);
+  font-size: 15pt;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--fg-muted);
+}
+.cover-edition {
+  margin-top: 16mm;
+  max-width: 108mm;
+  border-top: 1.5px solid var(--fg);
+  padding-top: 4mm;
+}
+.cover-edition-name {
+  font-size: 12pt;
+  font-weight: 600;
+  color: var(--fg);
+}
+.cover-edition-blurb {
+  margin-top: 2mm;
+  font-family: var(--font-serif);
+  font-size: 10.5pt;
+  line-height: 1.45;
+  color: var(--fg-subtle);
+}
+.cover-foot {
+  margin-top: auto;
+}
+.cover-parts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.6mm 8mm;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 4mm;
+  font-size: 8.5pt;
+  color: var(--fg-muted);
+}
+.cover-parts li {
+  display: flex;
+  gap: 2.5mm;
+}
+.cover-parts-n {
+  min-width: 3mm;
+  font-weight: 600;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.cover-built {
+  margin-top: 4mm;
+  font-size: 7.5pt;
+  color: var(--fg-faint);
+}
+
+/* ------------------------------------------------------------------------
+   Front matter: the contents and the note on how the book works.
+   ------------------------------------------------------------------------ */
+
+.front {
+  page: front;
+  break-before: page;
+}
+.front-title {
+  margin-bottom: 8mm;
+  font-family: var(--font-serif);
+  font-size: 22pt;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.toc {
+  font-family: var(--font-sans);
+  font-size: 9pt;
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+.toc a {
+  color: inherit;
+  text-decoration: none;
+}
+.toc-row,
+.toc-part-title,
+.mini-toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+}
+.toc-title {
+  min-width: 0;
+}
+/* The dot leader between a title and its page number. */
+.toc-leader {
+  flex: 1;
+  min-width: 6mm;
+  align-self: baseline;
+  border-bottom: 1px dotted var(--line-strong);
+  transform: translateY(-0.25em);
+}
+.pg {
+  min-width: 2.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.toc-front {
+  margin-bottom: 3mm;
+}
+/* The contents fit on one page, so the title gives up some air. */
+.toc .front-title {
+  margin-bottom: 5mm;
+}
+.toc-part {
+  margin-top: 3mm;
+  break-inside: avoid;
+}
+.toc-part-title {
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 1mm;
+  margin-bottom: 1mm;
+  font-weight: 600;
+  color: var(--fg);
+}
+.toc-part-n {
+  min-width: 13mm;
+  font-weight: 500;
+  color: var(--fg-subtle);
+}
+.toc-chapter {
+  padding-block: 0.45mm;
+}
+.toc-n {
+  min-width: 13mm;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--fg-subtle);
+}
+
+/* How to use this book. */
+.about-prose {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--fg-muted);
+}
+.about-prose > p + p {
+  margin-top: 0.7em;
+}
+.about-prose strong {
+  color: var(--fg);
+  font-weight: 620;
+}
+.about .front-title {
+  margin-bottom: 6mm;
+}
+.about-list {
+  margin-block: 6mm;
+  display: grid;
+  gap: 2.5mm;
+  font-family: var(--font-sans);
+}
+.about-list > div {
+  display: grid;
+  grid-template-columns: 30mm 1fr;
+  gap: 4mm;
+  border-top: 1px solid var(--line);
+  padding-top: 3mm;
+}
+.about-list dt {
+  font-size: 9.5pt;
+  font-weight: 600;
+  color: var(--fg);
+}
+.about-list dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 10pt;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+/* ------------------------------------------------------------------------
+   Part pages.
+   ------------------------------------------------------------------------ */
+
+.part-page {
+  page: part;
+  break-before: page;
+  padding-top: 12mm;
+}
+.part-kicker {
+  font-family: var(--font-sans);
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--accent);
+}
+.part-title {
+  margin-top: 3mm;
+  font-family: var(--font-serif);
+  font-size: 30pt;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+.part-chapters {
+  margin-top: 10mm;
+  border-top: 1.5px solid var(--fg);
+}
+.part-chapters li {
+  display: flex;
+  gap: 5mm;
+  border-bottom: 1px solid var(--line);
+  padding-block: 2mm;
+  break-inside: avoid;
+}
+.part-chapter-n {
+  min-width: 8mm;
+  font-family: var(--font-mono);
+  font-size: 9.5pt;
+  color: var(--accent);
+}
+.part-chapter-text {
+  min-width: 0;
+  flex: 1;
+}
+.part-chapter-title {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 12.5pt;
+  font-weight: 600;
+  color: var(--fg);
+}
+.part-chapter-q {
+  display: block;
+  margin-top: 0.6mm;
+  font-family: var(--font-serif);
+  font-size: 9.5pt;
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--fg-subtle);
+}
+.part-chapter-pg {
+  align-self: baseline;
+  font-family: var(--font-sans);
+  font-size: 9.5pt;
+  color: var(--fg-subtle);
+  text-decoration: none;
+}
+
+/* ------------------------------------------------------------------------
+   A chapter: the opener, then the body with its lab.
+   ------------------------------------------------------------------------ */
+
+.opener {
+  page: opener;
+  break-before: page;
+  padding-top: 8mm;
+}
+.opener-kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  font-family: var(--font-sans);
+  font-size: 9pt;
+  color: var(--fg-subtle);
+}
+.opener-n {
+  font-weight: 600;
+  color: var(--accent);
+}
+.opener-minutes {
+  margin-left: auto;
+}
+.opener-title {
+  margin-top: 3mm;
+  font-family: var(--font-serif);
+  font-size: 26pt;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+.opener-question {
+  margin-top: 3mm;
+  font-family: var(--font-serif);
+  font-size: 12pt;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--fg-subtle);
+}
+.opener-box {
+  margin-top: 7mm;
+  border-top: 1.5px solid var(--fg);
+  padding-top: 2.5mm;
+  break-inside: avoid;
+}
+.opener-levels {
+  margin-top: 6mm;
+}
+.mini-toc-label {
+  margin-bottom: 1.5mm;
+  font-family: var(--font-sans);
+  font-size: 8pt;
+  font-weight: 600;
+  color: var(--fg-subtle);
+}
+.opener-objectives {
+  font-family: var(--font-serif);
+  font-size: 10pt;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+.opener-objectives li {
+  position: relative;
+  padding-left: 5mm;
+}
+.opener-objectives li + li {
+  margin-top: 1.2mm;
+}
+.opener-objectives li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  font-family: var(--font-sans);
+  color: var(--fg-faint);
+}
+.mini-toc {
+  font-family: var(--font-sans);
+  font-size: 8.8pt;
+  color: var(--fg-muted);
+}
+.mini-toc li + li {
+  margin-top: 0.9mm;
+}
+.mini-toc a {
+  color: inherit;
+  text-decoration: none;
+}
+.mini-toc-n {
+  min-width: 7mm;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--accent);
+}
+.mini-toc-lab {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* The body starts on a page of its own, which is also what lets the running
+   head name the chapter. Book.tsx gives each chapter its named page. */
+.chapter-main {
+  break-before: page;
+}
+
+/* ------------------------------------------------------------------------
+   The chapter body, adjusted for paper.
+   ------------------------------------------------------------------------ */
+
+/* The opener shows the title, so the body's own H1 would repeat it. */
+.chapter-body .chapter-intro > h1:first-child {
+  display: none;
+}
+.chapter-body .prose-chapter {
+  counter-reset: section;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  hyphens: auto;
+}
+.chapter-body .chapter-section + .chapter-section {
+  margin-top: 2.4rem;
+}
+.prose-chapter p,
+.prose-chapter li {
+  orphans: 3;
+  widows: 3;
+}
+/* An identifier split with a hyphen reads as a different identifier. */
+.prose-chapter code,
+.prose-chapter pre {
+  hyphens: manual;
+}
+/* The site's list indent leaves a monospace "10." hanging past the column,
+   which the screen tolerates and the page box clips. */
+.prose-chapter ol {
+  padding-left: 1.9rem;
+}
+.prose-chapter h2,
+.prose-chapter h3,
+.prose-chapter h4,
+.callout-head,
+.code-block-bar,
+.lab-kicker,
+.lab-title {
+  break-after: avoid;
+}
+.prose-chapter h2,
+.prose-chapter h3 {
+  break-inside: avoid;
+}
+
+/* Boxes keep their frame on both sides of a page break. */
+.prose-chapter .callout,
+.prose-chapter .code-block,
+.prose-chapter .table-wrap {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.prose-chapter li,
+.prose-chapter .katex-display,
+.prose-chapter .table-wrap {
+  break-inside: avoid;
+}
+/* A callout's head is a wrapping flex row, and Chrome will break a page
+   between its lines, leaving the label alone at the foot of a page. */
+.prose-chapter .callout-head {
+  break-inside: avoid;
+}
+/* A short callout stays whole; a long one may run over a page. */
+.prose-chapter .callout-tldr,
+.prose-chapter .callout-key,
+.prose-chapter .callout-question,
+.prose-chapter .callout-recap {
+  break-inside: avoid;
+}
+
+/* Nothing folds on paper. Book.tsx opens every <details>; the controls that
+   would open or close one go. */
+.prose-chapter .callout-hint {
+  display: none;
+}
+.prose-chapter details.callout > summary {
+  padding-bottom: 0;
+}
+.prose-chapter details.callout[open] > .callout-body {
+  animation: none;
+}
+/* A self-check prints its answer too, so say which part that is. */
+.prose-chapter .callout-question .callout-body::before {
+  content: "Answer";
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--fg-subtle);
+}
+
+/* No scrolling on paper. Book.tsx shrinks anything too wide to fit, and a
+   code line too long for the page wraps. */
+.prose-chapter .katex-display {
+  overflow: visible;
+}
+.prose-chapter pre {
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.8rem 0.7rem;
+}
+.prose-chapter .table-wrap {
+  overflow: visible;
+}
+.prose-chapter table {
+  font-size: 0.8rem;
+}
+.prose-chapter th {
+  white-space: normal;
+}
+.prose-chapter thead {
+  display: table-header-group;
+}
+.prose-chapter .code-block-bar {
+  height: 1.6rem;
+  font-size: 0.66rem;
+}
+.prose-chapter .code-block-bar button {
+  display: none;
+}
+
+/* Links stay live in the PDF, and read as ordinary text in print. */
+.prose-chapter a {
+  text-decoration-thickness: 0.5px;
+  text-underline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------------
+   The lab inside each chapter, and the solutions appendix.
+   ------------------------------------------------------------------------ */
+
+.lab {
+  margin-top: 1.4rem;
+  border-top: 1.5px solid var(--fg);
+  padding-top: 4mm;
+}
+.lab-kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  font-family: var(--font-sans);
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: var(--accent);
+}
+.lab-runs {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--fg-subtle);
+}
+.lab-title {
+  margin-top: 1.5mm;
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+.lab-brief {
+  margin-top: 2.5mm;
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+.lab-online {
+  margin-top: 2.5mm;
+  font-family: var(--font-sans);
+  font-size: 8.5pt;
+  line-height: 1.5;
+  color: var(--fg-subtle);
+}
+.lab-online a,
+.solution-back {
+  color: var(--accent);
+  text-decoration: none;
+}
+.pg-inline {
+  min-width: 0;
+  text-align: left;
+}
+.lab-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1.2mm 1.6mm;
+  margin-top: 2.5mm;
+  font-family: var(--font-sans);
+  font-size: 8pt;
+  color: var(--fg-subtle);
+}
+.lab-metrics-label {
+  margin-right: 1mm;
+  font-weight: 600;
+}
+.lab-metrics code {
+  font-family: var(--font-mono);
+  font-size: 7.6pt;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 0.3em;
+  color: var(--fg);
+}
+
+/* A whole file: the starter in a chapter's lab, or a solution. Long files
+   run over pages, so the box repeats its frame on each. */
+.codefile {
+  margin-top: 4mm;
+}
+.codefile .code-block {
+  margin: 0;
+}
+.codefile-lines {
+  font-family: var(--font-sans);
+  color: var(--fg-faint);
+}
+.codefile pre {
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+/* One source line. A line that wraps hangs its continuation four columns
+   past its own indentation. See splitLines in Book.tsx. */
+.codefile .ln {
+  display: block;
+  padding-left: var(--indent);
+  text-indent: calc(-1 * var(--indent));
+}
+
+.lab-hints {
+  margin-top: 5mm;
+  break-inside: avoid;
+}
+.lab-hints-title {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+.lab-hints-note {
+  margin-top: 0.5mm;
+  font-family: var(--font-sans);
+  font-size: 8.5pt;
+  color: var(--fg-subtle);
+}
+.lab-hints-list {
+  margin-top: 2.5mm;
+  padding-left: 1.6em;
+  list-style: decimal;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  hyphens: auto;
+}
+.lab-hints-list > li + li {
+  margin-top: 1.5mm;
+}
+.lab-hints-list > li::marker {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--fg-faint);
+}
+
+.solutions-note {
+  margin-top: 12mm;
+  max-width: 118mm;
+}
+.solutions-body {
+  page: solutions;
+  break-before: page;
+}
+.solution + .solution {
+  margin-top: 12mm;
+}
+.solution {
+  border-top: 1.5px solid var(--fg);
+  padding-top: 4mm;
+}
+.solution-back {
+  margin-left: auto;
+  font-weight: 400;
+}
+.solution-chapter {
+  margin-top: 1mm;
+  font-family: var(--font-serif);
+  font-size: 10pt;
+  font-style: italic;
+  color: var(--fg-subtle);
+}
+
+/* A figure prints in its initial state. Its controls have nothing to do on
+   paper, and the figure stays on one page. */
+.prose-chapter .viz {
+  break-inside: avoid;
+}
+.prose-chapter .viz-controls {
+  display: none;
+}

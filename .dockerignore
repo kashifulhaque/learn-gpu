@@ -1,0 +1,22 @@
+.git
+.gitignore
+.venv
+venv
+data
+*.db
+*.sqlite3
+.env
+.env.*
+!.env.example
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.DS_Store
+frontend/dist-book
+# Mounted into the container instead, see docker-compose.yml.
+book

@@ -74,31 +74,20 @@ def run(submission):
 
     # ---- Part 1: the arithmetic and the schedule, which run anywhere --------
     if c.require(submission, "stage_smem_bytes", "max_stages", "schedule"):
-        c.add(
-            "one stage holds a 128x40 tile of A and a 32x136 tile of B in bf16: 18944 bytes",
-            submission.stage_smem_bytes(1) == 18944,
-            f"got {submission.stage_smem_bytes(1)}",
-        )
-        c.add(
-            "four stages need 75776 bytes",
-            submission.stage_smem_bytes(4) == 75776,
-            f"got {submission.stage_smem_bytes(4)}",
-        )
-        c.add(
-            "one block per SM: floor(166912 / 18944) = 8 stages",
-            submission.max_stages() == 8,
-            f"got {submission.max_stages()}",
-        )
-        c.add(
-            "two blocks per SM: floor((83968 - 1024) / 18944) = 4 stages",
-            submission.max_stages(blocks_per_sm=2) == 4,
-            f"got {submission.max_stages(blocks_per_sm=2)}",
-        )
-        c.add(
-            "three blocks per SM: 2 stages",
-            submission.max_stages(blocks_per_sm=3) == 2,
-            f"got {submission.max_stages(blocks_per_sm=3)}",
-        )
+        def expect(name, fn, want):
+            # Run the student's helper inside c.check, so an unfinished starter fails the check instead of crashing the run.
+            def go():
+                got = fn()
+                return got == want, f"got {got}, expected {want}"
+            c.check(name, go)
+
+        expect("one stage holds a 128x40 tile of A and a 32x136 tile of B in bf16: 18944 bytes",
+               lambda: submission.stage_smem_bytes(1), 18944)
+        expect("four stages need 75776 bytes", lambda: submission.stage_smem_bytes(4), 75776)
+        expect("one block per SM: floor(166912 / 18944) = 8 stages", lambda: submission.max_stages(), 8)
+        expect("two blocks per SM: floor((83968 - 1024) / 18944) = 4 stages",
+               lambda: submission.max_stages(blocks_per_sm=2), 4)
+        expect("three blocks per SM: 2 stages", lambda: submission.max_stages(blocks_per_sm=3), 2)
         for stages in STAGE_COUNTS:
             for tiles in (1, 2, 3, 6, 16):
                 msg = None

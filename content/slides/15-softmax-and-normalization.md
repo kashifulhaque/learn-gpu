@@ -246,8 +246,8 @@ file, so we do the arithmetic.
 | Row length N | Layout |
 |---|---|
 | up to 256 | 2D tile, several rows per program |
-| 256 to 16384 | One row per program, in registers |
-| above 16384 | One row per program, loop over chunks |
+| 256 to 4096 | One row per program, in registers |
+| above 4096 | One row per program, loop over chunks of 4096 (the lab's cap) |
 | few rows, very long | Several programs per row, merged |
 
 Note:

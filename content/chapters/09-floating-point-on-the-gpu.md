@@ -178,6 +178,13 @@ evaluates it, and your lab measures each entry by round-tripping 65,536 values:
 | E5M2 | 2 | $2^{-3}$ | 0.125 |
 | E2M1 | 1 | $2^{-2}$ | 0.25 |
 
+The measured value for a coarse format sits a little under the table entry. The
+bound is reached only where the gap is widest relative to the number, and in
+$[1, 2)$ the first tie is at $1 + 2^{-(m+1)}$, not at 1. For E4M3 the worst
+case is the tie at 1.0625, which errs by 0.0625 on a value of 1.0625, so the lab
+reports $0.0588$ against the bound $0.0625$. The tests accept 85% to 100% of the
+bound for that reason.
+
 > [!EXAMPLE] Ties to even in bfloat16
 > A bfloat16 number in $[256, 512)$ has $m = 7$, so the ulp is
 > $2^{8-7} = 2$ and the neighbours of 257 are 256 and 258. Then 257 is a tie,
@@ -430,8 +437,8 @@ bf16 reduction would stall near 256 terms. Your lab reproduces it: the
 `sum_bf16_sequential` function adds one column at a time in a bf16 accumulator,
 and a row of 1024 ones must come out as exactly 256.
 
-The error is also **one-sided**. Dropping a positive addend only ever makes the
-sum too small, so the mistake is a bias that averaging over layers or tokens
+The error is also **one-sided**. An addend below half an ulp is dropped, and
+dropping a positive addend makes the sum too small, so the mistake is a bias that averaging over layers or tokens
 does not cancel.
 
 ```viz
@@ -654,8 +661,7 @@ Other fixed-order tricks exist:
   PyTorch to choose deterministic implementations where they exist and to raise
   an error for an operation that has none. The PyTorch
   [reproducibility notes](https://docs.pytorch.org/docs/stable/notes/randomness.html)
-  list the affected operations, and also that the FlashAttention backward in
-  `scaled_dot_product_attention` uses atomics by default. Setting
+  list the affected operations. Setting
   `torch.backends.cudnn.benchmark = False` makes cuDNN pick its algorithm
   deterministically, and `torch.backends.cudnn.deterministic = True` forces
   deterministic convolutions.

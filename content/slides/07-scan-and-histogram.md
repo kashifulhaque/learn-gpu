@@ -239,7 +239,7 @@ Dashed arrows are the copy half of the down-sweep swap.
 
 > [!QUESTION] If Blelloch has far fewer additions, why isn't it far faster?
 > A step costs a warp-wide instruction, not an add per thread, and the barriers
-> are equal. The block waits on barriers and shared-memory round trips.
+> are about the same. The block waits on barriers and shared-memory round trips.
 
 Note:
 Warp-steps count the warps that have at least one active thread. With d equal to

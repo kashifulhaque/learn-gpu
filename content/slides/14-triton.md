@@ -106,7 +106,8 @@ instruction are decided. Below that it is ordinary LLVM and NVIDIA's assembler.
 
 ```python
 k = matmul_kernel[grid](a, b, c, c, M, N, K, ...,
-                        BLOCK_M=128, BLOCK_N=128, BLOCK_K=32,
+                        BLOCK_M=128, BLOCK_N=128, BLOCK_K=32, GROUP_M=8,
+                        HAS_BIAS=False, ACTIVATION="none",
                         num_warps=4, num_stages=4)
 print(k.asm.keys())      # ttir, ttgir, llir, ptx, cubin
 print(k.n_regs, k.n_spills, k.metadata.shared)

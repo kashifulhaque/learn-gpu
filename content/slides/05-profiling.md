@@ -122,7 +122,7 @@ Three details. ProfilerActivity.CUDA is what records kernels, and the old use_cu
 > A CPU operator's total includes every kernel it launched, so wrappers rank above the kernel that did the work. Self time points at the kernel.
 
 Note:
-Self versus total is the one confusing part. aten colon colon add has a CUDA total that includes its kernel, but only the kernel row has self device time. The kernel name is a free clue: vectorized in the name means 16 bytes per thread, gemm or cutlass is a matmul. If the top kernel is not the one you expected, you already learned something.
+Self versus total is the one confusing part. aten colon colon add has a CUDA total that includes its kernel, but only the kernel row has self device time. The kernel name is a free clue: vectorized in the name means wide loads of several elements per thread, gemm or cutlass is a matmul. If the top kernel is not the one you expected, you already learned something.
 
 ### The Chrome trace is the picture {#chrome-trace}
 
@@ -414,7 +414,7 @@ $$
 > The two paths compute different things. The fix is to make the branch warp-uniform: each thread does an even element and the odd one beside it.
 
 Note:
-The useful work is 2.1 gigaflops against 19.5 teraflops, about 110 microseconds. The divergent kernel issues the same instructions with half the lanes useful, so the roofline predicts twice that. The lab asks for 1.3x, well under the predicted 2x, and reports your real ratio. In ncu the evidence is lanes active per instruction rising from about 16 to about 32.
+The useful work is 2.1 gigaFLOP against a 19.5 teraFLOP/s peak, about 110 microseconds. The divergent kernel issues the same instructions with half the lanes useful, so the roofline predicts twice that. The lab asks for 1.3x, well under the predicted 2x, and reports your real ratio. In ncu the evidence is lanes active per instruction rising from about 16 to about 32.
 
 ### Not every branch is a problem {#benign-branches}
 

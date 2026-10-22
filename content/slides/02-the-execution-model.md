@@ -127,7 +127,7 @@ Threads are numbered with x fastest, and consecutive groups of 32 form a warp. O
 > A core is one lane of an arithmetic pipe. A resident thread is registers and a program counter parked on the SM, so some warp is always ready while others wait on memory.
 
 Note:
-Each scheduler issues one warp instruction per cycle. Check the rated peak with the table: 108 SMs times 1.41 GHz times 128 FLOP per cycle is 19.5 TFLOP per second. A single warp can use a sub-partition's FP32 pipe at most half the time, because one FFMA occupies the 16 cores for two cycles. The question on the slide is the standard confusion between cores and threads, so give it a moment.
+Each scheduler issues one warp instruction per cycle. Check the rated peak with the table: 108 SMs times 1.41 GHz times 128 FLOP per cycle is 19.5 TFLOP per second. Because one FFMA occupies the 16 cores for two cycles, FP32 math uses at most half of a scheduler's issue slots. The question on the slide is the standard confusion between cores and threads, so give it a moment.
 
 # Divergence
 
@@ -318,7 +318,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor(
 ```
 
 > [!QUESTION] If I have the formula, why call the API?
-> The granularity rules are an approximation. The driver is the ground truth, and so is Nsight Compute, which reports theoretical and achieved occupancy. Your lab compares your calculator with the API on 160 configurations and prints every disagreement.
+> The granularity rules are an approximation. The driver is the ground truth, and so is Nsight Compute, which reports theoretical and achieved occupancy. Your lab compares your calculator with the API on 160 configurations and prints the first dozen disagreements.
 
 Note:
 Be direct about the status of the rules: the limits are confirmed from NVIDIA's tables, but the allocation units come from a retired calculator. The lab agrees to within a tolerance, and a mismatch tells you a rule is missing. The practical habit is to use the API or the profiler in real work, and use the formula to understand why the answer is what it is.
@@ -359,7 +359,7 @@ xychart-beta
 ```
 
 Note:
-This is measured on the course's lab A100 in the companion course's chapter 13. Going from 8 to 32 warps per block made the kernel 7.5 percent slower, because each extra warp had less of the row and added reduction cost. More occupancy was not hiding anything that was still exposed. Be careful about the claim: this shows more warps can hurt, not that fewer always helps.
+This is measured on the course's lab A100 in the companion course's chapter 13. Going from 8 to 32 warps per block made the kernel 7.5 percent slower, and the source doesn't isolate why. A plausible cause is that each extra warp had less of the row and added reduction cost. Be careful about the claim: this shows more warps can hurt, not that fewer always helps.
 
 ### When to push occupancy, and when not {#decision}
 

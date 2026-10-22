@@ -44,6 +44,14 @@ def within(actual, expected, rel):
     return ok, f"got {actual:.4g}, expected {expected:.4g} (within {rel:.0%})"
 
 
+def attempt(fn, *args, **kwargs):
+    """Call a reader function, returning None when it raises (for example NotImplementedError)."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def run(submission):
     c = Checks()
     names = [
@@ -187,10 +195,13 @@ def run(submission):
     c.check("compare_gpus returns one row per GPU that supports the precision", table)
 
     # Metrics that need no GPU.
-    c.metric("a100_bf16_peak_tflops", round(submission.peak_tflops(specs["A100"], "bf16"), 1))
-    c.metric("a100_bf16_ridge", round(submission.ridge_point(specs["A100"], "bf16"), 1))
-    c.metric("h100_bf16_ridge", round(submission.ridge_point(specs["H100"], "bf16"), 1))
-    c.metric("b200_bf16_ridge", round(submission.ridge_point(specs["B200"], "bf16"), 1))
+    a100_peak = attempt(submission.peak_tflops, specs["A100"], "bf16")
+    if a100_peak is not None:
+        c.metric("a100_bf16_peak_tflops", round(a100_peak, 1))
+    for gpu in ("A100", "H100", "B200"):
+        ridge = attempt(submission.ridge_point, specs[gpu], "bf16")
+        if ridge is not None:
+            c.metric(f"{gpu.lower()}_bf16_ridge", round(ridge, 1))
 
     # -- The card in front of you --------------------------------------------
     try:
@@ -204,7 +215,7 @@ def run(submission):
         return c.finish()
 
     props = torch.cuda.get_device_properties(0)
-    info = submission.describe_local_device()
+    info = attempt(submission.describe_local_device)
     if c.check("describe_local_device returns a dict", lambda: isinstance(info, dict)):
         c.add("name matches the device", info.get("name") == props.name, f"got {info.get('name')!r}")
         c.add(
@@ -237,8 +248,11 @@ def run(submission):
         )
 
     for precision in ("bf16", "fp32"):
-        peak = submission.local_peak_tflops(precision)
-        measured = submission.measure_matmul_tflops(precision)
+        peak = attempt(submission.local_peak_tflops, precision)
+        measured = attempt(submission.measure_matmul_tflops, precision)
+        if measured is None:
+            c.add(f"measure_matmul_tflops({precision!r}) runs", False, "it raised or is not implemented yet")
+            continue
         c.metric(f"matmul_{precision}_tflops", round(measured, 1))
         if peak is None:
             continue

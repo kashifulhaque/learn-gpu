@@ -1,0 +1,33 @@
+{
+  "id": "20-grouped-gemm",
+  "title": "Grouped GEMM for mixture-of-experts",
+  "brief": "Route tokens with top-2, sort them by expert with a histogram and a scan, run one Triton grouped GEMM over the expert segments with the gate weights fused into the epilogue, then unpermute and combine. Check against a per-expert PyTorch loop, report TFLOP/s and the speedup, and optionally time 2:4 structured sparsity.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": [
+    "grouped_tflops_big",
+    "loop_tflops_big",
+    "speedup_vs_loop_big",
+    "grouped_tflops_many",
+    "speedup_vs_loop_many",
+    "speedup_vs_loop_skewed",
+    "max_over_mean_load_skewed",
+    "moe_forward_ms",
+    "naive_moe_ms",
+    "speedup_end_to_end",
+    "sparse24_dense_ms",
+    "sparse24_sparse_ms",
+    "sparse24_speedup"
+  ],
+  "hints": [
+    "Start with the CPU-only parts: route_topk, expert_offsets, sort_by_expert, tile_schedule, max_m_tiles, tile_waste, and prune_2_4. The tests check them first and they need no kernel.",
+    "expert_offsets is two calls: torch.bincount(ids.reshape(-1), minlength=E) is the histogram, and torch.cumsum of the counts is the inclusive scan. Put it after a leading zero to make it exclusive.",
+    "In the kernel, initialise expert, first_tile and the running tile total as pid_m * 0 - 1, pid_m * 0 and pid_m * 0. A Python int there makes the loop-carried type constexpr and Triton rejects the reassignment.",
+    "A program past the last real tile must not read or write memory. Fold `valid` into the row mask and set the K loop's trip count to 0 with tl.where(valid, tl.cdiv(K, BLOCK_K), 0).",
+    "Every tl.arange size must be a power of two, tl.dot needs each block dimension to be at least 16, and the tests use BLOCK_K = 32. Mask the K axis with K - k * BLOCK_K so a D that BLOCK_K doesn't divide is correct.",
+    "To debug indices, set TRITON_INTERPRET=1 and run a tiny case such as 7 tokens, 5 experts, D = 33, N = 17 in a separate script. The interpreter runs the kernel on the CPU in Python, so you can print values.",
+    "The speedup metrics are reported with only a loose floor. The loop launches one cuBLAS matmul per expert, so the gap is largest with many small experts and smallest with a few large ones.",
+    "The 2:4 timing is optional and never fails the lab. If sparse24_speedup reads 0.0, the GPU or the PyTorch build didn't support to_sparse_semi_structured, and the log says why."
+  ]
+}

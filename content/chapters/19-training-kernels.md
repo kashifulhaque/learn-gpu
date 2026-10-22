@@ -607,7 +607,8 @@ chunking over rows:
 | `acc_dtype` | `None` | The accumulation dtype. For fp16 or bf16 input on a GPU that supports it, it resolves to float32. |
 | `allow_retain_graph` | `False` | If `False`, a second `backward()` raises an error, because the chunked op consumes its precomputed gradients in place. |
 
-The aspect-ratio heuristic is the balance described earlier. For
+You set `batch_chunk_size` or let `chunking_method` choose, not both: pass `chunking_method=None` with an explicit
+chunk size, as the lab's comparison does. The aspect-ratio heuristic is the balance described earlier. For
 $N = 8192$, $d = 4096$, and $V = 151{,}936$, the documented formula
 `next_pow2(ceil(N / ceil(V / d)))` gives $\lceil V/d \rceil = 38$,
 $\lceil 8192 / 38 \rceil = 216$, and a chunk of 256 rows.

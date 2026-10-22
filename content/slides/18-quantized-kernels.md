@@ -10,7 +10,7 @@ notes: |
 
 # Introduction
 
-The question this chapter answers: how do you turn a 3.8x byte saving into a 3.8x time saving?
+The question this chapter answers: how do you turn a 3.82x byte saving into a faster decode GEMV?
 
 Note:
 Open with the claim that decode is a memory problem. Every later slide is a

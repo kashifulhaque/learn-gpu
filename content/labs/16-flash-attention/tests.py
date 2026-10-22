@@ -223,37 +223,43 @@ def run(submission):
             out["sdpa_bwd_tflops"] = tflops(bwd_flops, out["sdpa_bwd_ms"])
         return out
 
-    perf = measure(128, True, True)
-    c.metric("fwd_tflops", round(perf["fwd_tflops"], 1))
-    c.metric("bwd_tflops", round(perf["bwd_tflops"], 1))
-    c.metric("fwd_vs_sdpa", round(perf["fwd_tflops"] / perf["sdpa_fwd_tflops"], 3))
-    c.metric("bwd_vs_sdpa", round(perf["bwd_tflops"] / perf["sdpa_bwd_tflops"], 3))
-    print(
-        f"      SDPA at the same shape: forward {perf['sdpa_fwd_tflops']:.1f} TFLOP/s, "
-        f"backward {perf['sdpa_bwd_tflops']:.1f} TFLOP/s (B=4 H=16 N=4096 D=128 causal)",
-        flush=True,
-    )
+    def performance():
+        perf = measure(128, True, True)
+        c.metric("fwd_tflops", round(perf["fwd_tflops"], 1))
+        c.metric("bwd_tflops", round(perf["bwd_tflops"], 1))
+        c.metric("fwd_vs_sdpa", round(perf["fwd_tflops"] / perf["sdpa_fwd_tflops"], 3))
+        c.metric("bwd_vs_sdpa", round(perf["bwd_tflops"] / perf["sdpa_bwd_tflops"], 3))
+        print(
+            f"      SDPA at the same shape: forward {perf['sdpa_fwd_tflops']:.1f} TFLOP/s, "
+            f"backward {perf['sdpa_bwd_tflops']:.1f} TFLOP/s (B=4 H=16 N=4096 D=128 causal)",
+            flush=True,
+        )
 
-    perf64 = measure(64, True, True)
-    c.metric("fwd_tflops_d64", round(perf64["fwd_tflops"], 1))
-    c.metric("bwd_tflops_d64", round(perf64["bwd_tflops"], 1))
-    nc = measure(128, False, False)
-    c.metric("fwd_tflops_noncausal", round(nc["fwd_tflops"], 1))
+        perf64 = measure(64, True, True)
+        c.metric("fwd_tflops_d64", round(perf64["fwd_tflops"], 1))
+        c.metric("bwd_tflops_d64", round(perf64["bwd_tflops"], 1))
+        nc = measure(128, False, False)
+        c.metric("fwd_tflops_noncausal", round(nc["fwd_tflops"], 1))
 
-    c.add(
-        "reported TFLOP/s are below the 312 TFLOP/s bf16 tensor-core peak",
-        max(perf["fwd_tflops"], perf["bwd_tflops"], perf64["fwd_tflops"], perf64["bwd_tflops"], nc["fwd_tflops"])
-        <= PEAK_SANITY,
-        "a figure above the peak means the FLOP count or the timing is wrong",
-    )
-    c.add(
-        f"forward is at least {FWD_VS_SDPA_MIN:.2f}x of scaled_dot_product_attention (D=128, causal, N=4096)",
-        perf["fwd_tflops"] >= FWD_VS_SDPA_MIN * perf["sdpa_fwd_tflops"],
-        f"{perf['fwd_tflops'] / perf['sdpa_fwd_tflops']:.2f}x",
-    )
-    c.add(
-        f"backward is at least {BWD_VS_SDPA_MIN:.2f}x of scaled_dot_product_attention (D=128, causal, N=4096)",
-        perf["bwd_tflops"] >= BWD_VS_SDPA_MIN * perf["sdpa_bwd_tflops"],
-        f"{perf['bwd_tflops'] / perf['sdpa_bwd_tflops']:.2f}x",
-    )
+        c.add(
+            "reported TFLOP/s are below the 312 TFLOP/s bf16 tensor-core peak",
+            max(perf["fwd_tflops"], perf["bwd_tflops"], perf64["fwd_tflops"], perf64["bwd_tflops"], nc["fwd_tflops"])
+            <= PEAK_SANITY,
+            "a figure above the peak means the FLOP count or the timing is wrong",
+        )
+        c.add(
+            f"forward is at least {FWD_VS_SDPA_MIN:.2f}x of scaled_dot_product_attention (D=128, causal, N=4096)",
+            perf["fwd_tflops"] >= FWD_VS_SDPA_MIN * perf["sdpa_fwd_tflops"],
+            f"{perf['fwd_tflops'] / perf['sdpa_fwd_tflops']:.2f}x",
+        )
+        c.add(
+            f"backward is at least {BWD_VS_SDPA_MIN:.2f}x of scaled_dot_product_attention (D=128, causal, N=4096)",
+            perf["bwd_tflops"] >= BWD_VS_SDPA_MIN * perf["sdpa_bwd_tflops"],
+            f"{perf['bwd_tflops'] / perf['sdpa_bwd_tflops']:.2f}x",
+        )
+
+    try:
+        performance()
+    except Exception as exc:  # noqa: BLE001 - an unfinished kernel must fail the lab, not crash the harness
+        c.add("performance run", False, f"{type(exc).__name__}: {exc}")
     return c.finish()

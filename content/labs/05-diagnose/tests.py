@@ -38,6 +38,18 @@ def _wall_ms(fn, warmup=3, iters=20):
     return times[len(times) // 2]
 
 
+def _got(fn, *args):
+    """The text of fn(*args), or the error it raised, for a check's detail line.
+
+    A check's detail string is built before the check runs, so a function that
+    isn't written yet must not be allowed to crash the harness from here.
+    """
+    try:
+        return f"got {fn(*args)}"
+    except Exception as exc:  # noqa: BLE001
+        return f"{type(exc).__name__}: {exc}"
+
+
 def run(submission):
     c = Checks()
     names = [
@@ -60,19 +72,19 @@ def run(submission):
         "parse_ptxas_info: a clean kernel",
         lambda: submission.parse_ptxas_info(fs.PTXAS_CLEAN)
         == {"registers": 16, "smem_bytes": 0, "spill_stores": 0, "spill_loads": 0},
-        f"got {submission.parse_ptxas_info(fs.PTXAS_CLEAN)}",
+        _got(submission.parse_ptxas_info, fs.PTXAS_CLEAN),
     )
     c.check(
         "parse_ptxas_info: a kernel that spills",
         lambda: submission.parse_ptxas_info(fs.PTXAS_SPILL)
         == {"registers": 255, "smem_bytes": 8192, "spill_stores": 48, "spill_loads": 52},
-        f"got {submission.parse_ptxas_info(fs.PTXAS_SPILL)}",
+        _got(submission.parse_ptxas_info, fs.PTXAS_SPILL),
     )
     c.check(
         "count_sass: scalar kernel",
         lambda: submission.count_sass(fs.SASS_SCALAR)
         == {"MOV": 1, "S2R": 2, "IMAD": 3, "ISETP": 1, "EXIT": 2, "LDG": 1, "FFMA": 1, "STG": 1, "BRA": 1},
-        f"got {submission.count_sass(fs.SASS_SCALAR)}",
+        _got(submission.count_sass, fs.SASS_SCALAR),
     )
     c.check(
         "count_sass: vector kernel with BAR, HMMA, and a predicated BRA",
@@ -90,7 +102,7 @@ def run(submission):
             "HMMA": 1,
             "BRA": 1,
         },
-        f"got {submission.count_sass(fs.SASS_VECTOR)}",
+        _got(submission.count_sass, fs.SASS_VECTOR),
     )
     c.check(
         "max_load_bits: 32 for the scalar kernel, 128 for the vector one, 0 with no load",

@@ -206,8 +206,8 @@ $$
 \underbrace{2Nd}_{Q,\ O}\ +\ \frac{N}{B_M}\cdot\underbrace{2Nd}_{K,\ V\ \text{per tile}} .
 $$
 
-With $B_M = 128$, $N = 8192$, $d = 128$, the key and value reads are $64 \times 2 \times 8192 \times 128 = 134.2$ million elements, or 268.4 MB. With the 8.4 MB
-for $Q$ and $O$, the total is 272.6 MB.
+With $B_M = 128$, $N = 8192$, $d = 128$, the key and value reads are $64 \times 2 \times 8192 \times 128 = 134.2$ million elements, or 268.4 MB. With the 4.2 MB
+for $Q$ and $O$ ($2 \times 8192 \times 128 \times 2$ bytes), the total is 272.6 MB.
 
 That is half of the standard path's 545.3 MB, not 64 times less. The paper states the
 result as $\Theta(N^2 d^2 / M)$ for $M$ elements of on-chip memory: the tiled
@@ -259,7 +259,7 @@ one tile's state stays in registers for its whole pass, and $O$ is written once.
 
 **2. Parallelism over the sequence.** The first version launched one thread block
 per (batch, head) pair. With a batch of 1 and 8 heads, that is 8 programs on an
-A100 with 108 SMs, which leaves 92% of the machine idle. Because the outer loop is
+A100 with 108 SMs, which leaves 93% of the machine idle. Because the outer loop is
 now over query tiles, which are independent, the grid becomes
 $\lceil N / B_M \rceil \times B \times H$, which is $64 \times 8 = 512$ programs
 at $N = 8192$ and $B_M = 128$. Long sequences with small batches, the training
@@ -552,7 +552,7 @@ operations. FlashAttention-3 reports 1.5 to 2.0 times the speed of
 FlashAttention-2 on an H100, up to about 740 TFLOP/s in FP16 (75% of the peak) and
 close to 1.2 PFLOP/s in FP8.
 
-Three ideas drive it, and each uses a Hopper feature
+Four ideas drive it, and the first three use a Hopper feature
 [chapter 12](/c/12-pipelining-and-async-copies) introduced.
 
 **Warp specialization.** Some warps become *producers* that only issue TMA copies

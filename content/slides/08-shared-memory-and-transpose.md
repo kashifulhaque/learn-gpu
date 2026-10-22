@@ -167,8 +167,8 @@ address 132 is word 33, and 33 mod 32 is bank 1.
 - The same word is a broadcast: one transaction
 - Different halves of one word share a transaction
 
-> [!QUESTION] What if two lanes write the same word?
-> They do not conflict, but only one write wins, so you get one lane's value. Avoid writing one word from two lanes.
+> [!QUESTION] What if two lanes write the same address?
+> They do not conflict, but only one write wins, so you get one lane's value. Lanes that store different bytes of one word both land.
 
 Note:
 The degree is the largest number of distinct words in any one bank. Stress distinct words. Thirty-two lanes reading the
@@ -413,16 +413,15 @@ Harris measured this fix on a Tesla M2050: 99.5 GB/s against a 105.2 GB/s copy, 
 ### Padding bfloat16 by one is not enough {#bf16-pad}
 
 - 64-wide tile, 128 B rows, 32 words: plain column read is 32-way
-- Pad by one element: 32.5-word pitch, odd columns 2-way
+- Pad by one element: 32.5-word pitch, every column 2-way
 - Pad by one word, 2 elements: 33-word pitch, conflict free
 
 > [!WARNING] The kernel is correct and still slow
 > One bfloat16 is half a word. Pad `4 / sizeof(T)` elements, and check with the Python bank model first.
 
 Note:
-This is the mistake the lab's Python model is built to catch. With one element of padding, even columns are clean and odd
-columns have two different words in the same bank. In the transpose, which column a warp reads depends on the thread row,
-so half the warps conflict.
+This is the mistake the lab's Python model is built to catch. With one element of padding, each row starts half a word past a bank
+boundary, so pairs of rows share a bank at different words and every column reads 2-way.
 
 ## Swizzling
 

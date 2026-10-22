@@ -78,58 +78,7 @@ def _copy_ok(fn, n, *, offset=0, **kwargs):
     return True, f"n={n:,}"
 
 
-def run(submission):
-    c = Checks()
-    needed = (
-        "CUDA_SOURCE",
-        "CPP_DECLARATIONS",
-        "bytes_moved",
-        "sector_bytes_per_element",
-        "plateau_gbs",
-        "time_copy_gbs",
-    )
-    if not c.require(submission, *needed):
-        return c.finish()
-
-    _pure_checks(c, submission)
-    device = require_cuda()
-    torch.manual_seed(0)
-    props = torch.cuda.get_device_properties(0)
-    print(f"      device = {props.name}", flush=True)
-
-    print("Compiling. The first run takes 30 to 60 seconds.", flush=True)
-    started = time.perf_counter()
-    try:
-        module = load_cuda("lab03_probe", submission.CUDA_SOURCE, submission.CPP_DECLARATIONS, FUNCTIONS)
-    except Exception as exc:  # noqa: BLE001
-        c.add("the CUDA source compiles", False, str(exc)[-2000:])
-        return c.finish()
-    c.add("the CUDA source compiles", True, f"{time.perf_counter() - started:.1f}s")
-
-    # Correctness. Sizes that are not multiples of the block size or of 4.
-    sizes = (1, 3, 5, 1023, 1024, 1_000_003, (1 << 22) + 1)
-    for n in sizes:
-        c.check(f"copy_scalar is correct at n={n:,}", lambda n=n: _copy_ok(module.copy_scalar, n))
-    for n in sizes:
-        c.check(f"copy_vec4 is correct at n={n:,}", lambda n=n: _copy_ok(module.copy_vec4, n))
-    for blocks in (1, 3, A100.SM_COUNT * 8):
-        for n in (1, 1_000_003):
-            c.check(
-                f"copy_grid_stride is correct at n={n:,} with {blocks} blocks",
-                lambda n=n, b=blocks: _copy_ok(module.copy_grid_stride, n, blocks=b),
-            )
-
-    def strided_ok(n, stride):
-        src = torch.randn(n, device=device)
-        dst = torch.full_like(src, float("nan"))
-        module.copy_strided(src, dst, stride)
-        torch.cuda.synchronize()
-        index = (torch.arange(n, device=device, dtype=torch.long) * stride) % n
-        return torch.equal(dst, src[index]), f"n={n:,}, stride={stride}"
-
-    for n, stride in ((1, 32), (1_000_003, 1), (1_000_003, 7), (1 << 20, 32), (1 << 24, 32)):
-        c.check(f"copy_strided is correct at n={n:,}, stride={stride}", lambda n=n, s=stride: strided_ok(n, s))
-
+def _performance(c, submission, module, device):
     # Performance. Every number is a metric, and the thresholds are loose.
     floor = MIN_COALESCED_FRACTION * A100.COPY_CEILING_GBS
     big = 1 << 26  # 256 MiB per tensor, far above the 40 MiB L2
@@ -218,6 +167,68 @@ def run(submission):
         all(gbs <= 1.05 * SXM_RATING_GBS for mib, gbs in sweep if mib >= 2 * A100.L2_MB),
         "a figure above the rating usually means the bytes or the time are wrong",
     )
+
+
+def run(submission):
+    c = Checks()
+    needed = (
+        "CUDA_SOURCE",
+        "CPP_DECLARATIONS",
+        "bytes_moved",
+        "sector_bytes_per_element",
+        "plateau_gbs",
+        "time_copy_gbs",
+    )
+    if not c.require(submission, *needed):
+        return c.finish()
+
+    _pure_checks(c, submission)
+    device = require_cuda()
+    torch.manual_seed(0)
+    props = torch.cuda.get_device_properties(0)
+    print(f"      device = {props.name}", flush=True)
+
+    print("Compiling. The first run takes 30 to 60 seconds.", flush=True)
+    started = time.perf_counter()
+    try:
+        module = load_cuda("lab03_probe", submission.CUDA_SOURCE, submission.CPP_DECLARATIONS, FUNCTIONS)
+    except Exception as exc:  # noqa: BLE001
+        c.add("the CUDA source compiles", False, str(exc)[-2000:])
+        return c.finish()
+    c.add("the CUDA source compiles", True, f"{time.perf_counter() - started:.1f}s")
+
+    # Correctness. Sizes that are not multiples of the block size or of 4.
+    sizes = (1, 3, 5, 1023, 1024, 1_000_003, (1 << 22) + 1)
+    for n in sizes:
+        c.check(f"copy_scalar is correct at n={n:,}", lambda n=n: _copy_ok(module.copy_scalar, n))
+    for n in sizes:
+        c.check(f"copy_vec4 is correct at n={n:,}", lambda n=n: _copy_ok(module.copy_vec4, n))
+    for blocks in (1, 3, A100.SM_COUNT * 8):
+        for n in (1, 1_000_003):
+            c.check(
+                f"copy_grid_stride is correct at n={n:,} with {blocks} blocks",
+                lambda n=n, b=blocks: _copy_ok(module.copy_grid_stride, n, blocks=b),
+            )
+
+    def strided_ok(n, stride):
+        src = torch.randn(n, device=device)
+        dst = torch.full_like(src, float("nan"))
+        module.copy_strided(src, dst, stride)
+        torch.cuda.synchronize()
+        index = (torch.arange(n, device=device, dtype=torch.long) * stride) % n
+        return torch.equal(dst, src[index]), f"n={n:,}, stride={stride}"
+
+    for n, stride in ((1, 32), (1_000_003, 1), (1_000_003, 7), (1 << 20, 32), (1 << 24, 32)):
+        c.check(f"copy_strided is correct at n={n:,}, stride={stride}", lambda n=n, s=stride: strided_ok(n, s))
+
+    try:
+        _performance(c, submission, module, device)
+    except Exception as exc:  # noqa: BLE001
+        c.add(
+            "the performance section runs",
+            False,
+            f"{type(exc).__name__}: {exc}. Finish bytes_moved, sector_bytes_per_element, plateau_gbs, and time_copy_gbs.",
+        )
 
     # Last, because a misaligned float4 access crashes the process.
     for n in (7, 1_000_003):

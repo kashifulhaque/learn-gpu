@@ -99,7 +99,7 @@ $$
 The intensity grows with $n$, so a large GEMM is compute bound and a thin one isn't. For fp16 or bf16 ($b=2$),
 that's $n/3$:
 
-> [!EXAMPLE] Two GEMMs from NVIDIA's guide, recomputed
+> [!EXAMPLE] Two GEMMs, recomputed
 > A $4096^3$ bf16 GEMM does $2 \times 4096^3 = 137.4$ GFLOP and moves $3 \times 4096^2 \times 2 = 100.7$ MB, an
 > intensity of $4096/3 = 1365$ FLOP/byte. An $8192 \times 128 \times 8192$ GEMM does
 > $2 \times 8192 \times 128 \times 8192 = 17.18$ GFLOP and moves
@@ -157,8 +157,8 @@ divides each dense peak by the rated and by the measured bandwidth:
 Three consequences follow. First, an fp32 kernel on the CUDA cores becomes compute bound at only 15.3 FLOP/byte,
 so the fp32 vector add, at 0.083, is 184 times short of it. Second, moving a GEMM to tensor cores moves its
 ridge point right by 16 times (312 over 19.5), so a kernel that was compute bound in fp32 can become memory bound
-in bf16 without changing a line of its memory access. Third, the hardware generations push the ridge right: the
-H100 SXM's bf16 ridge is 295.3 FLOP/byte and the B200's is 281.3, from the figures in chapter 1.
+in bf16 without changing a line of its memory access. Third, the newer parts sit well to the right of the A100: the
+H100 SXM's bf16 ridge is 295.3 FLOP/byte and the B200's is 281.3, against 161.2, from the figures in chapter 1.
 
 > [!KEY] The binding side depends on the precision you chose
 > The same bytes and the same FLOPs sit on different sides of the ridge for different arithmetic peaks. Always say
@@ -333,6 +333,7 @@ __global__ void read_sum_kernel(const float* __restrict__ x, float* __restrict__
   long tid = (long)blockIdx.x * blockDim.x + threadIdx.x;
   long nthreads = (long)gridDim.x * blockDim.x;
   float acc = 0.f;
+#pragma unroll 1                               // keep the bytes in flight at exactly ILP loads
   for (long base = tid; base < n; base += nthreads * ILP) {
     float v[ILP];
 #pragma unroll
@@ -586,7 +587,7 @@ reached.
 > Little's law needs 5,925 bytes in flight per SM. Divided over 512 threads, that is 11.6 bytes per thread: three
 > independent 4-byte loads, or one 16-byte `float4` load.
 
-> [!QUESTION] You launch 217 blocks of one block per SM on the 108-SM A100, and then 216. How do the wave counts and efficiencies compare?
+> [!QUESTION] You launch 217 blocks, then 216, on the 108-SM A100 with one resident block per SM. How do the wave counts and efficiencies compare?
 > 217 blocks need 3 waves at $217/324 = 67.0\%$. 216 blocks need 2 waves at $216/216 = 100\%$. Dropping one block saves a
 > wave's worth of time, one third of the runtime.
 

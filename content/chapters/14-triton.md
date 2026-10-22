@@ -566,8 +566,8 @@ the answer is more control, not a different compiler.
   wraps, and the kernel reads or writes the wrong place. Cast the offsets with `.to(tl.int64)` for very large tensors.
 - **fp32 inputs with the default precision.** `tl.dot` on fp32 uses TF32, so your "fp32" matmul is accurate to about
   three decimal digits. Pass `input_precision="ieee"` if you need more, and expect it to be much slower.
-- **A tolerance too tight for the dtype.** bf16 has 8 bits of mantissa, so a correctly rounded bf16 result is off by up
-  to $2^{-9}$ of its value. Compare against a float32 reference computed from the same rounded inputs, with a tolerance
+- **A tolerance too tight for the dtype.** bf16 keeps 8 significant bits (7 stored), so a correctly rounded bf16 result is off by up
+  to $2^{-8}$ of its value. Compare against a float32 reference computed from the same rounded inputs, with a tolerance
   tied to the dtype, not to $10^{-5}$.
 - **Timing the first call.** The first call compiles and autotunes. A benchmark that includes it reports a time that is
   orders of magnitude off. Warm up, then time with CUDA events.

@@ -224,8 +224,9 @@ variance, then read the row again to normalize it. [Chapter 15](/c/15-softmax-an
 
 What a compiler can fuse is a pointwise *producer* into the reduction that consumes it (square, then sum), and a
 pointwise *consumer* onto the end of a reduction (the divide after the sum). Fusion across two reductions that need
-each other's results, such as softmax's max followed by its sum, takes more work, and that is where hand-written
-kernels still win.
+each other's results, such as softmax's max followed by its sum, is easy only while the whole row fits in one block,
+where Inductor emits a single persistent-reduction kernel. For longer rows it takes several passes, and that is where
+hand-written kernels can still win.
 
 ### Epilogue fusion
 
@@ -690,7 +691,7 @@ the compiler doesn't.
 
 - **The compiler is good at** chains of pointwise ops, reductions with pointwise neighbors, and epilogues. It also
   adapts to dtype and shape for free.
-- **You are better at** changing the algorithm. Inductor won't turn the softmax in attention into the online softmax
+- **You are better at** changing the algorithm. Inductor won't turn a naive attention into the tiled, online-softmax algorithm
   of [chapter 16](/c/16-flash-attention), and it won't pick a quantized layout. A new algorithm is a new kernel, which
   you then register as a custom op.
 
@@ -714,7 +715,8 @@ The lab compares the two on the chain and reports the speedups and the launches 
   input.
 - **A fake that disagrees with the real op.** If the fake returns different strides, dtype, or shape, the compiled code
   computes with the wrong metadata and the failure is silent or far from the cause. Run `opcheck`.
-- **Calling `.contiguous()` in the fake.** The fake must not launch a kernel. Pass the strides through
+- **Returning the input from the fake.** `x.contiguous()` returns `x` itself when it is already contiguous, so a fake
+  that ends with it aliases the input while the real op returns a fresh tensor. Allocate with
   `empty_like(..., memory_format=...)` instead.
 - **Compiling a function with many shapes and no plan.** Each new shape recompiles until the limit, then the function
   runs eagerly with a warning. Check `TORCH_LOGS=recompiles`, and bucket or mark dimensions dynamic.

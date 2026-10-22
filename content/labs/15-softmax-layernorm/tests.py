@@ -53,6 +53,14 @@ def run(submission):
     c = Checks()
     if not c.require(submission, "softmax_online", "layernorm_forward", "layernorm_backward"):
         return c.finish()
+    try:
+        _run(submission, c)
+    except Exception as exc:  # noqa: BLE001 - an unfinished kernel must fail the lab, not crash the harness
+        c.add("tests ran to the end", False, f"{type(exc).__name__}: {exc}; later checks were skipped")
+    return c.finish()
+
+
+def _run(submission, c):
     device = require_cuda()
     _LayerNorm.submission = submission
 
@@ -192,4 +200,3 @@ def run(submission):
         gbs >= BWD_FRACTION * ceiling,
         f"{gbs:.0f} GB/s against {BWD_FRACTION * ceiling:.0f} GB/s",
     )
-    return c.finish()

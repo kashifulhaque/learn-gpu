@@ -86,15 +86,20 @@ def run(submission):
         c.metric("host_no_sync_ms", round(host_ms, 4))
         c.metric("copy_ms", round(ms, 4))
 
-    measured = submission.copy_bandwidth_gbs()
-    c.check(
-        "the copy bandwidth is plausible",
-        lambda: (
+    measured = None
+
+    def bandwidth_plausible():
+        nonlocal measured
+        measured = float(submission.copy_bandwidth_gbs())
+        return (
             100.0 < measured < 2 * A100.HBM_BW_GBS,
             f"{measured:.0f} GB/s. A figure outside 100 to {2 * A100.HBM_BW_GBS:.0f} usually means the "
             "bytes or the time are wrong, for example counting the read but not the write.",
-        ),
-    )
+        )
+
+    c.check("the copy bandwidth is plausible", bandwidth_plausible)
+    if measured is None:
+        return c.finish()
     c.metric("copy_gbs", round(measured, 1))
 
     # Loose performance check: half of the measured copy ceiling, on an A100-class card.
@@ -106,14 +111,14 @@ def run(submission):
             f"{measured:.0f} GB/s against a floor of {target:.0f} GB/s",
         )
 
-    fraction = submission.ceiling_fraction(measured)
-    c.check(
-        "ceiling_fraction divides by the measured copy ceiling",
-        lambda: (
+    def fraction_ok():
+        fraction = submission.ceiling_fraction(measured)
+        c.metric("ceiling_fraction", round(fraction, 3))
+        return (
             abs(fraction - measured / A100.COPY_CEILING_GBS) < 1e-6,
             f"got {fraction:.3f}, expected {measured / A100.COPY_CEILING_GBS:.3f}",
-        ),
-    )
-    c.metric("ceiling_fraction", round(fraction, 3))
+        )
+
+    c.check("ceiling_fraction divides by the measured copy ceiling", fraction_ok)
     # On the lab A100 this lands near 1.0. Another card is not a failure.
     return c.finish()

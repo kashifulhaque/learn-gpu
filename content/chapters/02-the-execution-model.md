@@ -94,7 +94,7 @@ Warp 0 holds linear ids 0 to 31, warp 1 holds 32 to 63, and so on. A block of 25
 
 A warp follows the *SIMT* model, single instruction, multiple threads. All 32 threads, called *lanes*, execute the same instruction at the same time, each on its own registers. One `FFMA` instruction is 32 fused multiply-adds, one per lane, and a load is 32 addresses, one per lane. A warp's instruction is the smallest thing the hardware issues.
 
-Each A100 SM has four sub-partitions, which the programming guide and the Ampere whitepaper call sub-cores, and each owns a warp scheduler, a quarter of the register file, 16 FP32 cores, and one tensor core. Every cycle, a scheduler picks one resident warp that is ready and issues one instruction for it. These are the numbers that follow:
+Each A100 SM has four sub-partitions, which microbenchmark papers also call sub-cores, and each owns a warp scheduler, a quarter of the register file, 16 FP32 cores, and one tensor core. Every cycle, a scheduler picks one resident warp that is ready and issues one instruction for it. These are the numbers that follow:
 
 | Quantity per SM | Value | Arithmetic |
 |---|---|---|
@@ -104,7 +104,7 @@ Each A100 SM has four sub-partitions, which the programming guide and the Ampere
 | Cycles of FP32 pipe per warp `FFMA` | 2 | 32 lanes / 16 cores |
 | FP32 FLOP per cycle | 128 | 64 cores x 2 FLOP per FMA |
 
-The last row connects to the peak you met in [chapter 0](/c/00-what-you-are-building): $108 \times 1.41 \times 10^{9}\ \text{Hz} \times 128 = 19.5$ TFLOP/s, the rated FP32 rate. A single warp can use a sub-partition's FP32 pipe at most half the time, because one warp `FFMA` occupies the 16 cores for two cycles. The other issue slots go to loads, integer arithmetic, and other warps.
+The last row connects to the peak you met in [chapter 0](/c/00-what-you-are-building): $108 \times 1.41 \times 10^{9}\ \text{Hz} \times 128 = 19.5$ TFLOP/s, the rated FP32 rate. Because one warp `FFMA` occupies the 16 cores for two cycles, FP32 math uses at most half of a scheduler's issue slots. The other slots go to loads, integer arithmetic, and other warps.
 
 > [!NOTE] A thread is not a core
 > "6,912 CUDA cores" and "221,184 resident threads" are different kinds of number. A core is one lane of an arithmetic pipe. A resident thread is a set of registers and a program counter parked on the SM, and an SM keeps far more of them than it has lanes so that something is always ready to issue.
@@ -306,7 +306,7 @@ The same arithmetic applies on the A100 as a prediction. The memory section need
 
 Divide 5,925 B by the bytes one thread keeps in flight, and round up. With 1 `float4` load per thread, 371 threads per SM, 12 warps, are enough to cover HBM latency at the rating on paper. The roofline rule you will use again in [chapter 3](/c/03-memory-and-bandwidth) is that bytes in flight, not occupancy, saturates the memory system, and your lab in that chapter measures the effect.
 
-A measurement on the course's lab A100 points the same way. In the companion course's fused RMSNorm for rows of 5,120 elements, the number of warps per block, `num_warps`, swept as 8, 16, and 32, ran in 0.0888, 0.0908, and 0.0955 ms ([chapter 13](https://qwen.ifkash.dev/c/13-fusion-in-triton)). More warps made the kernel slower, because each extra warp had less of the row to work on and added reduction cost, not because it hid more latency.
+A measurement on the course's lab A100 points the same way. In the companion course's fused RMSNorm for rows of 5,120 elements, the number of warps per block, `num_warps`, swept as 8, 16, and 32, ran in 0.0888, 0.0908, and 0.0955 ms ([chapter 13](https://qwen.ifkash.dev/c/13-fusion-in-triton)). More warps made the kernel slower, so more resident warps didn't buy more latency hiding there. The source doesn't isolate why, and a plausible cause is that each extra warp has less of the row to work on and adds reduction cost.
 
 > [!KEY] Occupancy is a floor you need, not a score you maximize
 > A kernel needs enough warps, or enough work per warp, to cover its latency. Above that point, more occupancy adds nothing, and it usually costs registers or shared memory that the kernel would rather spend on tiles. Raise occupancy when the profiler says the schedulers have no eligible warp and the stalls are latency. Lower it, or leave it, when the registers buy larger tiles or more ILP.
@@ -410,7 +410,7 @@ Asynchrony has one rule that every measurement obeys. A host timer around a laun
 > [!TRY] Occupancy and divergence
 > Fill in `occupancy`, `max_regs_for_occupancy`, `branch_time_ms`, `divergence_slowdown`, and the one-line `group_of` in the CUDA source.
 >
-> - **The calculator.** `occupancy(threads, regs, smem)` returns blocks per SM, warps, occupancy, and the limiter. It passes when it reproduces the hand-worked cases in this chapter, then agrees with `cudaOccupancyMaxActiveBlocksPerMultiprocessor` on at least 80% of the configurations that use no shared memory. The lab prints every disagreement, so a missing rule has a place to start.
+> - **The calculator.** `occupancy(threads, regs, smem)` returns blocks per SM, warps, occupancy, and the limiter. It passes when it reproduces the hand-worked cases in this chapter, then agrees with `cudaOccupancyMaxActiveBlocksPerMultiprocessor` on at least 70% of the configurations that use no shared memory, and on half of those that do. The lab prints the first dozen disagreements, so a wrong rule has a place to start. If your calculator matches the API, it passes.
 > - **The divergence cost.** The lab launches a kernel whose lanes take 1, 2, 4, 8, 16, or 32 branches of equal length. The prediction from this chapter is a slowdown equal to the number of branches, and the roofline floor for the uniform launch is $8.59 \times 10^{9}$ FLOP at 19.5 TFLOP/s, 0.44 ms, so about 14 ms at 32 ways. Your lab reports the measured values. It passes if each slowdown is at least half the number of branches, and if choosing the branch by warp instead of by lane costs at most 1.5 times a uniform launch.
 >
 > The first compile takes 30 to 60 seconds. The lab reports `api_agree_pct`, `slowdown_2way`, `slowdown_32way`, and `by_warp_32way_ratio`.

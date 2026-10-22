@@ -237,7 +237,8 @@ def run(submission):
         print("      note: this PyTorch has no linear_cross_entropy, so the comparison is skipped.", flush=True)
     else:
         try:
-            opts = options_cls(batch_chunk_size=chunk)
+            # batch_chunk_size and a chunking_method heuristic can't both be set, so turn the heuristic off.
+            opts = options_cls(batch_chunk_size=chunk, chunking_method=None)
             torch_lce = lambda a, b, tt: lce(a, b, tt, options=opts)  # noqa: E731
             lce_peak = peak_extra_bytes(torch_lce)
             lce_ms = cuda_time(lambda: step(torch_lce), warmup=3, iters=10)

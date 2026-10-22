@@ -1,0 +1,33 @@
+{
+  "id": "21-ring-allreduce",
+  "title": "Ring all-reduce",
+  "brief": "Implement ring all-reduce from point-to-point isend and irecv across processes on the gloo backend, check it against dist.all_reduce, and write the alpha-beta cost model that predicts what it costs on NVLink, PCIe, and InfiniBand.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 600,
+  "metrics": [
+    "pred_ring_8x_nvlink3_ms",
+    "pred_ring_8x_pcie4_ms",
+    "pred_ring_8x_nvlink4_ms",
+    "pred_ring_2x_nvlink3_ms",
+    "pred_ring_16x_ib_ndr_ms",
+    "crossover_mib_8x_nvlink3",
+    "fit_alpha_us",
+    "fit_bandwidth_gbs",
+    "ring_ms",
+    "builtin_ms",
+    "ring_busbw_gbs",
+    "builtin_busbw_gbs",
+    "ring_over_builtin",
+    "model_over_measured"
+  ],
+  "hints": [
+    "Start with the model. transfer_time is alpha + n / (B * 1e9), and a ring all-reduce is 2 (p - 1) of those with n / p bytes each. The tests check your answer against the 6.26 ms that 1 GiB takes on 8 ranks at 300 GB/s per direction.",
+    "The tests run five short jobs, each starting 2 to 4 processes, so allow about half a minute. This lab runs on CPU tensors with the gloo backend; the GPU isn't used.",
+    "A blocking dist.send in every rank deadlocks, because nobody is receiving. Post dist.isend and dist.irecv together, then wait on both. A deadlock shows up as a timeout, not a hang.",
+    "In reduce-scatter, receive into a scratch buffer and add it to your chunk after the wait. In all-gather, receive straight into the slice x[lo:hi]; no scratch is needed.",
+    "Chunk indices wrap around the ring: use (rank - step) % p. When n is smaller than p, some chunks are empty, so skip the send and the receive for those.",
+    "The test counts the bytes you send by wrapping dist.isend and dist.send. Rank r should send 2 (p - 1) / p of the array, so a ring that sends the whole array each step fails the byte check.",
+    "Your measured ring is Python calling gloo, so it isn't a hardware benchmark. Compare ring_busbw_gbs with builtin_busbw_gbs, and the fitted fit_bandwidth_gbs with the NVLink and PCIe rates in the table."
+  ]
+}

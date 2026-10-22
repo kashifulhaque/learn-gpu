@@ -151,7 +151,9 @@ The parts work as follows:
   own cross-checking; don't rename one that a note refers to.
 - **`Note:`** on a line of its own ends the slide's body. Everything after it,
   up to the next heading, is the speaker notes. A content slide needs 20 to 220
-  words of notes. Notes are Markdown, so they can hold maths.
+  words of notes. Notes are Markdown, so they can hold maths. Put callouts,
+  including `[!QUESTION]`, in the body before `Note:`: the checker counts only
+  callouts in the body, and the slide shows only the body.
 
 Headings inside a slide body aren't allowed; use bold text instead. Any other
 attribute in the braces, such as `video=` or `book=`, is an error: this course

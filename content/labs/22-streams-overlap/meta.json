@@ -1,0 +1,35 @@
+{
+  "id": "22-streams-overlap",
+  "title": "Streams and overlap",
+  "brief": "Stream a 256 MiB pinned host tensor through the GPU in chunks, apply a kernel, and copy it back, with one stream, a stream per chunk, and a stream per stage joined by events. Measure how close the overlap gets to the max(copy, compute) bound.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": [
+    "h2d_ms",
+    "h2d_gbs",
+    "pcie_h2d_fraction",
+    "kernel_iters",
+    "kernel_ms",
+    "d2h_ms",
+    "sum_of_stages_ms",
+    "bound_ms",
+    "one_stream_ms",
+    "stream_per_chunk_ms",
+    "staged_ms",
+    "model_ms",
+    "speedup_over_one_stream",
+    "overlap_efficiency",
+    "host_return_ms",
+    "pageable_ms"
+  ],
+  "hints": [
+    "The first call compiles the Triton kernel, which takes a few seconds, and the tests warm it up before they time anything.",
+    "torch.empty(n, dtype=torch.float32, pin_memory=True) gives a pinned tensor. Check it with tensor.is_pinned(). A copy from a pageable tensor runs, gives the right answer, and doesn't overlap.",
+    "Pass non_blocking=True to every copy_ in the pipeline, and don't call .item(), .cpu(), print a tensor, or synchronize inside it. The tests check that your function returns to the host long before the GPU finishes.",
+    "The buffers were allocated on the current stream, so each side stream must call s.wait_stream(torch.cuda.current_stream()) before it touches them. When the work is queued, make the current stream wait for every side stream with cur.wait_stream(s), so the tests' end event lands after all of it.",
+    "For pipeline_staged, record an Event on the copy-in stream after each chunk's copy, make the kernel stream wait_event on it, record another event after the kernel, and make the copy-out stream wait on that. A missing wait shows up as NaNs in the output, because the tests fill the device and host outputs with NaN first.",
+    "With n_streams = 1 the chunks run in order, so you should see no speedup over one big copy. That's expected, and it's the point.",
+    "The time model for n equal chunks is the sum of the three per-chunk stage times plus (n - 1) times the largest one. For three 8.52 ms stages and 8 chunks that's 10.65 ms."
+  ]
+}

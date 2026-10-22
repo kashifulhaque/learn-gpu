@@ -535,7 +535,7 @@ measures this, adds compensated summation, and shows how PyTorch's deterministic
 
 Softmax, LayerNorm, and RMSNorm reduce each row of a matrix independently. The question here: how do you map many small reductions onto threads?
 
-Take a matrix of `rows` by `cols`, and a result of one value per row. The three choices
+Take a matrix of `rows` by `cols`, and a result of one value per row. The mappings below
 differ in how many threads cooperate on one row:
 
 | Columns per row | Mapping | Why |

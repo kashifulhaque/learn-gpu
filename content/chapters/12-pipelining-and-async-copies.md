@@ -240,6 +240,21 @@ A concrete trace helps. Take $S = 4$ and a long K, so $n = 128$ k-tiles (K = 409
 12-ring-buffer
 ```
 
+Two hazards decide where each line of the loop sits. A *read-after-write* hazard: a warp must not read tile $k$ before every chunk of it has landed, which is what the wait plus the barrier guarantee. A *write-after-read* hazard: a copy must not overwrite a slot while any warp is still reading it, which is what placing the load after the barrier guarantees. Each hazard needs its own guard, and the loop has exactly one of each per iteration.
+
+Here is the loop for $S = 3$ and $n = 5$ k-tiles. "Pending" counts this thread's groups that may still be in flight right after the wait, and the group index equals the tile index (empty groups have no tile):
+
+| Step | Wait leaves at most | Tile guaranteed landed | Load issued (slot) | Group committed | Compute (slot) |
+|---|---|---|---|---|---|
+| Prologue | | | tile 0 (0), tile 1 (1) | 0, 1 | |
+| $k = 0$ | 1 (`wait_group 1`) | 0 | tile 2 (2) | 2 | tile 0 (0) |
+| $k = 1$ | 1 | 1 | tile 3 (0) | 3 | tile 1 (1) |
+| $k = 2$ | 1 | 2 | tile 4 (1) | 4 | tile 2 (2) |
+| $k = 3$ | 1 | 3 | none | 5 (empty) | tile 3 (0) |
+| $k = 4$ | 1 | 4 | none | 6 (empty) | tile 4 (1) |
+
+At the top of $k = 4$, groups 0 to 5 are committed and group 5 is empty, so `wait_group 1` means groups 0 to 4 are done, which includes tile 4. Skip the empty commit at $k = 3$ and only groups 0 to 4 exist at that point, so `wait_group 1` leaves group 4, which is tile 4, possibly pending. That is the failure the empty commit prevents.
+
 Check it against the rule. At any moment after the new load is issued, $S$ slots hold one tile being computed and $S - 1$ in flight, so no slot is free. That is the whole cost of the pipeline, $S$ tiles of shared memory, and the whole benefit, $S - 1$ copies overlapped.
 
 > [!EXAMPLE] The wait count, step by step, for four stages
@@ -265,7 +280,7 @@ An A100 SM has 164 KiB (167,936 bytes) of shared memory, a block may opt in to 1
 | 2 | 82,944 B | 4 | $\lfloor (167{,}936 / 2 - 1024) / 18{,}944 \rfloor$ |
 | 3 | 54,954 B | 2 | $\lfloor (167{,}936 / 3 - 1024) / 18{,}944 \rfloor$ |
 
-Four stages cost 75,776 bytes, and two blocks of that, with the reserved bytes, take 153,600 of the 167,936. A fifth stage pushes a block to 95,744 bytes, and only one block fits per SM.
+Four stages cost 75,776 bytes, and two blocks of that, with the reserved bytes, take 153,600 of the 167,936. A fifth stage makes the dynamic allocation 94,720 bytes (95,744 with the reserved 1 KB), and only one block fits per SM.
 
 So the stage count is a trade between two ways to hide latency. More stages hide it inside a block. More resident blocks hide it across blocks, because while one block waits, another computes. The lab kernel is built for two blocks per SM, since `__launch_bounds__(256, 2)` caps registers at 128 per thread and 4 stages leave room for two blocks. [Chapter 2's](/c/02-the-execution-model) occupancy calculation applies unchanged, and shared memory is the limit.
 
@@ -305,6 +320,8 @@ for (int kt = 0; kt < k_tiles; ++kt) {
 }
 ```
 
+As written, the consumer waits for the copy it has just issued, so this sketch has no overlap. A real loop first calls the producer half for the first `STAGES - 1` tiles (the prologue), then in each iteration issues the copy for tile `kt + STAGES - 1` before it waits on tile `kt`, exactly as in the raw loop above.
+
 The library hides the commit and wait counting, the ring index, and the barrier, and it extends to Hopper, where the same `memcpy_async` can use TMA. Its costs are less control, since the zero-fill predicate, the choice of `.cg`, and the per-thread chunking are decided for you, and it needs the pipeline state in shared memory. The lab uses raw PTX because the point is to see the counts. Production code often uses the library or, further up, CUTLASS.
 
 ## Hopper: TMA and mbarriers
@@ -329,7 +346,7 @@ The phase bit is what makes a ring buffer cheap: a slot's barrier is reused ever
 > [!NOTE] mbarrier, not `__syncthreads()`
 > A block-wide barrier makes every thread stop. An mbarrier lets one group of warps wait on data while another keeps computing, which is the property that warp specialization needs. In Ampere, the equivalent of the barrier is the combination of `wait_group` and `__syncthreads()`, and each thread must wait on its own copies.
 
-The `expect_tx` count is a 32-bit unsigned byte count, and the barrier scope can be the CTA or the whole cluster (PTX ISA). Getting the byte count wrong is the classic TMA bug: expect too few and the barrier flips early, expect too many and it never flips.
+The `expect_tx` operand is a 32-bit unsigned byte count, though the PTX ISA bounds the barrier's pending transaction count to a range of about $\pm(2^{20}-1)$ bytes, and the barrier scope can be the CTA or the whole cluster (PTX ISA). Getting the byte count wrong is the classic TMA bug: expect too few and the barrier flips early, expect too many and it never flips.
 
 ## Hopper: wgmma and warpgroups
 
@@ -418,7 +435,7 @@ The chapter's lab runs on an A100, and none of the Hopper and Blackwell machiner
 - **Skipping the empty commit.** Without a commit for tiles past the end, the group count falls behind and the last $S - 1$ tiles are waited on too early.
 - **Unaligned or oversized copies.** `.cg` is 16 bytes only, and both addresses must be 16-byte aligned. A row stride that isn't a multiple of 16 bytes, such as K = 1001 in bf16, breaks it, which is why the lab's wrapper pads K and N to multiples of 8.
 - **Forgetting the shared-memory opt-in.** A kernel that uses more than 48 KB of dynamic shared memory fails to launch unless you call `cudaFuncSetAttribute` with `cudaFuncAttributeMaxDynamicSharedMemorySize`. Three stages of the lab tile are 56,832 bytes.
-- **Too many stages.** At five stages the lab tile takes 95,744 bytes with the reserved bytes, only one block fits per SM, and a kernel can get slower while it looks more pipelined.
+- **Too many stages.** At five stages the lab tile takes 94,720 bytes (95,744 with the reserved bytes), only one block fits per SM, and a kernel can get slower while it looks more pipelined.
 - **Expecting a fixed speedup.** If two blocks already share an SM, one block's wait is partly hidden by the other's compute, so the pipeline's win over one stage is smaller than the idle fractions above suggest. The prediction is a direction and a ceiling. The lab reports the measurement.
 
 > [!RECAP]

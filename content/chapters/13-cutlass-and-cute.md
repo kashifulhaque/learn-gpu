@@ -429,7 +429,7 @@ ThrCopy thr_copy_a = copy_a.get_slice(threadIdx.x);
 Tensor tAgA = thr_copy_a.partition_S(gA);        // this thread's source elements
 Tensor tAsA = thr_copy_a.partition_D(sA);        // this thread's destination elements
 
-TiledMMA mma = make_tiled_mma(SM80_16x8x16_F16F16F16F16_TN{}, Layout<Shape<_2, _2, _1>>{});
+TiledMMA mma = make_tiled_mma(SM80_16x8x16_F32F16F16F32_TN{}, Layout<Shape<_2, _2, _1>>{});
 ThrMMA thr_mma = mma.get_slice(threadIdx.x);
 Tensor tCsA = thr_mma.partition_A(sA);
 Tensor tCrA = thr_mma.make_fragment_A(tCsA);     // registers for A fragments

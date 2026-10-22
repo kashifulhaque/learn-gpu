@@ -314,8 +314,8 @@ starting point to autotune, not a law:
 | Row length | Layout | Why |
 |---|---|---|
 | $N \le 256$ | A 2D tile of several rows per program | One row doesn't give a warp enough work, so lanes sit idle. |
-| 256 to 16384 | One row per program, the whole row in registers, `num_warps` $\approx N/256$ up to 8 | One load, one reduction, one store. |
-| $N > 16384$ | One row per program, a loop over chunks of 4096 | Holding the whole row in registers would exceed the register budget. |
+| 256 to 4096 | One row per program, the whole row in registers, `num_warps` $\approx N/256$ up to 8 | One load, one reduction, one store. |
+| $N > 4096$ | One row per program, a loop over chunks of 4096 (the lab's cap) | A row up to about 16384 can still sit in registers, but it crowds the SM, as the next section shows. Far beyond that it would spill. |
 | Few rows, very long | Several programs per row, merged with the $\oplus$ operator | Otherwise most SMs sit idle. |
 
 ### Short rows: several rows per program

@@ -30,8 +30,11 @@ REL_TOL = 2e-3
 # Round-to-nearest int4 with 15 levels over a group of 128 Gaussians: the step is
 # about 5.3 sigma / 15 = 0.35 sigma, so the RMS error is 0.35 / sqrt(12) = 0.10 sigma.
 QUANT_REL_TOL = 0.15
-# The kernel must reach this fraction of the byte-count bound on speedup at M = 1.
-SPEEDUP_FRACTION = 0.3
+# The kernel must reach this fraction of the byte-count bound on speedup at M = 1:
+# 0.25 x 3.82 = 0.95x, so it must be about as fast as fp16. A plain Triton kernel with
+# per-group tile loads, a transpose, and a reduction per iteration is often instruction
+# bound well below the memory rate, so a tighter bound would risk failing a correct kernel.
+SPEEDUP_FRACTION = 0.25
 
 
 def _rel_err(actual, expected):
@@ -175,9 +178,9 @@ def run(submission):
         c.metric("tflops_m1024", round(tflops(2 * 1024 * n * k, times[1024][0]), 1))
         bound = SPEEDUP_FRACTION * ratio
         c.add(
-            "speedup at M=1 is at least 30% of the byte-count bound",
+            f"speedup at M=1 is at least {SPEEDUP_FRACTION:.0%} of the byte-count bound",
             t16 / t4 >= bound,
-            f"{t16 / t4:.2f}x, bound {bound:.2f}x (30% of the {ratio:.2f}x byte ratio). "
+            f"{t16 / t4:.2f}x, bound {bound:.2f}x ({SPEEDUP_FRACTION:.0%} of the {ratio:.2f}x byte ratio). "
             f"Effective weight bandwidth {gbs:.0f} GB/s against the {A100.COPY_CEILING_GBS:.0f} GB/s copy ceiling.",
         )
     except Exception as exc:  # noqa: BLE001

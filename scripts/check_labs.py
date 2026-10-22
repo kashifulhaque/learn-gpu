@@ -119,6 +119,9 @@ def main(argv):
 
         os.environ["LG_LAB_ID"] = lab_id
         print(f"\n=== {lab_id} ===")
+        # The worker copies a lab's fixture_*.py beside the submission, so a
+        # lab's own directory must be importable here too.
+        sys.path.insert(0, str(lab_dir))
         try:
             solution = load(f"sol_{lab_id.replace('-', '_')}", lab_dir / "solution.py")
             tests = load(f"tst_{lab_id.replace('-', '_')}", lab_dir / "tests.py")
@@ -127,6 +130,8 @@ def main(argv):
             traceback.print_exc()
             failed.append(lab_id)
             continue
+        finally:
+            sys.path.remove(str(lab_dir))
 
         (passed if outcome.get("passed") else failed).append(lab_id)
 

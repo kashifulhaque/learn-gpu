@@ -247,7 +247,7 @@ The 5,120 versus about 2,000 bytes per clock gap on L2 is a source disagreement 
 | `cp.async.bulk` (sm_90 and later) | size must be a multiple of 16 bytes; addresses 16-byte aligned; completes through an `mbarrier` | C | [PTX] |
 | `cp.async.bulk.tensor` (TMA, sm_90 and later) | 1D to 5D tensors; modes tile and im2col; gather4 and scatter4 added later; issued by one thread | C | [PTX], [HOPPER-TUNING] |
 | TMA from shared to global | can apply add, min, max, and, or reductions on write | C | [HOPPER-TUNING] |
-| `mbarrier.expect_tx` | `txCount` is a 32-bit unsigned byte count; scope `.cta` or `.cluster` | C | [PTX] |
+| `mbarrier.expect_tx` | `txCount` is a 32-bit unsigned byte count; the pending tx-count range is about ±(2^20 − 1); scope `.cta` or `.cluster` | S | [PTX] |
 | TMA descriptor needs | a global-memory allocation (hence `triton.set_allocator`) | C | [TRITON-MKDESC] |
 | Hopper TMA and tuning guidance | TMA avoids using registers and SM instructions for data movement, which enables warp specialization | C | [HOPPER-TUNING] |
 | Thread block clusters | Portable maximum 8 blocks; 16 on H100 and B200 with `cudaFuncAttributeNonPortableClusterSizeAllowed`; DSMEM accesses should be coalesced and aligned to 32-byte segments | C | [HOPPER-TUNING], [BW-TUNING] |

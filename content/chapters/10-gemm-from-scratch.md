@@ -389,7 +389,7 @@ The warp level is where our kernel is implicit. Warp 0 of the 256-thread block h
 
 Compare an explicit warp tile of 32 by 64, four thread tiles tall and eight wide. It needs 4 groups of `As` and 8 of `Bs`, 12 in all, for the same 32 thread tiles. A squarer warp tile reads fewer distinct shared-memory addresses per FMA, which is the same argument as the block tile's: the intensity of a tile grows with $B_M B_N / (B_M + B_N)$, and a square tile maximizes it for a given area.
 
-Boehm's kernel 10 makes this explicit and reaches 93.7% of cuBLAS on his A6000. The warp tile also gives the compiler a regular pattern of loads to overlap with FMAs, and it keeps each warp's accesses within a smaller window of the shared tile. His kernel 9 autotunes the tile parameters and reaches 84.8% before warptiling, and the best configuration depends on the GPU: Boehm reports that on an A100 his autotuner preferred a 64 by 64 block tile with $B_K = 16$ and a 4 by 4 thread tile, which are the 4 by 4 tile of our table that just meets the shared-memory budget. A 128 by 128 tile with an 8 by 8 thread tile is a good default, and not a universal one.
+Boehm's kernel 10 makes this explicit and reaches 93.7% of cuBLAS on his A6000. The warp tile also gives the compiler a regular pattern of loads to overlap with FMAs, and it keeps each warp's accesses within a smaller window of the shared tile. His kernel 9 autotunes the tile parameters and reaches 84.8% before warptiling, and the best configuration depends on the GPU, which is why a kernel library autotunes instead of fixing one. A 128 by 128 tile with an 8 by 8 thread tile is a good default, and not a universal one.
 
 ### The whole ladder
 

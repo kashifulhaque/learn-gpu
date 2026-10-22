@@ -4,7 +4,7 @@
   "brief": "Write the FlashAttention-2 forward pass (returning O and the logsumexp) and the backward pass (dQ, dK, dV, with the delta preprocessing) in Triton, with causal masking and grouped-query heads, and compare TFLOP/s against PyTorch's scaled_dot_product_attention.",
   "gpu": "A100-80GB",
   "needs_gpu": true,
-  "timeout": 1200,
+  "timeout": 1800,
   "metrics": [
     "fwd_tflops",
     "bwd_tflops",
@@ -22,6 +22,6 @@
     "dQ gets scaled by 1/sqrt(d) once, at the end, and so does dK. dV does not, because it has no score in it.",
     "Mask P to zero after you compute it, not S to minus infinity before: an out-of-range key loads as zeros, so its score is 0 and its P is not.",
     "A fully-masked tile can make exp2(-inf - -inf) a NaN. Causal masking never produces one here, because every row sees key 0 in the first tile.",
-    "The first run compiles several Triton kernels, which takes a minute or so. The timing loop warms up before it measures."
+    "The first run compiles several Triton kernels, which takes several minutes: the correctness shapes alone compile dozens of variants. The timing loop warms up before it measures."
   ]
 }

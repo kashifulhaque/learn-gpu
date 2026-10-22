@@ -21,9 +21,9 @@ lab: 00-hello-gpu
 > [!TLDR]
 > - A kernel is one function that thousands of GPU threads run at once. Training and serving a model is a long sequence of kernels, and the speed of the model is the speed of that sequence.
 > - Every kernel is bound by one of two rates: bytes per second the memory delivers, or FLOP per second the arithmetic units sustain. On the A100 80GB PCIe those are rated at 1935 GB/s and 312 TFLOP/s, so a kernel needs 161 FLOP per byte to leave the memory side behind.
-> - A GPU is a throughput machine. It hides a memory latency of about 330 ns by keeping hundreds of thousands of loads in flight, which is why a kernel needs many threads.
+> - A GPU is a throughput machine. It hides a memory latency of about 330 ns by keeping about 160,000 four-byte loads (640 KB) in flight, which is why a kernel needs many threads.
 > - A launch is asynchronous. Time a kernel with CUDA events, or synchronize before you read a host clock.
-> - The course has six parts and 23 labs, all on a real A100. Each lab predicts a time from the specs and then measures it.
+> - The course has six parts and 23 labs, built around one real A100. Each lab predicts a time from the specs and then measures it.
 
 You write PyTorch, and you know what a transformer is. This course teaches what happens underneath: the machine that runs your tensors, and the kernels that make the difference between a training run that takes a week and one that takes three days.
 
@@ -388,7 +388,7 @@ The mistakes this chapter's lab provokes, and the ones that follow you through t
 > - A kernel is a function that many GPU threads run at once, and a model's speed is the sum of its kernels' times and the gaps between them.
 > - Memory bandwidth and arithmetic throughput are the two ceilings: 1935 GB/s and 312 TFLOP/s rated on the A100 80GB PCIe, with a measured copy ceiling of 1275 GB/s.
 > - The ridge point is 161 FLOP per byte, and most model kernels sit below it, so most of the course is about moving fewer bytes.
-> - A GPU hides a roughly 330 ns memory latency with about 640 KB of loads in flight, which takes hundreds of thousands of threads.
+> - A GPU hides a roughly 330 ns memory latency with about 640 KB of loads in flight, which is about 160,000 threads with one 4-byte load each.
 > - Launches are asynchronous. Time with CUDA events, warm up first, and count every byte read and written.
 > - Predict a time from the specs, then measure it. The gap between them is where you learn.
 

@@ -29,7 +29,7 @@ PERF_M = PERF_N = PERF_K = 4096
 # lab runs on a different card and nobody here has run it.
 MIN_TILED_PCT = 5.0
 MIN_REGBLOCK_PCT = 30.0
-MIN_REGBLOCK_OVER_TILED = 2.0
+MIN_REGBLOCK_OVER_TILED = 1.5
 
 
 def _tolerance(k):

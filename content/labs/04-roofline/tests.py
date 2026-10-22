@@ -103,6 +103,18 @@ def check_predictors(c: Checks, s) -> None:
 
     c.check("predicted_read_gbs: in flight over latency, capped at the ceiling", read_bw)
 
+    def ridge_sweep():
+        # k = 1 is memory bound and k = 1000 is compute bound, by construction.
+        n = 2**20
+        ks, times = [1, 1000], [0.0100, 0.2000]
+        tflops_got, gbs_got, ridge_got = s.measured_ridge(ks, times, n)
+        want_tflops = 2 * 1000 * n / 0.2000e-3 / 1e12
+        want_gbs = 8 * n / 0.0100e-3 / 1e9
+        ok = rel(tflops_got, want_tflops, 1e-6) and rel(gbs_got, want_gbs, 1e-6) and rel(ridge_got, want_tflops * 1e3 / want_gbs, 1e-6)
+        return ok, f"got ({tflops_got:.4g}, {gbs_got:.4g}, {ridge_got:.4g}), expected ({want_tflops:.4g}, {want_gbs:.4g}, {want_tflops * 1e3 / want_gbs:.4g})"
+
+    c.check("measured_ridge: the best FLOP rate over the best byte rate", ridge_sweep)
+
 
 def sweep_fma(fx, ks):
     x = torch.randn(N, device="cuda", dtype=torch.float32)

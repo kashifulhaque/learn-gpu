@@ -78,6 +78,11 @@ def run(submission):
     c.check("max_regs_for_occupancy finds the register budget for 100%, 50%, 25%", regs_budget)
 
     # -- Part 2: the calculator against the CUDA occupancy API -----------------
+    # The API is the ground truth here. The granularity rules in the starter
+    # (256-register warps, 128-byte shared memory units, 1 KiB reserved per
+    # block) are not in a table in the Programming Guide, so this comparison
+    # reports how well they match and fails only when the calculator is far
+    # off or does not run. A calculator that matches the API cannot fail it.
     regs = {v: submission.probe_registers(v) for v in PROBE_VARIANTS}
     smem_static = {v: submission.probe_static_smem(v) for v in PROBE_VARIANTS}
     c.metric("probe_regs_max", max(regs.values()))
@@ -85,19 +90,28 @@ def run(submission):
 
     agree = {"regs_only": [0, 0], "with_smem": [0, 0]}
     mismatches = []
+    calculator_error = None
     for v in PROBE_VARIANTS:
         for block in BLOCK_SIZES:
             for dyn in DYN_SMEM:
                 api = submission.api_blocks_per_sm(v, block, dyn)
                 if api < 0:
                     continue
-                mine = submission.occupancy(block, regs[v], smem_static[v] + dyn)["blocks_per_sm"]
+                try:
+                    mine = submission.occupancy(block, regs[v], smem_static[v] + dyn)["blocks_per_sm"]
+                except Exception as exc:  # noqa: BLE001
+                    calculator_error = f"{type(exc).__name__}: {exc}"
+                    break
                 bucket = agree["regs_only" if dyn == 0 else "with_smem"]
                 bucket[1] += 1
                 if mine == api:
                     bucket[0] += 1
                 else:
                     mismatches.append((v, regs[v], block, dyn, mine, api))
+            if calculator_error:
+                break
+        if calculator_error:
+            break
     for v, r, block, dyn, mine, api in mismatches[:12]:
         print(
             f"      mismatch: probe {v} ({r} regs), block {block}, {dyn // 1024} KiB dynamic smem: "
@@ -108,16 +122,20 @@ def run(submission):
     reg_pct, smem_pct = pct(agree["regs_only"]), pct(agree["with_smem"])
     c.metric("api_agree_pct", round(reg_pct, 1))
     c.metric("api_agree_smem_pct", round(smem_pct, 1))
-    c.add(
-        "the calculator agrees with the occupancy API when no shared memory is requested",
-        agree["regs_only"][1] > 0 and reg_pct >= 80.0,
-        f"{agree['regs_only'][0]} of {agree['regs_only'][1]} configurations agree ({reg_pct:.0f}%, need 80%)",
-    )
-    c.add(
-        "the calculator agrees with the occupancy API on at least half of the shared-memory configurations",
-        agree["with_smem"][1] > 0 and smem_pct >= 50.0,
-        f"{agree['with_smem'][0]} of {agree['with_smem'][1]} agree ({smem_pct:.0f}%, need 50%)",
-    )
+    if calculator_error:
+        c.add("the calculator runs for every API configuration", False, calculator_error)
+    else:
+        c.add(
+            "the calculator agrees with the occupancy API when no shared memory is requested",
+            agree["regs_only"][1] > 0 and reg_pct >= 70.0,
+            f"{agree['regs_only'][0]} of {agree['regs_only'][1]} configurations agree ({reg_pct:.0f}%, need 70%). "
+            "If you followed the starter's rules and still disagree, read the mismatches above: a rule is wrong.",
+        )
+        c.add(
+            "the calculator agrees with the occupancy API on at least half of the shared-memory configurations",
+            agree["with_smem"][1] > 0 and smem_pct >= 50.0,
+            f"{agree['with_smem'][0]} of {agree['with_smem'][1]} agree ({smem_pct:.0f}%, need 50%)",
+        )
 
     # -- Part 3: the branchy kernel is correct ---------------------------------
     coef = (0.5 + 0.01 * torch.arange(32, dtype=torch.float32)).cuda()
@@ -134,11 +152,21 @@ def run(submission):
         c.check(f"branchy is correct for n={n}, {ways} ways, {kind}", case)
 
     # -- Part 4: what divergence costs -----------------------------------------
-    uniform_ms = submission.branch_time_ms(1, False)
+    try:
+        uniform_ms = float(submission.branch_time_ms(1, False))
+    except Exception as exc:  # noqa: BLE001
+        c.add("branch_time_ms times a launch", False, f"{type(exc).__name__}: {exc}")
+        return c.finish()
     c.metric("uniform_ms", round(uniform_ms, 4))
     c.add("a uniform launch takes measurable time", uniform_ms > 0.0, f"{uniform_ms:.4f} ms")
 
-    slow = {w: submission.divergence_slowdown(w) for w in (2, 4, 8, 16, 32)}
+    slow = {}
+    for w in (2, 4, 8, 16, 32):
+        try:
+            slow[w] = float(submission.divergence_slowdown(w))
+        except Exception as exc:  # noqa: BLE001
+            c.add("divergence_slowdown measures a ratio", False, f"{type(exc).__name__}: {exc}")
+            return c.finish()
     print(f"      lane-diverged slowdown by ways: { {w: round(s, 2) for w, s in slow.items()} }", flush=True)
     c.metric("slowdown_2way", round(slow[2], 2))
     c.metric("slowdown_32way", round(slow[32], 2))
@@ -151,7 +179,7 @@ def run(submission):
             f"measured {s:.2f}x",
         )
 
-    by_warp_ms = submission.branch_time_ms(32, True)
+    by_warp_ms = float(submission.branch_time_ms(32, True))
     ratio = by_warp_ms / uniform_ms
     c.metric("by_warp_32way_ratio", round(ratio, 2))
     c.add(

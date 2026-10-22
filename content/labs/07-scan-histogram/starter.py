@@ -239,6 +239,8 @@ std::vector<torch::Tensor> block_scan_cuda(torch::Tensor x, int64_t variant) {
 
 torch::Tensor exclusive_scan_cuda(torch::Tensor x) {
   TORCH_CHECK(x.is_cuda() && x.dim() == 1 && x.is_contiguous(), "exclusive_scan needs a contiguous 1-D CUDA tensor");
+  // The tile loads are 16-byte vector accesses, so a view such as x[1:] that starts off a 16-byte boundary is copied first.
+  if (reinterpret_cast<uintptr_t>(x.data_ptr()) % 16 != 0) x = x.clone();
   auto out = torch::empty_like(x);
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   if (x.scalar_type() == torch::kInt) {

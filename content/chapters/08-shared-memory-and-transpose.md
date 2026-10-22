@@ -19,8 +19,8 @@ lab: 08-transpose
 # Shared memory and the transpose
 
 > [!TLDR]
-> - Shared memory is on-chip SRAM inside each SM, carved out of the same 192 KB array as the L1 cache. It is a few
->   times faster to reach than L2 and, at 128 bytes per clock per SM, about 10x the bandwidth of HBM across the A100.
+> - Shared memory is on-chip SRAM inside each SM, carved out of the same 192 KB array as the L1 cache. It is about
+>   9 times faster to reach than L2 (29 against 261.5 cycles) and, at 128 bytes per clock per SM, about 10x the bandwidth of HBM across the A100.
 > - It has 32 banks, each 4 bytes wide. A warp's access takes one transaction when its lanes touch different banks,
 >   or the same word, and N transactions when N different words share a bank.
 > - A transpose moves the same bytes as a copy, so a copy sets its speed limit. The naive kernel coalesces its reads
@@ -175,8 +175,8 @@ Two exceptions keep the rule from being too harsh:
   word, so they share a transaction. This is why 32 consecutive bfloat16 values, which occupy 16 words, are conflict
   free.
 
-For a write, lanes that hit the same word don't conflict either, but only one of them wins, so you get one value
-and not a combination. You avoid it by never writing one word from two lanes.
+For a write, lanes that store to the same address don't conflict either, but only one of them wins, so you get
+one value and not a combination. Lanes that store different bytes of one word, as the bfloat16 tile does, both land.
 
 ### A stride is a gcd
 
@@ -479,8 +479,8 @@ The same rule applies to bfloat16, but the unit is the word, not the element. Th
 wide, so a row is 128 bytes, 32 words, and a column read of the plain tile hits one bank for all 32 lanes: 32-way.
 
 The tempting fix is to pad by one element, a 65-wide row. Count words: a row is then 65 elements, 130 bytes,
-32.5 words. Rows alternate between starting on a word boundary and in the middle of one. Even columns come out
-conflict free, but odd columns don't: two rows land in the same bank at different words, a 2-way conflict. Your
+32.5 words. Each row starts half a word further along than a whole-bank step, so rows come in pairs that land in the
+same bank at different words, and every column of the tile reads 2-way. Your
 Python model, `column_read_degree("padded", ...)`, shows it if you try pad = 1 for 2-byte elements. The fix is to pad
 by a whole word, two elements, so the pitch is 66 elements, 33 words, odd. The lab's layout does that with
 `4 / sizeof(T)` elements of padding.
@@ -625,7 +625,7 @@ your model actually launches ([chapter 5](/c/05-profiling)) before you write one
 - **The barrier inside a guard.** A `__syncthreads()` that sits inside `if (m < M && n < N)` deadlocks on edge
   tiles, where some threads fail the guard. The kernel passes on sizes that are multiples of the tile and hangs on
   the first ragged shape. Put the barrier outside every conditional.
-- **Padding bfloat16 by one element.** The tile looks padded and the kernel is correct. The odd columns still conflict
+- **Padding bfloat16 by one element.** The tile looks padded and the kernel is correct. Every column still conflicts
   2-way. Pad a whole word, which is two elements for 2-byte types, and let your Python model confirm it before you
   look at timings.
 - **The Python and CUDA layouts drift apart.** The bank model and the `smem_index` in CUDA describe the same layouts.
@@ -678,8 +678,8 @@ your model actually launches ([chapter 5](/c/05-profiling)) before you write one
 > 32 rows. With 34, the stride is $\gcd(34, 32) = 2$, so the column read is 2-way. The pitch in words must be odd.
 
 > [!QUESTION] You pad a bfloat16 tile of 64 columns by one element and the kernel is still slower than the padded float32 one. What went wrong?
-> One bfloat16 element is half a word, so the pitch is 32.5 words. Rows alternate between word-aligned and
-> half-word-aligned starts, and odd columns end up with two different words in the same bank: a 2-way conflict. Pad
+> One bfloat16 element is half a word, so the pitch is 32.5 words. Each row starts half a word past a bank
+> boundary, so pairs of rows share a bank at different words: a 2-way conflict on every column. Pad
 > by a whole word, two elements, for a pitch of 33 words.
 
 > [!QUESTION] Prove that $c \oplus r$ for $r = 0, \dots, 31$ and a fixed $c < 32$ gives 32 different columns.

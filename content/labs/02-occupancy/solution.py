@@ -132,6 +132,10 @@ __global__ void branchy_kernel(const float* x, float* y, const float* coef,
 // Block size must stay 256: group_of reads threadIdx.x directly.
 torch::Tensor branchy(torch::Tensor x, torch::Tensor coef, int64_t ways,
                       int64_t by_warp, int64_t iters) {
+    TORCH_CHECK(x.is_cuda() && coef.is_cuda(), "x and coef must be CUDA tensors");
+    TORCH_CHECK(x.scalar_type() == torch::kFloat32 && coef.scalar_type() == torch::kFloat32,
+                "x and coef must be float32");
+    TORCH_CHECK(x.is_contiguous() && coef.numel() >= 32, "x must be contiguous and coef needs 32 entries");
     auto y = torch::empty_like(x);
     int n = x.numel();
     int threads = 256;

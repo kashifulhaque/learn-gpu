@@ -154,7 +154,10 @@ def run(submission):
     print("\nPart 1: timing at N = 2^24 float32 (64 MiB per tensor)", flush=True)
     x = torch.randn(N, device=device)
     y_eager = submission.chain_eager(x)
-    fused_ok = close(submission.fused_chain(x), y_eager, 1e-4)[0]
+    try:
+        fused_ok = close(submission.fused_chain(x), y_eager, 1e-4)[0]
+    except Exception:  # noqa: BLE001 - the starter raises NotImplementedError
+        fused_ok = False
     if fused_ok:
         eager_ms = cuda_time(lambda: submission.chain_eager(x))
         triton_ms = cuda_time(lambda: submission.fused_chain(x))

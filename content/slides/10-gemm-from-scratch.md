@@ -273,7 +273,7 @@ Step through the eight k values with the buttons. Switch the thread tile from on
 | 8 by 8 | 1 | 100%, half the bandwidth spare |
 
 Note:
-The budget is 128 bytes per clock over 64 FMA per clock, two bytes per FMA. The eight by one row is Boehm's 1D blocktiling, 36.5 percent of cuBLAS. The eight by eight row is his 2D kernel, 68.7 percent. The four by four row is what his autotuner picked on an A100, as he reports, and it just meets the budget.
+The budget is 128 bytes per clock over 64 FMA per clock, two bytes per FMA. The eight by one row is Boehm's 1D blocktiling, 36.5 percent of cuBLAS. The eight by eight row is his 2D kernel, 68.7 percent. The four by four row just meets the budget, which is why it is the smallest thread tile worth trying.
 
 ### What the registers cost {#register-cost}
 

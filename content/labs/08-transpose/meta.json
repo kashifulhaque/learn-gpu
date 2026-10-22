@@ -24,7 +24,7 @@
     "The bank of a byte address is (address // 4) % 32. Two threads conflict only when they touch different 4-byte words in the same bank; the same word is a broadcast.",
     "In the tiled kernel the load phase and the store phase use the same tile, but the store phase swaps the roles of the thread's x and y: thread x walks the tile's rows, so it reads a column.",
     "Put __syncthreads() between the two phases, outside every if, so every thread of the block reaches it.",
-    "The padded pitch is the tile width plus one 32-bit word, which is 1 element for float32 and 2 for bfloat16. One bfloat16 of padding leaves a 2-way conflict on odd columns; your Python model shows it.",
+    "The padded pitch is the tile width plus one 32-bit word, which is 1 element for float32 and 2 for bfloat16. One bfloat16 of padding leaves a 2-way conflict on every column; your Python model shows it.",
     "The swizzle XORs the low bits of the column with the row (times elements per word), so a column read touches 32 different banks and a row write still touches 32 different words."
   ]
 }

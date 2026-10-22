@@ -214,7 +214,7 @@ Two cautions keep the 6.9 in perspective. First, its read footprint is small: $2
 elements, one sector each, is 16.8 MB, which fits in the 40 MB L2. After warm-up the reads hit the cache, which
 flatters the strided kernel. A strided pattern with a footprint above the L2 should do worse, and the lab
 measures that second case (`strided_big_gbs`, a 64 MiB footprint). Second, the sector model gives the
-right order of magnitude for the slowdown, and the 1.53 is the part it doesn't predict.
+right order of magnitude for the slowdown, and the 1.53 is the part it doesn't predict. Third, the lab's strided kernel computes `(i * stride) % n` in 64 bits, and a 64-bit modulo costs many instructions per element, so its numbers need not match the companion course's.
 
 ## Counting the bytes
 

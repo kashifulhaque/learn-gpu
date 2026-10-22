@@ -52,6 +52,9 @@ __global__ void read_sum_kernel(const float* __restrict__ x, float* __restrict__
   long tid = (long)blockIdx.x * blockDim.x + threadIdx.x;
   long nthreads = (long)gridDim.x * blockDim.x;
   float acc = 0.f;
+  // No unrolling: the compiler would otherwise batch several iterations' loads
+  // and raise the bytes in flight above what `ilp` says.
+#pragma unroll 1
   for (long base = tid; base < n; base += nthreads * ILP) {
     float v[ILP];
 #pragma unroll

@@ -77,6 +77,16 @@ def run(submission):
 
     c.check("exclusive_scan is exact for int32 at every size", check_scan_int)
 
+    def check_scan_view():
+        base = rand_int(5001, -3, 4)
+        view = base[1:]  # starts 4 bytes into the allocation, so it is not 16-byte aligned
+        out = submission.exclusive_scan(view)
+        torch.cuda.synchronize()
+        want = ref_exclusive(view).int()
+        return torch.equal(out.cpu(), want.cpu()), "an int32 view that starts 4 bytes past an aligned address"
+
+    c.check("exclusive_scan handles an unaligned view", check_scan_view)
+
     def check_scan_float_exact():
         # Small integers are exact in float32 while the running sum stays below 2**24.
         for n in SCAN_SIZES:

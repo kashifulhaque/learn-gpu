@@ -295,7 +295,7 @@ warp. So count warp-steps from the lab's code:
 
 The active-warp counts follow from `d` doubling or halving: with $d = 128$,
 threads 0 to 127 are active, which is $128 / 32 = 4$ warps. Kogge-Stone has more
-warp-steps, but its 17 barriers equal Blelloch's 18, and a barrier is where each
+warp-steps, but its 17 barriers are about the same as Blelloch's 18, and a barrier is where each
 warp waits for the slowest. When a block is this small, the cost is dominated by
 barriers and shared-memory round trips, not by the additions. The work
 advantage of Blelloch doesn't turn into a time advantage by itself, and the lab
@@ -718,7 +718,8 @@ GEMM that consumes it.
   need a zero pass and a barrier before the first atomic, and another barrier
   before the merge. The global bins need `torch.zeros`, not `torch.empty`.
 - **Vector loads on a misaligned pointer.** A `uint4` load needs a 16-byte aligned
-  address. A tensor view such as `x[1:]` starts one byte in, and the lab tests it.
+  address. A `uint8` view such as `x[1:]` starts one byte in, and an `int32` view starts four bytes in. The
+  lab tests both, and the device scan's host code copies a misaligned input first.
 - **Timing a tiny input.** A launch costs about 5 µs, so a kernel that moves a few
   kilobytes measures the launch, not the memory. Both timed kernels use
   $2^{26}$ elements.

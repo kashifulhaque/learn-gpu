@@ -20,7 +20,7 @@ SHAPES = [
 
 # The tolerance is relative to the largest reference value. A correctly rounded
 # fp16 result is within 2^-11 (4.9e-4) of its value and a bf16 result within
-# 2^-9 (2e-3), so these leave a factor of 8 and 5 for summation order.
+# 2^-8 (3.9e-3), so these leave a factor of 8 and 2.6 for summation order.
 REL_TOL = {torch.float16: 4e-3, torch.bfloat16: 1e-2}
 
 
@@ -210,43 +210,49 @@ def run(submission):
     # GFLOP, which is 0.44 ms at the 312 TFLOP/s peak. The Triton tutorial
     # reports about 220 TFLOP/s on an A100 and parity with cuBLAS at this size,
     # so half of torch.matmul is a loose bar for a correct tiled kernel.
-    n = 4096
-    a = torch.randn(n, n, device=device, dtype=torch.float16)
-    b = torch.randn(n, n, device=device, dtype=torch.float16)
-    flops = 2 * n**3
-    ms_torch = cuda_time(lambda: torch.matmul(a, b), warmup=5, iters=20)
-    ms_mine = cuda_time(lambda: submission.matmul(a, b), warmup=5, iters=20)
-    t_torch, t_mine = tflops(flops, ms_torch), tflops(flops, ms_mine)
-    c.metric("torch_tflops_4096", round(t_torch, 1))
-    c.metric("tflops_4096", round(t_mine, 1))
-    c.metric("pct_of_torch_4096", round(100 * t_mine / t_torch, 1))
-    c.metric("pct_of_peak_4096", round(100 * t_mine / A100.TENSOR_FP16_TFLOPS, 1))
-    c.add(
-        "the measured rate is below the tensor-core peak",
-        t_mine <= 1.1 * A100.TENSOR_FP16_TFLOPS,
-        f"{t_mine:.1f} TFLOP/s against a {A100.TENSOR_FP16_TFLOPS:.0f} peak; a higher figure means the timing is wrong",
-    )
-    c.add(
-        "at least 50% of torch.matmul at 4096 x 4096 x 4096",
-        t_mine >= 0.5 * t_torch,
-        f"{t_mine:.1f} versus {t_torch:.1f} TFLOP/s",
-    )
+    def performance():
+        n = 4096
+        a = torch.randn(n, n, device=device, dtype=torch.float16)
+        b = torch.randn(n, n, device=device, dtype=torch.float16)
+        flops = 2 * n**3
+        ms_torch = cuda_time(lambda: torch.matmul(a, b), warmup=5, iters=20)
+        ms_mine = cuda_time(lambda: submission.matmul(a, b), warmup=5, iters=20)
+        t_torch, t_mine = tflops(flops, ms_torch), tflops(flops, ms_mine)
+        c.metric("torch_tflops_4096", round(t_torch, 1))
+        c.metric("tflops_4096", round(t_mine, 1))
+        c.metric("pct_of_torch_4096", round(100 * t_mine / t_torch, 1))
+        c.metric("pct_of_peak_4096", round(100 * t_mine / A100.TENSOR_FP16_TFLOPS, 1))
+        c.add(
+            "the measured rate is below the tensor-core peak",
+            t_mine <= 1.1 * A100.TENSOR_FP16_TFLOPS,
+            f"{t_mine:.1f} TFLOP/s against a {A100.TENSOR_FP16_TFLOPS:.0f} peak; a higher figure means the timing is wrong",
+        )
+        c.add(
+            "at least 50% of torch.matmul at 4096 x 4096 x 4096",
+            t_mine >= 0.5 * t_torch,
+            f"{t_mine:.1f} versus {t_torch:.1f} TFLOP/s",
+        )
 
-    # Grouped against row-major order, with one fixed tile so only the order changes.
-    ms_row = cuda_time(lambda: submission.matmul_fixed(a, b, 128, 128, 32, 1, 4, 4), warmup=5, iters=20)
-    ms_grp = cuda_time(lambda: submission.matmul_fixed(a, b, 128, 128, 32, 8, 4, 4), warmup=5, iters=20)
-    c.metric("group_speedup", round(ms_row / ms_grp, 3))
-    print("      group_speedup is the time with group_m=1 divided by the time with group_m=8. "
-          "It's reported, not graded: see the chapter for what the arithmetic predicts.", flush=True)
-    del a, b
+        # Grouped against row-major order, with one fixed tile so only the order changes.
+        ms_row = cuda_time(lambda: submission.matmul_fixed(a, b, 128, 128, 32, 1, 4, 4), warmup=5, iters=20)
+        ms_grp = cuda_time(lambda: submission.matmul_fixed(a, b, 128, 128, 32, 8, 4, 4), warmup=5, iters=20)
+        c.metric("group_speedup", round(ms_row / ms_grp, 3))
+        print("      group_speedup is the time with group_m=1 divided by the time with group_m=8. "
+              "It's reported, not graded: see the chapter for what the arithmetic predicts.", flush=True)
+        del a, b
 
-    # Ragged sizes: no pointer is 16-byte aligned past the first row, and cuBLAS has to cope too.
-    mr, nr, kr = 4095, 4097, 4093
-    a = torch.randn(mr, kr, device=device, dtype=torch.float16)
-    b = torch.randn(kr, nr, device=device, dtype=torch.float16)
-    flops_r = 2 * mr * nr * kr
-    ms_torch_r = cuda_time(lambda: torch.matmul(a, b), warmup=5, iters=20)
-    ms_mine_r = cuda_time(lambda: submission.matmul(a, b), warmup=5, iters=20)
-    c.metric("tflops_ragged", round(tflops(flops_r, ms_mine_r), 1))
-    c.metric("pct_of_torch_ragged", round(100 * ms_torch_r / ms_mine_r, 1))
+        # Ragged sizes: no pointer is 16-byte aligned past the first row, and cuBLAS has to cope too.
+        mr, nr, kr = 4095, 4097, 4093
+        a = torch.randn(mr, kr, device=device, dtype=torch.float16)
+        b = torch.randn(kr, nr, device=device, dtype=torch.float16)
+        flops_r = 2 * mr * nr * kr
+        ms_torch_r = cuda_time(lambda: torch.matmul(a, b), warmup=5, iters=20)
+        ms_mine_r = cuda_time(lambda: submission.matmul(a, b), warmup=5, iters=20)
+        c.metric("tflops_ragged", round(tflops(flops_r, ms_mine_r), 1))
+        c.metric("pct_of_torch_ragged", round(100 * ms_torch_r / ms_mine_r, 1))
+
+    try:
+        performance()
+    except Exception as exc:  # noqa: BLE001 - an unfinished kernel must fail the lab, not crash the harness
+        c.add("performance run", False, f"{type(exc).__name__}: {exc}")
     return c.finish()

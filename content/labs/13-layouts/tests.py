@@ -232,24 +232,32 @@ def run(submission):
         lambda: all(S.swizzle(2 * o, 3, 4, 3) == 2 * S.swizzle(o, 3, 3, 3) for o in range(8192)),
     )
 
-    tile = L("(32,32):(32,1)")  # a 32x32 float tile, row-major, one word per element
-    col = [tile((r, 5)) for r in range(32)]  # a warp reads column 5
-    row = [tile((5, k)) for k in range(32)]  # a warp reads row 5
-    unsw = S.bank_conflict_degree(col)
-    c.add("a column read of a 32x32 row-major tile is a 32-way conflict", unsw == 32, f"got {unsw}")
-    c.add("a row read is conflict free", S.bank_conflict_degree(row) == 1, f"got {S.bank_conflict_degree(row)}")
-    padded = [r * 33 + 5 for r in range(32)]
-    c.add("padding the row to 33 words removes the column conflict", S.bank_conflict_degree(padded) == 1)
-    c.add("a broadcast read of one word is conflict free", S.bank_conflict_degree([7] * 32) == 1)
-    c.add("stride-16 words give a 16-way conflict", S.bank_conflict_degree([16 * i for i in range(32)]) == 16)
-    c.add("stride-2 words give a 2-way conflict", S.bank_conflict_degree([2 * i for i in range(32)]) == 2)
-    sw_col = [S.swizzle(x, 5, 0, 5) for x in col]
-    sw_row = [S.swizzle(tile((5, k)), 5, 0, 5) for k in range(32)]
-    swz = S.bank_conflict_degree(sw_col)
-    c.add("Swizzle<5,0,5> makes the column read conflict free", swz == 1, f"got {swz}")
-    c.add("Swizzle<5,0,5> keeps the row read conflict free", S.bank_conflict_degree(sw_row) == 1)
-    c.metric("conflicts_unswizzled", unsw)
-    c.metric("conflicts_swizzled", swz)
+    def conflict_checks():
+        tile = L("(32,32):(32,1)")  # a 32x32 float tile, row-major, one word per element
+        col = [tile((r, 5)) for r in range(32)]  # a warp reads column 5
+        row = [tile((5, k)) for k in range(32)]  # a warp reads row 5
+        unsw = S.bank_conflict_degree(col)
+        c.add("a column read of a 32x32 row-major tile is a 32-way conflict", unsw == 32, f"got {unsw}")
+        c.add("a row read is conflict free", S.bank_conflict_degree(row) == 1, f"got {S.bank_conflict_degree(row)}")
+        padded = [r * 33 + 5 for r in range(32)]
+        c.add("padding the row to 33 words removes the column conflict", S.bank_conflict_degree(padded) == 1)
+        c.add("a broadcast read of one word is conflict free", S.bank_conflict_degree([7] * 32) == 1)
+        c.add("stride-16 words give a 16-way conflict", S.bank_conflict_degree([16 * i for i in range(32)]) == 16)
+        c.add("stride-2 words give a 2-way conflict", S.bank_conflict_degree([2 * i for i in range(32)]) == 2)
+        sw_col = [S.swizzle(x, 5, 0, 5) for x in col]
+        sw_row = [S.swizzle(tile((5, k)), 5, 0, 5) for k in range(32)]
+        swz = S.bank_conflict_degree(sw_col)
+        c.add("Swizzle<5,0,5> makes the column read conflict free", swz == 1, f"got {swz}")
+        c.add("Swizzle<5,0,5> keeps the row read conflict free", S.bank_conflict_degree(sw_row) == 1)
+        c.metric("conflicts_unswizzled", unsw)
+        c.metric("conflicts_swizzled", swz)
+
+    try:
+        conflict_checks()
+    except Exception as exc:  # noqa: BLE001 - a half-written starter must fail, not crash
+        c.add("bank-conflict checks", False, f"{type(exc).__name__}: {exc}")
+        c.metric("conflicts_unswizzled", "n/a")
+        c.metric("conflicts_swizzled", "n/a")
 
     # ---- a layout drives a gather ------------------------------------------------------
     try:

@@ -58,7 +58,7 @@ export default function WarpDivergence() {
         <>
           <Stat label="Passes" value={passes} tone={color.c} />
           <Stat label="Instructions issued" value={issued} />
-          <Stat label="Lanes active per pass" value={`${(utilization * 100).toFixed(0)}%`} tone={color.a} />
+          <Stat label="Average lanes active" value={`${(utilization * 100).toFixed(0)}%`} tone={color.a} />
         </>
       }
     >

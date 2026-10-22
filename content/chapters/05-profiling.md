@@ -215,9 +215,9 @@ in their total column, but only a kernel's own row has self device time, which
 is why "self" is the right sort key for finding a kernel.
 
 The names tell you a lot before you read any code. A kernel named like
-`vectorized_elementwise_kernel` is a PyTorch pointwise op, one whose
-name says "vectorized" is moving 16 bytes per thread, a name with `gemm` or
-`cutlass` is a matrix multiply, and your own kernel is whatever you called it,
+`vectorized_elementwise_kernel` is a PyTorch pointwise op that loads several
+elements per thread with wide accesses, a name with `gemm` or `cutlass` is a
+matrix multiply, and your own kernel is whatever you called it,
 mangled with its argument types. If the hot kernel is one you didn't expect, you
 have already learned something.
 

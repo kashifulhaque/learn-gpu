@@ -123,7 +123,9 @@ keep thresholds generous. [STYLE.md](../content/STYLE.md#accuracy) explains why.
 Every lab gets a static check without a GPU: `meta.json` has the fields the app
 reads, the three files parse, `tests.py` defines `run`, and every name imported
 from `lab_common` exists. A lab marked `"device_agnostic": true` runs its tests
-on a CPU too, for labs that check mathematics. Labs that need CUDA are otherwise
+on a CPU too, for labs that check mathematics. The checker's `.venv` has no
+torch, so a device-agnostic lab imports torch inside the functions that need it,
+not at module level. Labs that need CUDA are otherwise
 skipped without a GPU, and reported as skipped. To run them, use a GPU host with
 the course's worker image, or open the lab in the app.
 

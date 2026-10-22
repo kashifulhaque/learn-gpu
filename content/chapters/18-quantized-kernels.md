@@ -2,7 +2,7 @@
 title: Quantized kernels
 slug: 18-quantized-kernels
 part: "Part 4 — Kernels for ML"
-summary: Why fewer bits make decode faster, where the scales live in a GEMM, how int4 weights are packed and unpacked at speed, and how a fused dequantize-GEMM in Triton turns a 3.8x byte saving into a 3.8x time saving. INT8, FP8, MX, and NVFP4 tensor cores in prose.
+summary: Why fewer bits make decode faster, where the scales live in a GEMM, how int4 weights are packed and unpacked at speed, and how a fused dequantize-GEMM in Triton turns a 3.82x byte saving into a faster decode GEMV. INT8, FP8, MX, and NVFP4 tensor cores in prose.
 minutes: 150
 gpu: true
 objectives:
@@ -378,7 +378,7 @@ In Triton, `tl.dot_scaled` exposes block-scaled products with E8M0 scales on a g
 > 2. `int4_to_fp16_magic`: convert codes 0 to 15 to fp16 with the `0x6400` trick in torch.
 > 3. `w4a16_kernel` and `w4a16_matmul`: compute $Y = X\,\text{dequant}(W)^{\top}$ for $X$ of shape $(M, K)$ in fp16, for $M$ from 1 to 1000, including $N$ and $M$ that aren't multiples of the tile.
 >
-> Passing means every correctness check agrees with the fp32 reference within a relative error of $2 \times 10^{-3}$ and the kernel is at least 30% of the byte-ratio bound (1.15x) faster than fp16 `torch.matmul` at $M = 1$ on an 8192 x 8192 matrix. The lab reports `bytes_ratio`, `weight_gbs_m1` (the effective bandwidth of codes, scales, and zero points), `speedup_m1`, `speedup_m16`, and `tflops_m1024`.
+> Passing means every correctness check agrees with the fp32 reference within a relative error of $2 \times 10^{-3}$ and the kernel is at least 25% of the byte-ratio bound (0.95x, so about as fast as fp16 `torch.matmul`) at $M = 1$ on an 8192 x 8192 matrix. The bound is loose on purpose: the byte count predicts 3.82x, and a first Triton kernel often lands well short of it. The lab reports `bytes_ratio`, `weight_gbs_m1` (the effective bandwidth of codes, scales, and zero points), `speedup_m1`, `speedup_m16`, and `tflops_m1024`.
 >
 > Before you run it, predict `speedup_m1` and `weight_gbs_m1` from this chapter's byte count and the 1275 GB/s ceiling. A kernel far below the prediction usually has too few programs or too much unpack work. The first call compiles and autotunes, which takes a minute.
 

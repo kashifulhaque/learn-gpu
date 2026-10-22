@@ -404,17 +404,18 @@ Start on alternating lanes: two passes, half the lanes masked in each. Then try 
 ### The arithmetic of the loss {#divergence-arithmetic}
 
 $$
-t_{\text{compute}} = \frac{2^{22} \times 256 \times 2}{19.5 \times 10^{12}} \approx 110\ \mu\text{s}
+t_{\text{fixed}} = \frac{2^{22} \times 384}{9.75 \times 10^{12}\ \text{s}^{-1}} \approx 165\ \mu\text{s}
 $$
 
-- Memory floor: 26 µs, so the kernel is compute-bound 4x over
-- Divergent prediction: about 220 µs, fixed: about 110 µs
+- Path A is 256 instructions, path B 512; a fixed warp averages 384
+- Memory floor: 26 µs, so the kernel is compute-bound 6x over
+- Divergent prediction: about 330 µs, fixed: about 165 µs
 
 > [!QUESTION] Why not delete the branch?
 > The two paths compute different things. The fix is to make the branch warp-uniform: each thread does an even element and the odd one beside it.
 
 Note:
-The useful work is 2.1 gigaFLOP against a 19.5 teraFLOP/s peak, about 110 microseconds. The divergent kernel issues the same instructions with half the lanes useful, so the roofline predicts twice that. The lab asks for 1.3x, well under the predicted 2x, and reports your real ratio. In ncu the evidence is lanes active per instruction rising from about 16 to about 32.
+The A100 issues 9.75 trillion FP32 lane-instructions a second. A fixed kernel issues 384 instructions per element on average, about 165 microseconds. The divergent kernel makes every warp issue both paths, 768 instructions, so the prediction is twice that. One caution from the lab A100: when the two paths had the same shape, nvcc merged them into one loop and the gap shrank to 1.07x, so check the SASS before you blame divergence. The lab asks for 1.3x, well under the predicted 2x, and reports your real ratio. In ncu the evidence is lanes active per instruction rising from about 16 to about 32.
 
 ### Not every branch is a problem {#benign-branches}
 

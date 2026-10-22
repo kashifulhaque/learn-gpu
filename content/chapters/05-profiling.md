@@ -659,19 +659,30 @@ out[i] = (i & 1) ? path_b(x[i]) : path_a(x[i]);
 
 Even and odd lanes sit next to each other in every warp, so every warp takes
 both branches. The hardware runs path A with the odd lanes masked off, then path
-B with the even lanes masked off. Each path is 256 `FFMA` instructions.
-Here is the arithmetic. The kernel's useful work, $2^{22}$ elements at 256 FMAs
-of 2 FLOP each, divided by the FP32 peak of 19.5 TFLOP/s, is:
+B with the even lanes masked off. Path A is 256 `FFMA` instructions, and path B
+is 256 steps of an `FMUL` and an `FFMA`, so 512 instructions.
+Here is the arithmetic. The A100 issues $19.5 \times 10^{12} / 2 = 9.75 \times 10^{12}$
+FP32 lane-instructions per second. A fixed kernel, where each warp takes one
+path, issues 384 instructions per element on average, for $2^{22}$ elements:
 
 $$
-t_{\text{compute}} = \frac{2^{22} \times 256 \times 2\ \text{FLOP}}{19.5 \times 10^{12}\ \text{FLOP/s}} = \frac{2.147 \times 10^{9}}{19.5 \times 10^{12}} \approx 110\ \mu\text{s}
+t_{\text{fixed}} = \frac{2^{22} \times 384}{9.75 \times 10^{12}\ \text{s}^{-1}} \approx 165\ \mu\text{s}
 $$
 
 The memory floor is $2^{22} \times 8\ \text{B} / 1.275 \times 10^{12} = 26\ \mu$s, so
-the kernel is compute-bound by about 4x. The divergent version issues the same
-instructions for half as many useful lanes, so the prediction is
-$2 \times 110 = 220\ \mu$s against 110 for the fixed version. Your lab reports
-both. The figure shows why: the warp pays for every path that any lane takes.
+the kernel is compute-bound by about 6x. The divergent version makes every warp
+issue both paths, $256 + 512 = 768$ instructions per element instead of 384, so
+the prediction is $2 \times 165 = 330\ \mu$s against 165 for the fixed version.
+Your lab reports both. The figure shows why: the warp pays for every path that
+any lane takes.
+
+> [!WARNING] The compiler can remove divergence you wrote
+> An earlier version of this lab gave path B the same shape as path A, a 256-step
+> `fmaf` loop with different constants. On the lab A100 the divergent kernel ran in
+> 0.128 ms and the fixed one in 0.120 ms, a 1.07x gap instead of 2x: `nvcc` merged
+> the two loops into one and selected the constants per lane, so no warp ever
+> diverged. Before you blame divergence, read the SASS: if there's one loop where
+> the source has two, the branch is already gone.
 
 ```viz
 05-warp-divergence

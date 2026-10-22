@@ -159,6 +159,53 @@ def w4a16_kernel(
     tl.store(y_ptrs, acc.to(tl.float16), mask=m_mask[:, None] & n_mask[None, :])
 
 
+# Decode, M = 1: a GEMV. A tl.dot tile is at least 16 rows of X, so at M = 1 it
+# wastes 15/16 of every tensor-core instruction, and the 64 bytes per row it reads
+# per step are too short a run for the memory system. This kernel reads GPB groups
+# (GPB x 64 contiguous bytes) of each weight row per step on CUDA cores, sums each
+# group's products first, and applies the group's scale and zero point once:
+#     y_n = sum_g s_ng * (sum_k q_nk x_k  -  z_ng * sum_k x_k)
+_GEMV_CONFIGS = [
+    triton.Config({"BLOCK_N": bn, "GPB": gpb}, num_warps=w, num_stages=st)
+    for bn in (4, 8, 16) for gpb in (2, 4, 8) for w in (4, 8) for st in (2, 3)
+]
+
+
+@triton.autotune(configs=_GEMV_CONFIGS, key=["N", "K"])
+@triton.jit
+def w4a16_gemv_kernel(
+    x_ptr, wq_ptr, s_ptr, z_ptr, y_ptr,
+    N, K,
+    stride_xm, stride_xk, stride_wn, stride_gn, stride_ym, stride_yn,
+    BLOCK_N: tl.constexpr, GPB: tl.constexpr, GROUP: tl.constexpr,
+):
+    HALF: tl.constexpr = GROUP // 2  # packed bytes per group
+    pid_n = tl.program_id(0)
+    row = tl.program_id(1)
+    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    offs_g = tl.arange(0, GPB)
+    offs_j = tl.arange(0, HALF)
+    n_mask = offs_n < N
+    n_groups = K // GROUP
+
+    acc = tl.zeros((BLOCK_N, GPB), dtype=tl.float32)
+    for g0 in range(0, n_groups, GPB):
+        gg = g0 + offs_g                               # (GPB,) group indices
+        g_mask = gg < n_groups
+        kbyte = gg[:, None] * HALF + offs_j[None, :]   # (GPB, HALF) byte offsets in a row
+        # TODO: load this step's slice of X at even and odd columns (2 * kbyte and
+        # 2 * kbyte + 1, shape (GPB, HALF)), the packed bytes of BLOCK_N rows as a
+        # (BLOCK_N, GPB, HALF) tile (convert to int32), and the (BLOCK_N, GPB)
+        # scales and zero points at offs_n * stride_gn + gg. Mask every load.
+        # Then, in fp32:
+        #   part = sum over the last axis of lo * x_e + hi * x_o     -> (BLOCK_N, GPB)
+        #   acc += (part - zero * sum_k(x)) * scale
+        pass
+
+    y = tl.sum(acc, axis=1)
+    tl.store(y_ptr + row * stride_ym + offs_n * stride_yn, y.to(tl.float16), mask=n_mask)
+
+
 def w4a16_matmul(x, packed, scales, zeros, group_size: int = GROUP_SIZE) -> torch.Tensor:
     """Y = X @ dequant(W)^T for X (M, K) fp16, returning (M, N) fp16."""
     assert x.is_cuda and x.dtype == torch.float16 and x.dim() == 2
@@ -167,6 +214,19 @@ def w4a16_matmul(x, packed, scales, zeros, group_size: int = GROUP_SIZE) -> torc
     n = packed.shape[0]
     assert packed.shape == (n, k // 2) and k % group_size == 0
     y = torch.empty((m, n), dtype=torch.float16, device=x.device)
+    if m == 1:
+        def gemv_grid(meta):
+            return (triton.cdiv(n, meta["BLOCK_N"]), m)
+
+        w4a16_gemv_kernel[gemv_grid](
+            x, packed, scales, zeros, y,
+            n, k,
+            x.stride(0), x.stride(1), packed.stride(0), scales.stride(0),
+            y.stride(0), y.stride(1),
+            GROUP=group_size,
+        )
+        return y
+
     m_class = 1 if m <= 16 else (2 if m <= 64 else 3)
 
     def grid(meta):

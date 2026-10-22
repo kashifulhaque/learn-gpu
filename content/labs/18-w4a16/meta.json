@@ -5,7 +5,13 @@
   "gpu": "A100-80GB",
   "needs_gpu": true,
   "timeout": 900,
-  "metrics": ["bytes_ratio", "weight_gbs_m1", "speedup_m1", "speedup_m16", "tflops_m1024"],
+  "metrics": [
+    "bytes_ratio",
+    "weight_gbs_m1",
+    "speedup_m1",
+    "speedup_m16",
+    "tflops_m1024"
+  ],
   "hints": [
     "The quantizer is per row and per group of 128 along K: reshape W to (N, K // 128, 128), take the min and max over the last axis, and include 0 in the range so that 0.0 is exactly representable.",
     "scale = (max - min) / 15 and zero = round(-min / scale). The code is clamp(round(w / scale) + zero, 0, 15), and the weight is (code - zero) * scale.",
@@ -14,6 +20,7 @@
     "In the kernel, load a tile of packed bytes, split it into low and high nibbles, and load X at even and at odd columns. Two tl.dot calls, one for each nibble, replace the interleave.",
     "Move the scale and zero point out of the inner product: sum_k x_k (q_k - z) s = s * (sum_k x_k q_k - z * sum_k x_k). Then the only per-weight work in the loop is an integer-to-fp16 conversion.",
     "A kernel that compiles but is slow at M = 1 is usually launching too few programs or too little memory in flight. The autotune configs are a good place to start, and BLOCK_N = 16 gives more programs on a 108-SM card.",
-    "Triton compiles and autotunes on the first call, which can take a minute. The tests call every shape once before timing."
+    "Triton compiles and autotunes on the first call, which can take a minute. The tests call every shape once before timing.",
+    "At M = 1, write w4a16_gemv_kernel without tl.dot: load a (BLOCK_N, GPB, 64) tile of packed bytes, sum each group's products over the last axis, then apply the group's scale and zero point once."
   ]
 }

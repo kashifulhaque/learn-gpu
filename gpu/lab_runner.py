@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -78,6 +79,18 @@ def run_lab_stream(
             bufsize=1,
         )
 
+        # A lab that keeps printing never reaches process.wait, so the
+        # deadline is enforced by a timer that kills the process instead.
+        timed_out = threading.Event()
+
+        def _kill() -> None:
+            timed_out.set()
+            process.kill()
+
+        watchdog = threading.Timer(timeout, _kill)
+        watchdog.daemon = True
+        watchdog.start()
+
         result: dict[str, Any] | None = None
         assert process.stdout is not None
         try:
@@ -90,9 +103,11 @@ def run_lab_stream(
                         yield _event("log", line=line)
                     continue
                 yield _event("log", line=line)
-            process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
+            process.wait()
+        finally:
+            watchdog.cancel()
+
+        if timed_out.is_set():
             yield _event("error", message=f"Lab timed out after {timeout}s.")
             return
 

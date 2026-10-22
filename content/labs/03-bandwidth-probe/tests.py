@@ -207,7 +207,7 @@ def run(submission):
         for n in (1, 1_000_003):
             c.check(
                 f"copy_grid_stride is correct at n={n:,} with {blocks} blocks",
-                lambda n=n, b=blocks: _copy_ok(module.copy_grid_stride, n, blocks=b),
+                lambda n=n, b=blocks: _copy_ok(lambda s, d: module.copy_grid_stride(s, d, b), n),
             )
 
     def strided_ok(n, stride):

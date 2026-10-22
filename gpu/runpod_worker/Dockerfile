@@ -21,10 +21,10 @@ RUN sed -i 's|http://|https://|g' /etc/apt/sources.list \
     && rm -rf /var/lib/apt/lists/*
 
 # triton 3.8.0 is the release torch 2.14.1 pins; it is named here so a change to
-# the base image cannot move it silently.
-RUN pip install --no-cache-dir \
-        numpy==2.1.3 \
-        ninja==1.11.1.4 \
+# the base image cannot move it silently. The base image already ships numpy and
+# ninja that match its torch. Its Python is the system one (Ubuntu 24.04), which
+# refuses pip installs unless told otherwise.
+RUN pip install --no-cache-dir --break-system-packages \
         triton==3.8.0 \
         einops==0.8.1 \
         runpod==1.7.7

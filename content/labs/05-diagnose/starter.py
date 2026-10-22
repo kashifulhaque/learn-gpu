@@ -85,7 +85,7 @@ __device__ __forceinline__ float path_a(float v) {
     return v;
 }
 __device__ __forceinline__ float path_b(float v) {
-    for (int k = 0; k < 256; ++k) v = fmaf(v, 0.998f, -0.002f);
+    for (int k = 0; k < 256; ++k) v = v * v * 0.5f + 0.25f;  // a different body, so nvcc cannot merge the two paths
     return v;
 }
 

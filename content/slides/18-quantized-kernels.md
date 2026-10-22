@@ -372,6 +372,19 @@ small BLOCK_N values, and why production kernels also split K across programs.
 The 330.7 ns is the HBM latency measured on an A100 PCIe 40GB in the Luo
 microbenchmark paper, converted at 1410 MHz.
 
+### Decode wants a GEMV {#gemv}
+
+| Kernel at M = 1, N = K = 8192 | Time | Weight traffic |
+|---|---|---|
+| fp16 `torch.matmul` | 107 µs | 1250 GB/s |
+| W4A16, `tl.dot` tiles | 113 µs | 308 GB/s |
+| W4A16, GEMV on CUDA cores | 53 µs | 660 GB/s |
+
+> [!KEY] Measured on the lab A100: the tile shape threw away the 3.8x byte saving
+
+Note:
+These are measurements from the lab A100, not predictions. The tiled kernel wastes fifteen of every sixteen rows of tensor-core work at M of 1, and it reads only sixty-four contiguous bytes of each weight row per step. A GEMV that reads several groups per row and scales each group once reaches 2x. It still falls short of 3.8x because unpacking, not bytes, now limits it. The lab sends M of 1 to the GEMV and larger M to the tiled kernel.
+
 ### What Marlin adds {#marlin}
 
 - Async weight loads with a hint that the data is evictable

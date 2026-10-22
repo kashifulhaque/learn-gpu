@@ -223,6 +223,18 @@ At $M \le 16$ the grid has one row of programs, $N / BLOCK\_N$ of them. With $BL
 
 Memory-level parallelism sets a second requirement. Little's law says bytes in flight equal bandwidth times latency. With the 466.3-cycle HBM latency that the Luo microbenchmark paper measured on an A100 PCIe 40GB, which is 330.7 ns at 1410 MHz, 1275 GB/s needs $1275 \times 10^9 \times 330.7 \times 10^{-9} = 422$ KB in flight across the GPU, or about 3.9 KB per SM. Each program must therefore keep several tiles of bytes in flight, which is what `num_stages` controls: Triton issues the loads for later iterations while the current one computes.
 
+### Decode wants a GEMV, not a tile
+
+At $M = 1$ the tiled kernel above is the wrong shape, and the lab A100 shows it. A `tl.dot` tile is at least 16 rows of $X$, so at $M = 1$ it wastes 15 of every 16 rows of tensor-core work. Worse, each step reads only one group of each weight row, 64 contiguous bytes, which is a short run for the memory system. Measured on the lab A100 at $N = K = 8192$, that kernel reached ==0.93x of fp16 `torch.matmul`==, 308 GB/s of weight traffic against the 1275 GB/s ceiling: the 3.8x byte saving bought nothing.
+
+The fix is a kernel shaped for the problem: a matrix-vector product on CUDA cores. Each program owns a few rows of $W$ and reads several groups of each row per step, for example 4 groups or 256 contiguous bytes. It sums each group's products first and applies the group's scale and zero point once, the factored form from earlier:
+
+$$
+y_n = \sum_{g} s_{ng} \Big( \sum_{k \in g} q_{nk}\, x_k \;-\; z_{ng} \sum_{k \in g} x_k \Big)
+$$
+
+On the same card and shape this GEMV ran in 53 µs against 107 µs for fp16, a 2.0x speedup at 660 GB/s of weight traffic. Inside the lab's test harness, which flushes the L2 between runs, the solution measures about 1.4x and 480 GB/s. That's still well short of the 3.8x byte ratio: the unpack work, not the bytes, now sets the speed, which is the instruction budget from earlier coming due. The lab's `w4a16_matmul` sends $M = 1$ to the GEMV and every larger $M$ to the tiled kernel, because the GEMV re-reads $W$ once per row of $X$ and already loses at $M = 4$.
+
 ### What Marlin adds
 
 Marlin is the best-known fused W4A16 kernel. Its paper reports speedups close to the 4x maximum up to batch sizes of 16 to 32, a gradual decline at batch sizes of 64 to 128, and up to 2.8x end to end in vLLM. The paper's abstract doesn't name the GPU, and the README reports its peak microbenchmark on an NVIDIA A10 and states that the kernel targets compute capability 8.0 and later, so treat the numbers as "reported by the authors" and don't transfer absolute figures to the A100.
@@ -376,7 +388,8 @@ In Triton, `tl.dot_scaled` exposes block-scaled products with E8M0 scales on a g
 >
 > 1. `quantize_int4`, `pack_int4`, `unpack_int4`, and `dequantize_int4`: asymmetric uint4 codes, one fp16 scale and one uint8 zero point per row and group of 128 along $K$, two codes per byte with the even index in the low nibble.
 > 2. `int4_to_fp16_magic`: convert codes 0 to 15 to fp16 with the `0x6400` trick in torch.
-> 3. `w4a16_kernel` and `w4a16_matmul`: compute $Y = X\,\text{dequant}(W)^{\top}$ for $X$ of shape $(M, K)$ in fp16, for $M$ from 1 to 1000, including $N$ and $M$ that aren't multiples of the tile.
+> 3. `w4a16_kernel`: compute $Y = X\,\text{dequant}(W)^{\top}$ for $X$ of shape $(M, K)$ in fp16, for $M$ from 2 to 1000, including $N$ and $M$ that aren't multiples of the tile.
+> 4. `w4a16_gemv_kernel`: the $M = 1$ decode path, a GEMV that reads several groups of each weight row per step. `w4a16_matmul` already sends $M = 1$ to it.
 >
 > Passing means every correctness check agrees with the fp32 reference within a relative error of $2 \times 10^{-3}$ and the kernel is at least 25% of the byte-ratio bound (0.95x, so about as fast as fp16 `torch.matmul`) at $M = 1$ on an 8192 x 8192 matrix. The bound is loose on purpose: the byte count predicts 3.82x, and a first Triton kernel often lands well short of it. The lab reports `bytes_ratio`, `weight_gbs_m1` (the effective bandwidth of codes, scales, and zero points), `speedup_m1`, `speedup_m16`, and `tflops_m1024`.
 >

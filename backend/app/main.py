@@ -1,8 +1,7 @@
 """learn-gpu — HTTP API and static file server.
 
-Everything under `/api` needs a session cookie except `/api/health`,
-`/api/me`, `/api/login`, and `/api/logout`, and so does the PDF book under
-`/book`. Everything else is the single-page app.
+Private API routes and the PDF book require a verified identity from the trusted
+reverse proxy. `/api/health` and `/api/me` remain public for health and auth checks.
 """
 
 import asyncio
@@ -11,13 +10,13 @@ import os
 import time
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import curriculum, db, decks, infra
-from .auth import clear_session, current_user, issue_session, read_session, verify_password
+from .auth import current_user, sso_user
 from .config import Settings, get_settings
 from .providers import OutOfCredits, ProviderError, get_provider, provider_status
 
@@ -33,11 +32,6 @@ def _startup() -> None:
 
 
 # --- schemas ----------------------------------------------------------------
-
-
-class LoginBody(BaseModel):
-    name: str = Field(min_length=1, max_length=40)
-    password: str
 
 
 class ProgressBody(BaseModel):
@@ -70,27 +64,10 @@ class ActionBody(BaseModel):
 # --- auth -------------------------------------------------------------------
 
 
-@app.post("/api/login")
-def login(
-    body: LoginBody, response: Response, settings: Settings = Depends(get_settings)
-) -> dict[str, Any]:
-    if not verify_password(body.password, settings):
-        raise HTTPException(status_code=401, detail="Wrong password")
-    issue_session(response, body.name.strip(), settings)
-    return {"name": body.name.strip()}
-
-
-@app.post("/api/logout")
-def logout(response: Response, settings: Settings = Depends(get_settings)) -> dict[str, bool]:
-    clear_session(response, settings)
-    return {"ok": True}
-
-
 @app.get("/api/me")
 def me(request: Request, settings: Settings = Depends(get_settings)) -> dict[str, Any]:
-    name = read_session(request, settings)
     return {
-        "name": name,
+        "name": sso_user(request, settings),
         "gpu": settings.gpu_type,
     }
 

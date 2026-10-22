@@ -132,12 +132,6 @@ export const MonitorIcon = (p: IconProps) => (
   </Icon>
 );
 
-export const SignOutIcon = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="M6 13.5H3.5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H6M10.5 11l3-3-3-3M13.5 8H6" />
-  </Icon>
-);
-
 export const FlaskIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M6.25 2h3.5M6.75 2v4L3 12.6a.9.9 0 0 0 .8 1.4h8.4a.9.9 0 0 0 .8-1.4L9.25 6V2" />

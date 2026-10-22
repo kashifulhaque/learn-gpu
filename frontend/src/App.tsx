@@ -88,17 +88,12 @@ export default function App() {
     [],
   );
 
-  async function signOut() {
-    await api.logout();
-    setName(null);
-    setChapters(null);
-  }
 
   if (!ready) {
     return <Loading />;
   }
   if (!name) {
-    return <Login onSignedIn={setName} />;
+    return <Login />;
   }
 
   const list = chapters ?? [];
@@ -115,7 +110,6 @@ export default function App() {
         onToggleCollapsed={() => setCollapsed((current) => !current)}
         name={name}
         active={active}
-        onSignOut={signOut}
       />
 
       {menuOpen && (

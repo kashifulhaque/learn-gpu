@@ -10,8 +10,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-TEST_PASSWORD = "test-password"
-
 
 @pytest.fixture
 def content(tmp_path, monkeypatch):
@@ -24,8 +22,8 @@ def content(tmp_path, monkeypatch):
     monkeypatch.setenv("FRONTEND_DIST", str(tmp_path / "no-dist"))
     monkeypatch.setenv("BOOK_DIR", str(tmp_path / "book"))
     # Environment variables win over a developer's .env, so tests see these.
-    monkeypatch.setenv("APP_PASSWORD", TEST_PASSWORD)
-    monkeypatch.setenv("SSO_PROXY_SECRET", "")
+    monkeypatch.setenv("SSO_PROXY_SECRET", "test-proxy-secret")
+    monkeypatch.setenv("SSO_USERS", "")
     _reset()
     yield root
     _reset()
@@ -46,7 +44,11 @@ def client(content):
 
     from backend.app.main import app
 
-    with TestClient(app) as test_client:
-        reply = test_client.post("/api/login", json={"name": "tester", "password": TEST_PASSWORD})
-        assert reply.status_code == 200, reply.text
+    with TestClient(
+        app,
+        headers={
+            "X-SSO-Proxy": "test-proxy-secret",
+            "Remote-User": "tester",
+        },
+    ) as test_client:
         yield test_client

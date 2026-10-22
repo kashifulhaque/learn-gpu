@@ -111,7 +111,7 @@ def test_a_broken_deck_is_not_served(client, content):
     assert client.get("/api/slides").json()["decks"][0]["deck"] is None
 
 
-def test_api_needs_a_session(content):
+def test_api_requires_verified_proxy_identity(content):
     from fastapi.testclient import TestClient
 
     from backend.app.main import app
@@ -120,12 +120,37 @@ def test_api_needs_a_session(content):
         assert anonymous.get("/api/slides").status_code == 401
         assert anonymous.get("/api/slides/00-intro").status_code == 401
         assert anonymous.get("/api/health").json()["ok"] is True
+        assert anonymous.get("/api/me").json()["name"] is None
+
+    with TestClient(
+        app,
+        headers={
+            "X-SSO-Proxy": "not-the-secret",
+            "Remote-User": "tester",
+        },
+    ) as untrusted:
+        assert untrusted.get("/api/slides").status_code == 401
+
+
+def test_sso_user_mapping_keeps_existing_progress_name(client, content, monkeypatch):
+    from backend.app.config import get_settings
+
+    monkeypatch.setenv("SSO_USERS", "tester:legacy-name")
+    get_settings.cache_clear()
+    assert client.get("/api/me").json()["name"] == "legacy-name"
 
 
 def test_the_removed_endpoints_are_gone(client, content):
     for path in ("/api/lectures", "/api/infra/volume?provider=runpod&name=x"):
         assert client.get(path).status_code == 404
-    assert "model" not in client.get("/api/me").json()
+    assert (
+        client.post(
+            "/api/login", json={"name": "tester", "password": "secret"}
+        ).status_code
+        == 404
+    )
+    assert client.post("/api/logout").status_code == 404
+    assert client.get("/api/me").json()["name"] == "tester"
 
 
 def test_book_info_reports_both_pdfs(client, content, tmp_path):

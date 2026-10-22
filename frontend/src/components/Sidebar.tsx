@@ -16,7 +16,6 @@ import {
   PanelIcon,
   PresentIcon,
   SearchIcon,
-  SignOutIcon,
 } from "./icons";
 import { IconButton, Kbd } from "./ui";
 
@@ -34,7 +33,6 @@ type Props = {
   name: string;
   /** How many things are running on a GPU provider, or null while unknown. */
   active: number | null;
-  onSignOut: () => void;
 };
 
 const SHUT_PARTS_KEY = "lg.sidebar.shutParts";
@@ -95,7 +93,6 @@ export default function Sidebar({
   onToggleCollapsed,
   name,
   active,
-  onSignOut,
 }: Props) {
   const [filter, setFilter] = useState("");
   const [shutParts, setShutParts] = useState<string[]>(readShutParts);
@@ -196,9 +193,6 @@ export default function Sidebar({
 
         <div className="flex shrink-0 flex-col items-center gap-0.5 border-t border-line py-2">
           <ThemeCycle />
-          <IconButton onClick={onSignOut} title={`Sign out ${name}`} aria-label="Sign out">
-            <SignOutIcon />
-          </IconButton>
         </div>
       </aside>
     );
@@ -401,9 +395,6 @@ export default function Sidebar({
           {name}
         </span>
         <ThemeSwitch />
-        <IconButton onClick={onSignOut} title="Sign out" aria-label="Sign out" size="sm">
-          <SignOutIcon />
-        </IconButton>
       </div>
 
       <p className="hidden shrink-0 items-center gap-1.5 px-3.5 pb-2.5 text-[11.5px] text-fg-faint lg:flex">

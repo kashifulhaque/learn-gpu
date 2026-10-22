@@ -69,11 +69,9 @@ You need Python 3.11 or later and Node 20 or later.
    cp .env.example .env
    ```
 
-   Set `SESSION_SECRET` to a random string:
-
-   ```bash
-   python3 -c "import secrets; print(secrets.token_urlsafe(48))"
-   ```
+   Set `SSO_PROXY_SECRET` to the same secret configured on the trusted Caddy
+   reverse proxy. Add `SSO_USERS` mappings if an Authelia username differs from
+   the name used by existing course progress, for example `alice:alice,bob:robert`.
 
 2. Install and start the backend:
 
@@ -174,8 +172,10 @@ commit to the server's clone, rebuilds, and waits for the health check. It reads
 
 ## Access
 
-The app is password protected. Set `APP_PASSWORD` in `.env`. Whoever signs in
-picks a display name, which scopes their progress, drafts, and run history.
+The course relies on the trusted Caddy reverse proxy to enforce Authelia sign-in
+and forward `Remote-User` with the configured `SSO_PROXY_SECRET` in `X-SSO-Proxy`.
+The login screen redirects to the central portal and returns to the exact course
+URL. `SSO_USERS` can map portal usernames to existing progress names.
 Labs execute code you type. That code runs on the RunPod worker, never on the web
 host.
 

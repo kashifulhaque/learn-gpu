@@ -2,9 +2,9 @@
 # run gets the code it was built with and can compile CUDA C++ with nvcc.
 #
 # The base image is a *devel* image: the runtime variant has no nvcc, and
-# `torch.utils.cpp_extension.load_inline` needs it. Its CUDA toolkit (12.8) is
+# `torch.utils.cpp_extension.load_inline` needs it. Its CUDA toolkit (13.0) is
 # the one this torch wheel was built against, which is what load_inline wants.
-FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel
+FROM pytorch/pytorch:2.14.1-cuda13.0-cudnn9-devel
 
 ENV PYTHONUNBUFFERED=1 \
     CUDA_HOME=/usr/local/cuda \
@@ -20,12 +20,12 @@ RUN sed -i 's|http://|https://|g' /etc/apt/sources.list \
         git build-essential ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-# triton 3.4.0 is the release torch 2.8.0 pins; it is named here so a change to
+# triton 3.8.0 is the release torch 2.14.1 pins; it is named here so a change to
 # the base image cannot move it silently.
 RUN pip install --no-cache-dir \
         numpy==2.1.3 \
         ninja==1.11.1.4 \
-        triton==3.4.0 \
+        triton==3.8.0 \
         einops==0.8.1 \
         runpod==1.7.7
 

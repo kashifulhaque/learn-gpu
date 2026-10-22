@@ -129,7 +129,7 @@ the course's worker image, or open the lab in the app.
 
 ## The worker
 
-`gpu/runpod_worker/` builds on `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel`: a
+`gpu/runpod_worker/` builds on `pytorch/pytorch:2.14.1-cuda13.0-cudnn9-devel`: a
 CUDA *devel* image with `nvcc`, plus `ninja`, a pinned `triton`, and the matching
 torch. It sets `TORCH_CUDA_ARCH_LIST=8.0` and a persistent
 `TORCH_EXTENSIONS_DIR`. A change to `lab_common.py` or any lab reaches the GPU

@@ -5,7 +5,7 @@ worker that executes labs: `handler.py` receives a lab id and the reader's code,
 runs it through the lab runner in `gpu/lab_runner.py`, and streams events
 back.
 
-The image is built on `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel`. The
+The image is built on `pytorch/pytorch:2.14.1-cuda13.0-cudnn9-devel`. The
 *devel* variant carries `nvcc`, which labs need to compile CUDA C++ with
 `torch.utils.cpp_extension.load_inline`. The runtime variant has none. The
 image also installs `ninja` and a pinned `triton`, and it sets

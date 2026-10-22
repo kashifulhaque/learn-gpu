@@ -95,7 +95,7 @@ http://localhost:5173/viz.html.
 ## Set up the GPU
 
 Labs run on a RunPod serverless endpoint. The worker needs `nvcc`, so its image
-is built on a CUDA *devel* base image (`pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel`),
+is built on a CUDA *devel* base image (`pytorch/pytorch:2.14.1-cuda13.0-cudnn9-devel`),
 with `ninja` and `triton` installed. It needs no network volume and no
 Hugging Face token.
 

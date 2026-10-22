@@ -1,0 +1,17 @@
+{
+  "id": "19-fused-xent",
+  "title": "Fused linear cross-entropy",
+  "brief": "Write a custom autograd Function that computes a language-model loss in token chunks, so the tokens-by-vocabulary logits tensor never exists, with a Triton kernel for the softmax gradient. Check it against a float64 reference and measure its peak memory and time.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["ref_peak_mb", "fused_peak_mb", "memory_ratio", "ref_ms", "fused_ms", "fused_torch_path_ms", "speed_ratio", "fused_tflops", "torch_lce_peak_mb", "torch_lce_ms"],
+  "hints": [
+    "Start with softmax_xent_grad_torch_ and get the float32 checks passing on small shapes. The gradient of cross-entropy with respect to the logits is softmax(logits) minus the one-hot target, times scale.",
+    "Inside forward, the chunk's logits tensor is overwritten with d(loss)/d(logits). Then grad_h[chunk] = dlogits @ w, and grad_w += dlogits.T @ h[chunk]. Nothing about the full logits survives the loop iteration.",
+    "backward only multiplies the saved gradients by the incoming gradient. Return None for each non-tensor argument of forward, in order: targets, chunk_size, ignore_index, use_triton.",
+    "In the Triton kernel, keep the running maximum m and running sum s as scalars. When m grows, multiply s by exp(m_old - m_new) before adding the new block's terms. Load the target's logit before pass 2 overwrites it.",
+    "A masked tl.load needs other=-inf for the max and the sum, and a masked tl.store keeps the last block from writing past the row.",
+    "The Triton kernel compiles on the first call, which takes a few seconds. The timeout allows for it."
+  ]
+}

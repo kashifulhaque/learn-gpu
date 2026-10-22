@@ -1,0 +1,33 @@
+{
+  "id": "09-numerics",
+  "title": "Numerics on the GPU",
+  "brief": "Round-trip values through fp32, tf32, bf16, fp16, and fp8 and measure each format's error. Watch a bfloat16 sum stall, then write Kahan, fixed-order tree, and atomicAdd summation kernels and compare their accuracy and determinism. Last, measure what --use_fast_math does to expf and subnormals.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": [
+    "bf16_roundoff",
+    "e4m3_roundoff",
+    "bf16_seq_rel_err",
+    "bf16_pairwise_rel_err",
+    "seq_rel_err",
+    "kahan_rel_err",
+    "tree_rel_err",
+    "atomic_distinct",
+    "tree_gbs",
+    "expf_ulp",
+    "fast_expf_ulp",
+    "fast_math_flushes_subnormals"
+  ],
+  "hints": [
+    "The CUDA parts compile with nvcc the first time, which takes 30 to 60 seconds. Later runs reuse the cached build.",
+    "format_stats: bias = 2**(exp_bits - 1) - 1. For an IEEE-style format the top exponent field is reserved, so the largest exponent is 2**exp_bits - 2 - bias. E4M3 reuses the top exponent for finite numbers, so its largest exponent is 2**exp_bits - 1 - bias, and the all-ones mantissa there is NaN.",
+    "round_tf32: view the float32 tensor as int32 with x.view(torch.int32). TF32 keeps 10 of the 23 mantissa bits, so 13 are dropped and half of the dropped range is 0x1000. Add that, then clear the low 13 bits with & ~0x1FFF.",
+    "torch.float8_e4m3fn turns a value past 448 into NaN when you cast it. Clamp to the format's largest finite value with torch.finfo(dtype).max before the cast.",
+    "sum_bf16_sequential needs a Python loop over columns, with the accumulator held in bfloat16 so every addition rounds. If you accumulate in float32 you won't see the stall.",
+    "Kahan: y = x[i] - c; t = s + y; c = (t - s) - y; s = t. The CUDA compiler does not reassociate float arithmetic, so the compensation survives -O3.",
+    "Tree kernel: every thread first adds ITEMS values in a fixed order, then the block halves the active threads each step with a __syncthreads() between steps. Don't use atomics anywhere in it.",
+    "atomic_sum_kernel: reduce the block with block_tree, then let thread 0 call atomicAdd(out, total). Two runs can give different last bits because the blocks finish in different orders.",
+    "A short run can land on one result every time. Nothing guarantees that, so the lab asserts determinism only for the tree kernel."
+  ]
+}

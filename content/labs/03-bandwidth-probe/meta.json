@@ -1,0 +1,27 @@
+{
+  "id": "03-bandwidth-probe",
+  "title": "Bandwidth probe",
+  "brief": "Write four copy kernels (scalar, float4, grid-stride, strided), count the bytes they move, and sweep the copy size from below the 40 MB L2 to 4 GiB to find where bandwidth plateaus.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": [
+    "scalar_gbs",
+    "vec4_gbs",
+    "grid_stride_gbs",
+    "strided_gbs",
+    "strided_big_gbs",
+    "coalescing_ratio",
+    "plateau_gbs",
+    "rating_fraction",
+    "l2_resident_gbs"
+  ],
+  "hints": [
+    "The first run compiles CUDA with nvcc and takes 30 to 60 seconds. Editing one character of the source recompiles it, so batch your edits.",
+    "A copy reads every element once and writes it once: count 2 * n * 4 bytes for float32, not n * 4. A vector add reads two arrays and writes one: 3 * n * 4.",
+    "For float4, a thread moves 16 bytes, so launch ceil(n / 4) threads over the float4 view, and copy the last n % 4 floats with the scalar kernel. A pointer that is not 16-byte aligned, such as tensor[1:], must take the scalar path.",
+    "Use long long for every index that multiplies: i * stride overflows a 32-bit int once i * stride passes 2^31.",
+    "A strided read touches one 32-byte sector per thread, so the read costs min(4 * stride, 32) bytes per element. Add the 4-byte coalesced write.",
+    "Sizes below about 20 MiB per tensor fit the source and destination in the 40 MiB L2, so their bandwidth reflects the cache and not HBM. The plateau is the part of the sweep well above that."
+  ]
+}

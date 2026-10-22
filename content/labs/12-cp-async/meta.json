@@ -1,0 +1,16 @@
+{
+  "id": "12-cp-async",
+  "title": "A multistage cp.async pipeline",
+  "brief": "Take a tensor-core GEMM (bfloat16 in, float32 accumulate) whose block loads and computes in turn, and give it a 2 to 4 stage cp.async pipeline. Report TFLOP/s and the speedup over one stage.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["tflops_1stage", "tflops_best", "best_stages", "speedup", "pct_of_peak", "pct_of_cublas", "cublas_tflops"],
+  "hints": [
+    "The first run compiles the CUDA source with nvcc, which takes 30 to 90 seconds because the kernel is instantiated for five stage counts. Later runs reuse the build.",
+    "Start with the Python half: stage_smem_bytes, max_stages, and schedule need no GPU. The tests check schedule against a model ring buffer before they touch the kernel.",
+    "At the top of loop iteration kt, groups 0 to kt + STAGES - 2 are committed, and tile kt is group kt. How many groups may still be pending for tile kt to be safe?",
+    "The slot you load into at iteration kt is the one that held tile kt - 1. Why is it safe to overwrite after the __syncthreads, and unsafe before?",
+    "Commit a group on every iteration, even when there is no tile left to load. Every thread's wait_group count then means the same thing."
+  ]
+}

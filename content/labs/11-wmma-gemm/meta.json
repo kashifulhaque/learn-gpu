@@ -1,0 +1,18 @@
+{
+  "id": "11-wmma-gemm",
+  "title": "Tensor-core GEMM: WMMA, then mma.sync",
+  "brief": "Write a bf16 GEMM with fp32 accumulation on the tensor cores, first with the WMMA API, then with inline-PTX ldmatrix and mma.sync, and report TFLOP/s against torch.matmul.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": ["wmma_tflops", "mma_tflops", "torch_tflops", "wmma_pct_torch", "mma_pct_torch"],
+  "hints": [
+    "The first run compiles CUDA with nvcc, which takes 30 to 60 seconds. Later runs reuse the cached build.",
+    "The wrapper pads M and N to multiples of 128 and K to multiples of 32 with zeros, so the kernels need no bounds checks. Zero rows and columns add nothing to the dot products.",
+    "WMMA: fragments are opaque. Declare the accumulators, fill them with 0, then per 16-wide slice of K call load_matrix_sync for A and B and mma_sync. The leading dimension is the shared-memory row stride, 40 for A and 136 for B.",
+    "ldmatrix gives each thread a piece of an 8x8 matrix of 16-bit values. With .x4, lane l supplies the row address of matrix l / 8, row l % 8. For A, matrices 0 to 3 are: rows 0-7 and k 0-7, rows 8-15 and k 0-7, rows 0-7 and k 8-15, rows 8-15 and k 8-15.",
+    "B sits in shared memory as [k][n], but mma.sync wants it 'col', so load it with ldmatrix.trans. The lane-to-address rule is the same as for A.",
+    "In the C fragment, lane = 4 * g + t holds rows g and g + 8, columns 2t and 2t + 1, in four fp32 registers: c0 and c1 in row g, c2 and c3 in row g + 8.",
+    "A kernel that does not beat the 19.5 TFLOP/s fp32 CUDA-core peak is not using the tensor cores. Check the PTX type strings: .bf16 for the inputs, .f32 for the accumulator."
+  ]
+}

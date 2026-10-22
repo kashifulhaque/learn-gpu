@@ -1,0 +1,33 @@
+{
+  "id": "17-compile-graphs",
+  "title": "Compile, capture, and register",
+  "brief": "Fuse a chain of six pointwise ops by hand in Triton and with torch.compile, replay a launch-bound decode-like loop from a CUDA graph, and register a Triton kernel as a custom op that torch.compile traces with fullgraph=True.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": [
+    "eager_ms",
+    "triton_ms",
+    "compile_ms",
+    "triton_gbs",
+    "speedup_triton",
+    "speedup_compile",
+    "launches_eager",
+    "launches_fused",
+    "launches_saved",
+    "inductor_triton_kernels",
+    "decode_kernels",
+    "decode_eager_ms",
+    "decode_graph_ms",
+    "speedup_graph",
+    "graph_breaks"
+  ],
+  "hints": [
+    "The first call to a Triton kernel and the first call to a torch.compile'd function each compile for several seconds. The tests warm up before they time, but your own experiments should too.",
+    "Mask every load and store in the Triton kernel with offs < n. The tests use sizes such as 1, 7, and 4097 that are not multiples of the block size.",
+    "To read what Inductor wrote, call torch._inductor.utils.run_and_get_code(compiled_fn, x). It returns the result and a list of source strings. Turn off the FX graph cache with torch._inductor.config.patch so a cached graph doesn't hide the code.",
+    "CUDA graph capture needs a warmup on a side stream, static input and output tensors, and no host synchronization inside the capture. Copy new data into the static input, then call graph.replay().",
+    "A custom_op that wraps a Triton kernel needs a register_fake so torch.compile can trace it. A triton_op doesn't: launch the kernel with wrap_triton(kernel)[grid](...) and the compiler traces through it.",
+    "Both custom ops need mutates_args. This kernel writes only a fresh output tensor, so the right value is an empty tuple."
+  ]
+}

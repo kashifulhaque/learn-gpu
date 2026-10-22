@@ -1,14 +1,16 @@
 {
   "id": "00-hello-gpu",
   "title": "Hello, GPU",
-  "brief": "Query the device, time a device-to-device copy with CUDA events, and report its bandwidth against the A100's copy ceiling.",
+  "brief": "Query the device, write your own CUDA-event timer, time a device-to-device copy with it, and report the bandwidth against the A100's measured copy ceiling.",
   "gpu": "A100-80GB",
   "needs_gpu": true,
   "timeout": 600,
-  "metrics": ["sm_count", "copy_gbs", "ceiling_fraction"],
+  "metrics": ["sm_count", "copy_ms", "copy_gbs", "ceiling_fraction", "host_no_sync_ms"],
   "hints": [
     "torch.cuda.get_device_properties(0) has name, total_memory, multi_processor_count, and major and minor for the compute capability.",
+    "For time_ms, create a start and an end torch.cuda.Event(enable_timing=True), call start.record(), run fn(), call end.record(), then end.synchronize() before start.elapsed_time(end). Without the synchronize, elapsed_time raises or reads a stale value.",
+    "Warm up first. The first call of a kernel pays for loading it and for allocator work, and none of that belongs in the measurement.",
     "A copy reads every byte once and writes it once, so it moves 2 * n_bytes. Count both.",
-    "cuda_time(fn) from lab_common returns the median milliseconds of one call to fn, measured with CUDA events."
+    "Memory is in decimal GB here: divide bytes by 1e9, not 2**30."
   ]
 }

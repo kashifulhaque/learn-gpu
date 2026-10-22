@@ -1,0 +1,17 @@
+{
+  "id": "15-softmax-layernorm",
+  "title": "Softmax and LayerNorm",
+  "brief": "Write an online softmax that streams rows too long for one block, then a LayerNorm forward pass with a Welford merge and a backward pass with a two-stage dgamma and dbeta reduction. Check everything against torch.autograd and report GB/s.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["softmax_gbs", "softmax_vs_torch", "layernorm_fwd_gbs", "layernorm_bwd_gbs"],
+  "hints": [
+    "Triton compiles each kernel the first time it runs, so the first call takes a few seconds. The timing helper warms up before it measures.",
+    "Online softmax keeps two scalars per row, the running maximum m and the running denominator d. When a new block raises the maximum, multiply d by exp(m_old - m_new) before you add the new block's terms.",
+    "Load with other=-inf for softmax, so a masked lane adds exp(-inf) = 0. Load with other=0.0 for sums, and use tl.where to zero a masked lane after you subtract a mean.",
+    "To merge a block into a running (count, mean, M2), use Chan's formula: delta = mean_b - mean; mean += delta * n_b / count; M2 += M2_b + delta * delta * n_a * n_b / count, where n_a is the count before the merge.",
+    "LayerNorm backward: with xhat = (x - mean) * rstd and g = dy * w, dx = rstd * (g - xhat * mean(xhat * g) - mean(g)). Then dw is the sum of dy * xhat over rows, and db is the sum of dy over rows.",
+    "Stage 1 of the backward pass gives each program a stride-G set of rows and keeps dw and db partial sums in registers. Stage 2 adds the G partial rows together, one block of columns per program."
+  ]
+}

@@ -48,7 +48,7 @@ one exists.
 | 11 | [Tensor cores](content/chapters/11-tensor-cores.md) | Part 3 — Matrix multiplication | fp16/bf16 GEMM on tensor cores with WMMA, then mma.sync with ldmatrix. |
 | 12 | [Pipelining and asynchronous copies](content/chapters/12-pipelining-and-async-copies.md) | Part 3 — Matrix multiplication | Multistage cp.async pipeline for the tensor-core GEMM. Hopper TMA/wgmma and Blackwell tcgen05 in prose. |
 | 13 | [CUTLASS and CuTe layouts](content/chapters/13-cutlass-and-cute.md) | Part 3 — Matrix multiplication | Implement CuTe layout algebra (shape/stride, coalesce, composition, complement, swizzle) in Python. |
-| 14 | [Triton](content/chapters/14-triton.md) | Part 3 — Matrix multiplication | Triton matmul with block pointers, grouped (L2-friendly) ordering, and autotuning vs cuBLAS. |
+| 14 | [Triton](content/chapters/14-triton.md) | Part 3 — Matrix multiplication | Triton matmul with plain pointer arithmetic, grouped (L2-friendly) ordering, and autotuning vs cuBLAS. |
 | 15 | [Softmax and normalization](content/chapters/15-softmax-and-normalization.md) | Part 4 — Kernels for ML | Online softmax and LayerNorm forward and backward (Welford) in Triton. |
 | 16 | [FlashAttention](content/chapters/16-flash-attention.md) | Part 4 — Kernels for ML | FlashAttention-2 forward and backward in Triton, with causal masking. |
 | 17 | [Fusion, compilers, and launch overhead](content/chapters/17-fusion-and-compilers.md) | Part 4 — Kernels for ML | torch.compile and Inductor output, CUDA graphs, custom ops with torch.library. |

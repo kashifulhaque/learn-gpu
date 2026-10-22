@@ -1,0 +1,17 @@
+{
+  "id": "06-reduce",
+  "title": "Reductions",
+  "brief": "Write sum and max reductions in CUDA C++: a shared-memory tree, warp shuffles, one-pass atomics, and a row-wise sum with one warp per row. Hit a large fraction of the copy ceiling.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": ["sum_tree_gbs", "sum_atomic_gbs", "max_atomic_gbs", "row_sum_gbs", "torch_sum_gbs", "best_ceiling_fraction"],
+  "hints": [
+    "The first run compiles with nvcc and takes 30 to 60 seconds. Later runs reuse the cache.",
+    "__shfl_down_sync(0xffffffff, v, offset) returns the value of the lane offset places above. Halve the offset from 16 down to 1, and lane 0 ends with the warp's sum.",
+    "In the shared-memory tree, a __syncthreads() belongs after every round, and every thread must reach it, so keep it outside the if (t < offset).",
+    "A block's result must reach global memory exactly once, from one thread. With atomics, that thread calls atomicAdd once per block, not once per element.",
+    "Floats compare as integers in sign-magnitude order: for a non-negative float, atomicMax on the int bits works. For a negative one, atomicMin on the unsigned bits works.",
+    "The tests call your reduction on arrays of size 1, 31, 33, 257, and 1,000,003, and on an input that starts 4 bytes past an aligned address. The provided loading loops handle those; your code must not assume a multiple of 256."
+  ]
+}

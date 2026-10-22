@@ -1,0 +1,17 @@
+{
+  "id": "04-roofline",
+  "title": "Predict, then measure",
+  "brief": "Write the roofline, wave-quantization, and Little's-law predictors, then compare them with the measured time of kernels whose arithmetic intensity you can tune, and report the measured ridge point.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["ridge_measured", "fp32_tflops", "k1_bw_gbs", "launch_floor_us", "wave_step_ratio", "read_peak_gbs", "inflight_kb_per_sm_90pct"],
+  "hints": [
+    "The first run compiles three CUDA kernels with nvcc, which takes 30 to 60 seconds. Later runs reuse the cached build.",
+    "Roofline time is the larger of two times: FLOPs divided by the peak rate, and bytes divided by the bandwidth. Convert TFLOP/s and GB/s to FLOP/s and byte/s before you divide.",
+    "A kernel that does k FMAs per element does 2*k FLOPs per element and moves 8 bytes per element: it reads 4 and writes 4.",
+    "Waves are a ceiling division: ceil(num_blocks / (blocks_per_sm * sm_count)). Efficiency is num_blocks divided by waves times the capacity of one wave.",
+    "Little's law: bytes in flight equals bandwidth times latency. Convert the latency from cycles to seconds with the clock in MHz first.",
+    "For measured_ridge, take the highest FLOP/s any kernel reached and the highest byte rate any kernel reached. Their ratio is the measured ridge point."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "10-sgemm",
+  "title": "SGEMM from scratch",
+  "brief": "Write fp32 matrix-multiplication kernels in CUDA C++, from a naive one-thread-per-output kernel to a shared-memory tiled kernel and a 2D register-blocked kernel, and measure each as a percentage of cuBLAS.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1500,
+  "metrics": [
+    "cublas_gflops",
+    "naive_gflops", "naive_pct_cublas",
+    "coalesced_gflops", "coalesced_pct_cublas",
+    "tiled_gflops", "tiled_pct_cublas",
+    "regblock_gflops", "regblock_pct_cublas",
+    "vectorized_gflops", "vectorized_pct_cublas",
+    "best_pct_cublas"
+  ],
+  "hints": [
+    "Compiling the CUDA source takes 30 to 60 seconds the first time. Later runs reuse the cache.",
+    "Start with the pure-Python helpers: FLOPs are 2*M*N*K, and the least traffic is 4 bytes times (M*K + K*N + M*N).",
+    "In the tiled kernel, every thread must reach both __syncthreads() calls, so guard the loads and the final store, never the whole loop body. Load 0.0 for an element outside the matrix.",
+    "In the register-blocked kernel, store A's tile transposed, As[k * BM + m], so a thread's TM values for one k are contiguous in shared memory.",
+    "Each k step of the register-blocked kernel is an outer product: read TM values of A and TN values of B into registers, then do TM*TN FMAs.",
+    "To add the optional kernels, define sgemm_coalesced and sgemm_vectorized, then add their names to FUNCTIONS and their signatures to CPP_DECLARATIONS. The tests measure whatever FUNCTIONS lists.",
+    "float4 loads need K % 4 == 0, N % 4 == 0, and 16-byte aligned pointers. Fall back to scalar loads when that is false, or the odd-size tests fail."
+  ]
+}

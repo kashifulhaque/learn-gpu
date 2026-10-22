@@ -1,0 +1,17 @@
+{
+  "id": "02-occupancy",
+  "title": "Occupancy and divergence",
+  "brief": "Write an occupancy calculator from registers, shared memory, and block size, check it against the CUDA occupancy API, then fix a CUDA kernel's branch index and measure what warp divergence costs.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["api_agree_pct", "api_agree_smem_pct", "probe_regs_max", "uniform_ms", "slowdown_2way", "slowdown_32way", "by_warp_32way_ratio"],
+  "hints": [
+    "Compilation takes 30 to 60 seconds the first time. Later runs use the cache.",
+    "Registers are charged per warp: round regs_per_thread * 32 up to a multiple of 256, then count how many such warps fit in each of the SM's four sub-partitions (a quarter of the 65536 registers each).",
+    "Shared memory per block is the request rounded up to 128 bytes, plus 1024 bytes the runtime reserves. Divide the SM's 164 KiB by that and round down.",
+    "Blocks per SM is the smallest of four limits: warps (64 per SM), the 32-block cap, registers, and shared memory.",
+    "In the CUDA kernel, a lane-diverged index is threadIdx.x % 32 reduced modulo the number of ways; a warp-uniform index starts from the warp number, threadIdx.x / 32.",
+    "If the API disagrees with your calculator on a few configurations, the lab prints them. Look at what they share: block sizes that are not a multiple of 4 warps are the usual place a granularity rule is wrong."
+  ]
+}

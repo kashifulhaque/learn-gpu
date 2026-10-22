@@ -1,0 +1,27 @@
+{
+  "id": "16-flash-attention",
+  "title": "FlashAttention-2 in Triton",
+  "brief": "Write the FlashAttention-2 forward pass (returning O and the logsumexp) and the backward pass (dQ, dK, dV, with the delta preprocessing) in Triton, with causal masking and grouped-query heads, and compare TFLOP/s against PyTorch's scaled_dot_product_attention.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": [
+    "fwd_tflops",
+    "bwd_tflops",
+    "fwd_vs_sdpa",
+    "bwd_vs_sdpa",
+    "fwd_tflops_d64",
+    "bwd_tflops_d64",
+    "fwd_tflops_noncausal",
+    "fwd_peak_extra_mib"
+  ],
+  "hints": [
+    "Work in base 2. Fold 1/sqrt(d) and log2(e) into one qk_scale, use tl.exp2, and convert the logsumexp to natural log (multiply by ln 2) only when you store it.",
+    "The backward kernels never see the score matrix. They rebuild P as exp2(s * log2(e) / sqrt(d) - lse * log2(e)), with the lse the forward saved. If P is wrong, check the forward's LSE first.",
+    "delta = rowsum(dO * O) comes from the identity sum_j P_ij dP_ij = dO_i . O_i. Without it, dS needs a full pass over the row.",
+    "dQ gets scaled by 1/sqrt(d) once, at the end, and so does dK. dV does not, because it has no score in it.",
+    "Mask P to zero after you compute it, not S to minus infinity before: an out-of-range key loads as zeros, so its score is 0 and its P is not.",
+    "A fully-masked tile can make exp2(-inf - -inf) a NaN. Causal masking never produces one here, because every row sees key 0 in the first tile.",
+    "The first run compiles several Triton kernels, which takes a minute or so. The timing loop warms up before it measures."
+  ]
+}

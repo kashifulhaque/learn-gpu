@@ -1,0 +1,29 @@
+{
+  "id": "05-diagnose",
+  "title": "Diagnose three slow kernels",
+  "brief": "Profile three deliberately slow pieces of GPU code, name what is wrong with each from the evidence, and write the fixed versions. Then parse the register counts and SASS that a compiler prints.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": [
+    "scale_speedup",
+    "scale_fast_gbs",
+    "clip_speedup",
+    "branchy_speedup",
+    "slow_scale_ms",
+    "fast_scale_ms",
+    "slow_clip_ms",
+    "fast_clip_ms",
+    "slow_branchy_ms",
+    "fast_branchy_ms"
+  ],
+  "hints": [
+    "Two CUDA modules compile the first time, about 30 to 60 seconds each. Later runs use the cache.",
+    "hot_kernel: profile one call inside torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]), then sort prof.key_averages() by self device time. Rows for kernels are the ones with device time of their own.",
+    "Slow kernel 1: look at which address neighboring threads read. If thread t and thread t+1 are `cols` floats apart, a warp touches 32 sectors for 128 useful bytes. Swap the index mapping so consecutive threads read consecutive floats.",
+    "Slow function 2: every .item() is a host-device round trip that stalls the launch queue. Compute the scale factor on the GPU with torch.clamp and multiply. torch.stack on equal-sized tensors turns hundreds of tiny launches into a handful.",
+    "The test runs your clip function under torch.cuda.set_sync_debug_mode('error'). Creating a tensor from a Python float on the GPU also synchronizes, so use Python scalars in arithmetic with tensors instead.",
+    "Slow kernel 3: half the lanes of every warp take one path and half take the other, so the warp runs both paths one after the other with half its lanes idle. Let each thread do both paths, for two neighboring elements, so every lane is active in both passes.",
+    "parse_ptxas_info reads the text that `nvcc -Xptxas -v` prints. count_sass reads the text that `cuobjdump -sass` prints. The opcode is the first word after the address and an optional predicate such as @P0 or @!P1; its base is the part before the first dot."
+  ]
+}

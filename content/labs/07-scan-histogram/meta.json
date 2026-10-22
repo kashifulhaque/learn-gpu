@@ -1,0 +1,33 @@
+{
+  "id": "07-scan-histogram",
+  "title": "Scan and histogram",
+  "brief": "Write two block scans (Kogge-Stone and Blelloch), a device-wide exclusive scan of int32 and float32 by reduce-then-scan with warp shuffles, and a shared-memory privatized 256-bin byte histogram. Compare each with the copy ceiling.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": [
+    "kogge_stone_gbs",
+    "blelloch_gbs",
+    "scan_ms",
+    "scan_gbs",
+    "scan_fraction",
+    "torch_cumsum_ms",
+    "hist_gbs",
+    "hist_global_gbs",
+    "hist_const_gbs",
+    "hist_global_const_gbs",
+    "hist_agg_gbs",
+    "hist_agg_const_gbs"
+  ],
+  "hints": [
+    "The first run compiles the CUDA source with nvcc, which takes 30 to 90 seconds. Later runs reuse the build.",
+    "Kogge-Stone in shared memory needs two barriers per step: read the neighbor's value, barrier, add it in, barrier. Without the first barrier a thread can overwrite a value its neighbor has not read yet.",
+    "Blelloch: the up-sweep and the down-sweep both use a = offset*(2*tid+1)-1 and b = offset*(2*tid+2)-1. Put __syncthreads() outside the if (tid < d), never inside it. Before the down-sweep, save the root to sums and set it to 0.",
+    "A warp scan with shuffles: for d = 1, 2, 4, 8, 16, take __shfl_up_sync(0xffffffff, v, d) and add it only where lane >= d. Every lane must call the shuffle, so keep it outside the if.",
+    "The exclusive prefix of a lane is the inclusive scan of the lane before it. Shuffle the inclusive value up by one and set lane 0 to 0.",
+    "In scan_tiles_kernel, scan each thread's four items serially, scan the 256 thread totals with the block scan, then add the prefix and the tile offset to every item. The first tile has offset 0.",
+    "In the histogram, zero the shared bins and call __syncthreads() before the first atomicAdd, and call it again before you merge the bins into global memory.",
+    "The floors are loose: 40% of the copy ceiling for the scan, counting 3n elements moved, and 25% for the histogram, counting n bytes. If you are far below, check that a warp's loads are contiguous and that the kernel launches enough blocks.",
+    "Stretch goal: implement histogram256_aggregated with __match_any_sync, then compare it with the privatized kernel on uniform and on all-equal data. Decoupled look-back for the scan is a second stretch goal, described in the chapter."
+  ]
+}

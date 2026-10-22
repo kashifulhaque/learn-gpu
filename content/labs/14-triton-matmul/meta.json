@@ -1,0 +1,28 @@
+{
+  "id": "14-triton-matmul",
+  "title": "Triton matmul",
+  "brief": "Write a fp16/bf16 matmul in Triton with fp32 accumulation, plain pointer arithmetic and masks, grouped (L2-friendly) program ordering, and an autotune list. Report TFLOP/s and the fraction of torch.matmul.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 1200,
+  "metrics": [
+    "torch_tflops_4096",
+    "tflops_4096",
+    "pct_of_torch_4096",
+    "pct_of_peak_4096",
+    "group_speedup",
+    "tflops_ragged",
+    "pct_of_torch_ragged",
+    "epilogue_checked"
+  ],
+  "hints": [
+    "Start with the two plain-Python functions, grouped_tile and unique_tile_loads. They run without a GPU, and the kernel's first lines repeat grouped_tile's arithmetic with tl.cdiv and tl.minimum.",
+    "A tile of A is offs_m[:, None] * stride_am + offs_k[None, :] * stride_ak. Mask the load on both axes: offs_m < M, and offs_k < K - k * BLOCK_K for the K axis. other=0.0 is the identity for a dot product.",
+    "Accumulate with acc = tl.dot(a, b, acc) into tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32). Cast to c_ptr.dtype.element_ty only at the store.",
+    "Every tl.arange size must be a power of two, and tl.dot needs each block dimension to be at least 16. The tests use BLOCK_K = 32.",
+    "A config whose shared memory exceeds the limit isn't a crash inside the autotuner, but it wastes a compile. Check (BLOCK_M * BLOCK_K + BLOCK_K * BLOCK_N) * 2 * num_stages against 163 KiB before you add it.",
+    "The first call for each new (M, N, K) autotunes, because the autotune key is (M, N, K). The tests warm up, so only the first call per shape is slow.",
+    "To debug indices, set TRITON_INTERPRET=1 and run a tiny shape such as 33 x 17 x 20 in a separate script. The interpreter runs the kernel on the CPU in Python, and you can print values.",
+    "The group_speedup metric is reported, not graded. A value near 1.0 is a result, not a bug: the chapter's arithmetic predicts only a modest difference at 4096 with one tile resident per SM."
+  ]
+}

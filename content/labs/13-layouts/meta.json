@@ -1,0 +1,18 @@
+{
+  "id": "13-layouts",
+  "title": "CuTe layout algebra in Python",
+  "brief": "Build a Layout class from shape and stride, then implement coalesce, composition, complement, logical divide and product, and the Swizzle functor. The tests check your code against the worked examples in the CuTe documentation, count shared-memory bank conflicts, and use a layout to drive an index gather in torch.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 300,
+  "metrics": ["doc_examples_passed", "conflicts_unswizzled", "conflicts_swizzled", "gather_gbs"],
+  "hints": [
+    "Start with _crd2idx. A tuple coordinate recurses mode by mode; an int coordinate into a tuple shape peels off crd % product(mode_shape) for each mode but the last, then divides crd by that product.",
+    "Coalesce on the flattened (shape, stride) pairs: skip size-1 modes, and merge a mode into the previous one when its stride equals the previous shape times the previous stride.",
+    "Composition of a flat lhs with one mode s:d walks lhs's modes. If d is at least the mode's size, divide d by it and skip the mode. Otherwise take min(mode_size // d, remaining shape) elements at stride d * mode_stride, and reset d to 1. The last lhs mode takes whatever shape is left.",
+    "Complement: sort the (stride, shape) modes by stride. For each, emit (stride // current, current) and set current = stride * shape. End with (ceil_div(cotarget, current), current). Drop modes of size 1, and return 1:0 if nothing is left.",
+    "Check your composition against 20:2 o (5,4):(4,1) = (5,4):(8,2), and your complement against complement(4:2, 24) = (2,3):(1,8).",
+    "The lab's core is pure Python and runs without a GPU. The last test gathers through a layout on the GPU when one is present."
+  ]
+}

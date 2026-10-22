@@ -1,0 +1,19 @@
+{
+  "id": "18-w4a16",
+  "title": "W4A16: a fused dequantize-GEMM",
+  "brief": "Group-quantize fp16 weights to asymmetric int4 (group size 128), pack two codes per byte, and write a Triton kernel that computes Y = X @ dequant(W)^T without ever materializing the fp16 weights. Measure effective weight bandwidth and the speedup over fp16 torch.matmul.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "timeout": 900,
+  "metrics": ["bytes_ratio", "weight_gbs_m1", "speedup_m1", "speedup_m16", "tflops_m1024"],
+  "hints": [
+    "The quantizer is per row and per group of 128 along K: reshape W to (N, K // 128, 128), take the min and max over the last axis, and include 0 in the range so that 0.0 is exactly representable.",
+    "scale = (max - min) / 15 and zero = round(-min / scale). The code is clamp(round(w / scale) + zero, 0, 15), and the weight is (code - zero) * scale.",
+    "Pack along K: byte j of a row holds code 2j in its low nibble and code 2j + 1 in its high nibble. In torch: lo | (hi << 4), all in uint8.",
+    "The magic-number trick: an fp16 whose bits are 0x6400 | q (q below 1024) equals 1024 + q. Reinterpret the int16 bits as float16 with .view(torch.float16), then subtract 1024.",
+    "In the kernel, load a tile of packed bytes, split it into low and high nibbles, and load X at even and at odd columns. Two tl.dot calls, one for each nibble, replace the interleave.",
+    "Move the scale and zero point out of the inner product: sum_k x_k (q_k - z) s = s * (sum_k x_k q_k - z * sum_k x_k). Then the only per-weight work in the loop is an integer-to-fp16 conversion.",
+    "A kernel that compiles but is slow at M = 1 is usually launching too few programs or too little memory in flight. The autotune configs are a good place to start, and BLOCK_N = 16 gives more programs on a 108-SM card.",
+    "Triton compiles and autotunes on the first call, which can take a minute. The tests call every shape once before timing."
+  ]
+}

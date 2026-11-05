@@ -1,0 +1,65 @@
+# Builds the container image(s) on every push to main, pushes them to GHCR,
+# then asks the VM to pull and restart. The VM never builds from source.
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: ghcr.io/kashifulhaque/learn-gpu
+            context: .
+            dockerfile: Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+          tags: |
+            ${{ matrix.image }}:latest
+            ${{ matrix.image }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and restart on the VM
+        env:
+          VM_DEPLOY_KEY: ${{ secrets.VM_DEPLOY_KEY }}
+        run: |
+          if [ -z "$VM_DEPLOY_KEY" ]; then
+            echo "::warning::VM_DEPLOY_KEY is not set; skipping deploy."
+            exit 0
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VM_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo 'vm.ifkash.dev ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPDOLRx5CzaOgMkcL5a26pT3t6RA95WMT5lglB5f0Z1I' > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key ifkash@vm.ifkash.dev "deploy learn-gpu"

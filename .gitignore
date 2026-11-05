@@ -31,3 +31,10 @@ frontend/tsconfig.tsbuildinfo
 # The PDF book, built by frontend/scripts/build-book.mjs at deploy time.
 /book/
 frontend/dist-book/
+
+# Secrets and server-only files
+.env.*
+!.env.example
+CREDENTIALS.md
+*.bak*
+/book/

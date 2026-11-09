@@ -42,6 +42,7 @@ export default function LabPane({ lab, onPassed }: Props) {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [provider, setProvider] = useState<string | null>(null);
   const [creditWarning, setCreditWarning] = useState("");
+  const [unavailable, setUnavailable] = useState("");
   const [solution, setSolution] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>(lab.draft ? "saved" : "idle");
@@ -65,6 +66,7 @@ export default function LabPane({ lab, onPassed }: Props) {
     setMetrics({});
     setStatus("idle");
     setMessage("");
+    setUnavailable("");
     setSolution("");
     setTab("console");
     setSaveState(lab.draft ? "saved" : "idle");
@@ -143,6 +145,7 @@ export default function LabPane({ lab, onPassed }: Props) {
     setMetrics({});
     setMessage("");
     setCreditWarning("");
+    setUnavailable("");
     setStatus("running");
     setElapsed(0);
     setTab("console");
@@ -172,6 +175,11 @@ export default function LabPane({ lab, onPassed }: Props) {
           setStatus("error");
           setCreditWarning(event.hint);
           setMessage(event.message);
+          break;
+        case "unavailable":
+          // The GPU endpoint is missing. CPU checks still stream after this.
+          setUnavailable(event.message);
+          setLogs((lines) => [...lines, event.message]);
           break;
         case "error":
           setStatus("error");
@@ -555,6 +563,14 @@ export default function LabPane({ lab, onPassed }: Props) {
       {runnable && !runnable.available && (
         <p className="shrink-0 border-b border-line bg-well px-3 py-1.5 text-[12px] text-fg-subtle">
           {runnable.reason}
+        </p>
+      )}
+      {unavailable && (
+        <p
+          className="shrink-0 border-b border-line bg-warn/8 px-3 py-1.5 text-[12px] text-warn"
+          role="status"
+        >
+          {unavailable}
         </p>
       )}
       {creditWarning && (

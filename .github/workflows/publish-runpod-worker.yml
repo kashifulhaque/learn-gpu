@@ -10,6 +10,16 @@ on:
       - gpu/lab_runner.py
       - gpu/runpod_worker/**
       - .github/workflows/publish-runpod-worker.yml
+  # A pull request builds the image so a worker change is proven before merge.
+  # It does not push. Pushing :latest from an unmerged branch would replace
+  # the image the deployment runs.
+  pull_request:
+    paths:
+      - content/labs/**
+      - gpu/harness.py
+      - gpu/lab_runner.py
+      - gpu/runpod_worker/**
+      - .github/workflows/publish-runpod-worker.yml
   workflow_dispatch:
 
 permissions:
@@ -30,6 +40,7 @@ jobs:
           df -h /
 
       - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -40,7 +51,7 @@ jobs:
           context: .
           file: gpu/runpod_worker/Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/learn-gpu-worker:latest
             ghcr.io/${{ github.repository_owner }}/learn-gpu-worker:${{ github.sha }}

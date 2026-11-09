@@ -42,7 +42,13 @@ class Settings(BaseSettings):
     # The accelerator the labs ask for, for display.
     gpu_type: str = "A100-80GB"
     runpod_api_key: str = ""
+    # RUNPOD_ENDPOINT_ID remains the A100 endpoint when RUNPOD_ENDPOINT_A100
+    # is unset, so a deployment that only sets the original variable keeps
+    # serving the current labs.
     runpod_endpoint_id: str = ""
+    runpod_endpoint_a100: str = ""
+    runpod_endpoint_h100: str = ""
+    runpod_endpoint_2xa100: str = ""
 
     @property
     def db_path(self) -> Path:

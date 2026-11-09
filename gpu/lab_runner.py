@@ -18,8 +18,12 @@ from harness import RESULT_PREFIX
 
 GPU_DIR = Path(__file__).resolve().parent
 REPO_ROOT = GPU_DIR.parent
-LABS_DIR = Path(os.environ.get("LG_LABS_DIR", REPO_ROOT / "content" / "labs"))
 MAX_CODE_BYTES = 512 * 1024
+
+
+def labs_dir() -> Path:
+    """Where the labs live. `LG_LABS_DIR` overrides the checkout copy."""
+    return Path(os.environ.get("LG_LABS_DIR", REPO_ROOT / "content" / "labs"))
 
 
 def _event(kind: str, **fields: Any) -> dict[str, Any]:
@@ -34,7 +38,7 @@ def run_lab_stream(
         yield _event("error", message="Submission is too large.")
         return
 
-    lab_dir = LABS_DIR / lab_id
+    lab_dir = labs_dir() / lab_id
     tests_path = lab_dir / "tests.py"
     if not tests_path.is_file():
         yield _event("error", message=f"Lab '{lab_id}' has no tests.py")
@@ -43,8 +47,11 @@ def run_lab_stream(
     work = Path(tempfile.mkdtemp(prefix=f"lab-{lab_id}-"))
     try:
         (work / "submission.py").write_text(code)
-        for extra in lab_dir.glob("fixture_*.py"):
-            shutil.copy(extra, work / extra.name)
+        # fixture_*.py is importable beside the submission. fixture_*.csv is
+        # a recorded ncu report, which profiling labs grade when ncu cannot run.
+        for pattern in ("fixture_*.py", "fixture_*.csv"):
+            for extra in lab_dir.glob(pattern):
+                shutil.copy(extra, work / extra.name)
 
         env = {
             **os.environ,
@@ -61,7 +68,7 @@ def run_lab_stream(
                 [
                     str(work),
                     str(GPU_DIR),
-                    str(LABS_DIR),
+                    str(labs_dir()),
                     os.environ.get("PYTHONPATH", ""),
                 ]
             ),

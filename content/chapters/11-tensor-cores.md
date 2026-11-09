@@ -531,6 +531,16 @@ $128 \times 40 \times 2 = 10{,}240$ B for the A tile instead of 8192 B. A
 removes the conflicts at zero extra storage, and [chapter 13](/c/13-cutlass-and-cute)
 builds it.
 
+The swizzle the lab checks is the 8-row pattern on an 8 by 64 bf16 tile. A row
+is 128 bytes, so logical chunk $c$ of row $r$ moves to physical chunk
+$c \oplus (r \bmod 8)$. Chunk 0 of the eight rows then lands on physical chunks
+0 through 7, and those eight 16-byte rows cover all 32 banks. The conflict
+degree falls from 8 to 1.
+
+Lane 1 addresses row 1, column 0. Without the swizzle, that row starts at byte
+$1 \times 128 = 128$. With the swizzle, the chunk is $0 \oplus 1 = 1$, so the
+row starts at byte $128 + 16 = 144$.
+
 ### The shared-memory budget per warp tile
 
 Now the question of how much traffic. A warp that owns a $W_M \times W_N$ tile
@@ -578,8 +588,14 @@ For the lab's 64 x 32 warp tile, per thread:
 | B fragments for one K step: 4 n8 tiles, each 2 registers | 8 | 8 |
 | Addresses, loop counters, global-to-shared staging | | tens more |
 
-The accumulators alone are 64 registers, a quarter of the 255-register
-per-thread limit. A register file has 65,536 registers per SM, so at 256 threads
+The same three counts for any warp tile, with K stepped by 16, are
+$W_M W_N / 32$ accumulator registers, $(W_M / 16) \times 4$ A-fragment
+registers, and $(W_N / 8) \times 2$ B-fragment registers. A 16 by 8 tile, one
+`mma.sync`, is 4, 4, and 2. A 128 by 64 tile is 256, 32, and 16. The
+accumulators alone of the lab's 64 by 32 tile are 64 registers, a quarter of
+the 255-register per-thread limit.
+
+A register file has 65,536 registers per SM, so at 256 threads
 per block and 128 registers per thread, a block uses 32,768, and two blocks fit
 per SM (16 warps, 25% of the 64-warp limit). That 128 is an illustration; the
 actual count depends on the compiler, and you can read it from `cuobjdump
@@ -809,16 +825,24 @@ the fp32 CUDA-core peak: below that the tensor cores aren't doing the work.
 ## Lab
 
 > [!TRY] WMMA, then mma.sync with ldmatrix
-> Open the lab `11-wmma-gemm`. In `starter.py`, fill in the WMMA kernel's
-> accumulate loop and store, then the three inline-PTX helpers (`ldmatrix_x4`,
-> `ldmatrix_x4_trans`, `mma_16816`), the lane-to-address arithmetic, the
-> `mma.sync` main loop, and the epilogue. The tests check both `wmma_gemm` and
-> `mma_gemm` against an fp32 reference on eight shapes, including 1 x 1 x 1,
-> 17 x 33 x 19, and 257 x 129 x 65, and on an identity product. They then time
-> a $4096^3$ bf16 GEMM and report `wmma_tflops`, `mma_tflops`, `torch_tflops`, and
-> each kernel's percentage of `torch.matmul`. You pass when both kernels are
-> correct and each exceeds 19.5 TFLOP/s, the fp32 CUDA-core peak. The first run
-> compiles with `nvcc` and takes 30 to 60 seconds.
+> Open the lab `11-wmma-gemm`. `fragment_cell` is the one function the first
+> check calls: the row and column of one element of an `m16n8k16` fragment.
+> Then implement `warp_tile_registers` and `ldmatrix_byte`. Those three run on
+> any machine. `ldmatrix_byte` returns the shared-memory byte a lane supplies,
+> and with the 8-row swizzle on, chunk $c$ of row $r$ moves to $c \oplus (r \bmod 8)$.
+> The test counts bank conflicts from those addresses. In the CUDA source, fill
+> in the WMMA kernel's accumulate loop and store, then the three inline-PTX
+> helpers (`ldmatrix_x4`, `ldmatrix_x4_trans`, `mma_16816`), the lane-to-address
+> arithmetic, the `mma.sync` main loop, and the epilogue. The kernel tests check
+> both `wmma_gemm` and `mma_gemm` against an fp32 reference on eight shapes,
+> including 1 x 1 x 1, 17 x 33 x 19, and 257 x 129 x 65, and on an identity
+> product. They then time a $4096^3$ bf16 GEMM and report `wmma_tflops`,
+> `mma_tflops`, `torch_tflops`, and each kernel's percentage of `torch.matmul`.
+> On a machine with no CUDA GPU the kernel checks print a skip line and do not
+> run. You pass the CPU checks when the lane map, the register counts, and the
+> conflict degrees match. You pass the kernel checks, on an A100, when both
+> kernels are correct and each exceeds 19.5 TFLOP/s, the fp32 CUDA-core peak.
+> The first run compiles with `nvcc` and takes 30 to 60 seconds.
 
 ## Further reading
 

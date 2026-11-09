@@ -241,25 +241,25 @@ export default function LabPane({ lab, onPassed }: Props) {
 
   const editorPane = (
     <>
-      <div className="flex h-9 shrink-0 items-center gap-3 border-b border-line bg-well px-3">
-        <span className="flex min-w-0 items-center gap-1.5 font-mono text-[12px] text-fg-muted">
-          <FileIcon className="size-3.5 text-fg-faint" />
+      <div className="flex h-9 shrink-0 items-center gap-3 border-b border-line bg-paper px-3">
+        <span className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-fg-muted">
+          <FileIcon className="size-3.5 text-fg-subtle" />
           solution.py
         </span>
         <span
-          className={`truncate text-[12px] ${
+          className={`truncate font-mono text-[10px] uppercase tracking-[0.08em] ${
             saveState === "failed"
               ? "text-bad"
               : saveState === "dirty"
-                ? "text-fg-subtle"
-                : "text-fg-faint"
+                ? "text-fg-muted"
+                : "text-fg-subtle"
           }`}
           aria-live="polite"
         >
           {saveLabel[saveState]}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="hidden items-center gap-1.5 text-[12px] text-fg-faint xl:flex">
+          <span className="hidden items-center gap-1.5 text-[12px] text-fg-subtle xl:flex">
             <Kbd>{RUN_KEYS}</Kbd>
             to run
           </span>
@@ -276,10 +276,10 @@ export default function LabPane({ lab, onPassed }: Props) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 bg-paper">
+      <div className="min-h-0 flex-1 bg-code">
         <Suspense
           fallback={
-            <div className="flex h-full items-center justify-center bg-paper text-[12.5px] text-fg-faint">
+            <div className="flex h-full items-center justify-center bg-code text-[12.5px] text-fg-subtle">
               Loading the editor…
             </div>
           }
@@ -300,7 +300,7 @@ export default function LabPane({ lab, onPassed }: Props) {
 
   const consolePane = (
     <>
-      <div className="flex shrink-0 items-stretch overflow-x-auto border-y border-line bg-well">
+      <div className="flex shrink-0 items-stretch overflow-x-auto border-y border-line bg-paper">
         <div className="flex shrink-0 items-stretch px-1" role="tablist" aria-label="Lab output">
           {tabs.map((item) => (
             <button
@@ -309,7 +309,7 @@ export default function LabPane({ lab, onPassed }: Props) {
               role="tab"
               aria-selected={tab === item.id}
               onClick={() => setTab(item.id)}
-              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 py-2 text-[12.5px] font-medium transition-colors sm:px-3 ${
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 py-2 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] transition-colors sm:px-3 ${
                 tab === item.id
                   ? "border-accent text-fg"
                   : "border-transparent text-fg-subtle hover:text-fg"
@@ -317,7 +317,7 @@ export default function LabPane({ lab, onPassed }: Props) {
             >
               {item.label}
               {item.badge && (
-                <span className="rounded bg-tint px-1 font-mono text-[10.5px] leading-4 tabular-nums text-fg-subtle">
+                <span className="rounded bg-tint px-1 font-mono text-[10px] normal-case leading-4 tabular-nums tracking-normal text-fg-muted">
                   {item.badge}
                 </span>
               )}
@@ -336,11 +336,11 @@ export default function LabPane({ lab, onPassed }: Props) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-paper">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-paper" data-testid="lab-output">
         {tab === "console" && (
           <div
             ref={logRef}
-            className="h-full overflow-y-auto px-4 py-3 font-mono text-[12px] leading-relaxed"
+            className="h-full overflow-y-auto px-4 py-3 font-mono text-[12px] leading-[1.75]"
           >
             {logs.length === 0 && status !== "running" && (
               <div className="max-w-md font-sans text-[13px] leading-5 text-fg-subtle">
@@ -362,14 +362,14 @@ export default function LabPane({ lab, onPassed }: Props) {
                     : line.startsWith("[FAIL]")
                       ? "text-bad"
                       : line.startsWith("—")
-                        ? "text-fg-faint"
+                        ? "text-fg-subtle"
                         : "whitespace-pre-wrap text-fg-muted"
                 }
               >
                 {line}
               </div>
             ))}
-            {status === "running" && <div className="text-fg-faint">▍ waiting on the GPU…</div>}
+            {status === "running" && <div className="text-fg-subtle">▍ waiting on the GPU…</div>}
             {status === "error" && message && (
               <Notice tone="bad" className="mt-3 font-sans">
                 {message}
@@ -494,7 +494,7 @@ export default function LabPane({ lab, onPassed }: Props) {
                 >
                   Load into the editor
                 </Button>
-                <pre className="overflow-auto rounded-md border border-line bg-code p-3.5 font-mono text-[12px] leading-relaxed text-fg-muted">
+                <pre className="overflow-auto rounded-md border border-line bg-card p-3.5 font-mono text-[12px] leading-relaxed text-fg">
                   {solution}
                 </pre>
               </>
@@ -507,8 +507,9 @@ export default function LabPane({ lab, onPassed }: Props) {
 
   return (
     <section className="@container flex h-full min-h-0 flex-col bg-paper">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-well px-3 sm:gap-2.5">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 sm:gap-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="kicker hidden shrink-0 @md:inline">Lab</span>
           <h2 className="truncate text-[13px] font-semibold text-fg" title={lab.brief}>
             {lab.title}
           </h2>
@@ -528,7 +529,7 @@ export default function LabPane({ lab, onPassed }: Props) {
           <select
             value={provider ?? ""}
             onChange={(event) => setProvider(event.target.value)}
-            className="h-8 min-w-0 max-w-28 shrink rounded-md border border-line bg-card px-2 text-[12.5px] text-fg-muted outline-none transition-colors hover:border-line-strong hover:text-fg focus-visible:border-accent @lg:max-w-none"
+            className="h-8 min-w-0 max-w-28 shrink rounded-[5px] border border-line bg-paper px-2 text-[12.5px] text-fg-muted outline-none transition-colors hover:border-line-strong hover:text-fg focus-visible:border-accent @lg:max-w-none"
             aria-label="GPU provider"
           >
             {providers.map((item) => (
@@ -561,7 +562,7 @@ export default function LabPane({ lab, onPassed }: Props) {
       </header>
 
       {runnable && !runnable.available && (
-        <p className="shrink-0 border-b border-line bg-well px-3 py-1.5 text-[12px] text-fg-subtle">
+        <p className="shrink-0 border-b border-line bg-surface-muted px-3 py-1.5 text-[12px] text-fg-muted">
           {runnable.reason}
         </p>
       )}
@@ -585,7 +586,7 @@ export default function LabPane({ lab, onPassed }: Props) {
         initial={62}
         min={20}
         max={88}
-        className="flex-1"
+        className="slab flex-1"
         label="Resize the editor and the console"
         first={editorPane}
         second={consolePane}

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { api, type Chapter, type ChapterMeta } from "../lib/api";
 import { chapterNumbers, splitPart } from "../lib/chapters";
 import Markdown from "../components/Markdown";
@@ -55,6 +55,7 @@ function headingText(heading: HTMLElement): string {
 
 export default function ChapterPage({ chapters, progress, onProgress }: Props) {
   const { slug = "" } = useParams();
+  const { hash } = useLocation();
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [note, setNote] = useState("");
   const [noteState, setNoteState] = useState<NoteState>("idle");
@@ -187,6 +188,14 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
     setMapOpen(false);
   }, []);
 
+  // A search result links to a section as `#s-<n>`. Jump there once the
+  // chapter's sections exist.
+  useEffect(() => {
+    if (!hash.startsWith("#s-") || !sections.some((section) => `#${section.id}` === hash)) return;
+    const frameId = window.requestAnimationFrame(() => goTo(hash.slice(1)));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [hash, sections, goTo]);
+
   // The section list closes on a click anywhere else, or on Escape.
   useEffect(() => {
     if (!mapOpen) return;
@@ -304,7 +313,7 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
           and the controls for the chapter. Its height matches the lab's
           header, so the two line up across the split. */}
       <div ref={tracker} className="relative shrink-0">
-        <header className="flex h-12 items-center gap-1 border-b border-line px-2 sm:gap-1.5 sm:px-3">
+        <header className="flex h-12 items-center gap-1 border-b border-line bg-paper px-2 sm:gap-1.5 sm:px-3">
           <button
             type="button"
             onClick={() => setMapOpen((open) => !open)}
@@ -420,22 +429,28 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
       </div>
 
       <div ref={reading} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-        <div className={`px-5 pb-16 pt-8 @lg:px-10 @lg:pt-12 ${hasLab ? "max-w-[46rem]" : "mx-auto max-w-[46rem]"}`}>
+        <div
+          className={`w-full max-w-[calc(var(--measure)+2.5rem)] px-5 pb-16 pt-8 @lg:max-w-[calc(var(--measure)+5rem)] @lg:px-10 @lg:pt-12 ${
+            hasLab ? "" : "mx-auto"
+          }`}
+        >
           <header className="mb-8">
-            <p className="text-[12.5px] text-fg-subtle">
-              {part.label && <span>{part.label} · </span>}
-              {part.name}
-            </p>
-            <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-[1.15] tracking-[-0.01em] text-fg sm:text-[2.35rem]">
-              <span className="mr-3 font-mono text-[0.55em] font-normal tracking-normal text-accent align-[0.2em]">
-                {numbers.get(chapter.slug)}
+            <nav className="breadcrumbs !mb-5" aria-label="Breadcrumbs">
+              <Link to="/">Overview</Link>
+              <span aria-hidden>/</span>
+              <span>
+                {part.label && <>{part.label} · </>}
+                {part.name}
               </span>
+            </nav>
+            <p className="kicker">Chapter {numbers.get(chapter.slug)}</p>
+            <h1 className="mt-3 font-serif text-[2.2rem] font-medium leading-[1.1] tracking-[-0.035em] text-fg @lg:text-[2.9rem]">
               {chapter.title}
             </h1>
             {chapter.summary && (
-              <p className="mt-3 font-serif text-[1.125rem] leading-7 text-fg-muted">{chapter.summary}</p>
+              <p className="mt-4 text-[16.5px] leading-[1.75] text-fg-muted">{chapter.summary}</p>
             )}
-            <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-fg-subtle">
+            <p className="lesson-meta mt-5 items-center !text-[11px]">
               {chapter.minutes && (
                 <span className="flex items-center gap-1.5">
                   <ClockIcon className="size-3.5 text-fg-faint" />
@@ -474,27 +489,20 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
             </p>
           </header>
 
-          {(chapter.objectives.length > 0 || sections.length > 0) && (
-            <section className="mb-10 rounded-lg border border-line bg-well/60">
-              {chapter.objectives.length > 0 && (
-                <div className="px-5 py-4">
-                  <h2 className="text-[13px] font-semibold text-fg">By the end, you can</h2>
-                  <ul className="mt-2.5 space-y-1.5 text-[13.5px] leading-6 text-fg-muted">
-                    {chapter.objectives.map((objective) => (
-                      <li key={objective} className="flex gap-2.5">
-                        <span className="mt-[0.7em] h-px w-2.5 shrink-0 bg-fg-faint" aria-hidden />
-                        {objective}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {sections.length > 0 && (
-                <div className={`px-3 pb-3 pt-3.5 ${chapter.objectives.length ? "border-t border-line" : ""}`}>
-                  <h2 className="px-2 pb-1.5 text-[13px] font-semibold text-fg">In this chapter</h2>
-                  {sectionList(false)}
-                </div>
-              )}
+          {chapter.objectives.length > 0 && (
+            <section className="objectives">
+              <h2>By the end, you can</h2>
+              <ul className="list-disc text-fg">
+                {chapter.objectives.map((objective) => (
+                  <li key={objective}>{objective}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {sections.length > 0 && (
+            <section className="mb-10 rounded-[5px] border border-line bg-surface px-3 pb-3 pt-3.5">
+              <h2 className="toc-title px-2">In this chapter</h2>
+              {sectionList(false)}
             </section>
           )}
 
@@ -504,7 +512,7 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
 
           <section className="mt-14">
             <div className="mb-2 flex items-baseline justify-between gap-3">
-              <label htmlFor="note" className="text-[13px] font-semibold text-fg">
+              <label htmlFor="note" className="kicker">
                 Your notes
               </label>
               <span
@@ -526,7 +534,7 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
               onChange={(event) => editNote(event.target.value)}
               rows={4}
               placeholder="The idea you want to come back to, a question for later…"
-              className="w-full resize-y rounded-lg border border-line bg-card px-3.5 py-3 text-[14px] leading-6 text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-line-strong"
+              className="w-full resize-y rounded-[5px] border border-line bg-surface px-3.5 py-3 text-[14px] leading-6 text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-line-strong"
             />
           </section>
 
@@ -550,9 +558,9 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
                 {prev ? (
                   <Link
                     to={`/c/${prev.slug}`}
-                    className="group rounded-lg border border-line px-4 py-3 transition-colors hover:border-line-strong hover:bg-tint/40"
+                    className="group rounded-[6px] border border-line bg-surface px-4 py-3 transition-colors hover:border-accent hover:bg-accent-soft"
                   >
-                    <span className="flex items-center gap-1.5 text-[12px] text-fg-subtle">
+                    <span className="flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
                       <ArrowLeftIcon className="size-3.5" />
                       Previous
                     </span>
@@ -567,9 +575,9 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
                 {next && (
                   <Link
                     to={`/c/${next.slug}`}
-                    className="group rounded-lg border border-line px-4 py-3 text-right transition-colors hover:border-line-strong hover:bg-tint/40"
+                    className="group rounded-[6px] border border-line bg-surface px-4 py-3 text-right transition-colors hover:border-accent hover:bg-accent-soft"
                   >
-                    <span className="flex items-center justify-end gap-1.5 text-[12px] text-fg-subtle">
+                    <span className="flex items-center justify-end gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
                       Next
                       <ArrowRightIcon className="size-3.5" />
                     </span>
@@ -615,7 +623,7 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-line bg-well px-2 py-1.5" role="tablist">
+      <div className="shrink-0 border-b border-line bg-surface px-2 py-1.5" role="tablist">
         <div className="flex rounded-md border border-line bg-paper p-0.5">
           {(["read", "lab"] as const).map((option) => (
             <button

@@ -17,6 +17,13 @@ type Props = {
   fill?: boolean;
 };
 
+// Monaco wants a font list, not a CSS variable, so read the design system's
+// --mono stack once and fall back to the same stack if it isn't set yet.
+const MONO =
+  (typeof document !== "undefined" &&
+    getComputedStyle(document.documentElement).getPropertyValue("--mono").trim()) ||
+  '"SFMono-Regular", ui-monospace, Consolas, "Liberation Mono", monospace';
+
 const LINE_HEIGHT = 22;
 const PADDING = 18;
 const MIN_HEIGHT = 18 * LINE_HEIGHT + PADDING * 2;
@@ -53,7 +60,7 @@ export default function CodeEditor({ value, onChange, onRun, path, fill = false 
         setHeight(clampHeight(event.contentHeight));
       });
     }
-    // Monaco measures glyphs once, at mount. If IBM Plex Mono arrives after
+    // Monaco measures glyphs once, at mount. If the mono font arrives after
     // that, the cursor drifts from the text until the metrics are taken again.
     document.fonts?.ready.then(() => monaco.editor.remeasureFonts());
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
@@ -63,7 +70,7 @@ export default function CodeEditor({ value, onChange, onRun, path, fill = false 
 
   return (
     <div
-      className={fill ? "h-full min-h-0 bg-paper" : "bg-paper"}
+      className={fill ? "h-full min-h-0 bg-code" : "bg-code"}
       style={fill ? undefined : { height }}
     >
       <Editor
@@ -75,14 +82,14 @@ export default function CodeEditor({ value, onChange, onRun, path, fill = false 
         onChange={(next) => onChange(next ?? "")}
         onMount={handleMount}
         loading={
-          <div className="flex h-full w-full items-center justify-center bg-paper text-[12.5px] text-fg-faint">
+          <div className="flex h-full w-full items-center justify-center bg-code text-[12.5px] text-code-muted">
             Loading the editor…
           </div>
         }
         options={{
           fontSize: 13,
           lineHeight: LINE_HEIGHT,
-          fontFamily: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+          fontFamily: MONO,
           fontLigatures: false,
           padding: { top: PADDING, bottom: PADDING },
           tabSize: 4,
@@ -100,7 +107,8 @@ export default function CodeEditor({ value, onChange, onRun, path, fill = false 
           renderLineHighlightOnlyWhenFocus: true,
           renderWhitespace: "selection",
           guides: { indentation: true, bracketPairs: false },
-          bracketPairColorization: { enabled: true },
+          // The slab theme colours brackets as punctuation, not in rainbow pairs.
+          bracketPairColorization: { enabled: false },
           matchBrackets: "always",
           rulers: [],
           overviewRulerLanes: 0,

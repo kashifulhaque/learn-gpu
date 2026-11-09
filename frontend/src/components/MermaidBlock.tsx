@@ -36,22 +36,25 @@ function mix(from: string, to: string, amount: number): string {
 /** Mermaid's theme variables, from the CSS tokens in force at `node`. */
 function themeVariables(node: Element): { dark: boolean; vars: Record<string, unknown> } {
   const style = getComputedStyle(node);
-  const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
-  const dark = document.documentElement.dataset.theme === "dark";
-  const ink = token("--fg", "#1d1b18");
-  const ink3 = token("--fg-subtle", "#706a60");
-  const raise = token("--card", "#ffffff");
-  const chrome = token("--well", "#f4f2ed");
-  const sunk = token("--tint", "#ebe8e1");
-  const rule = token("--line-strong", "#cdc7ba");
-  const tier = token("--accent", "#c2410c");
-  const accent = token("--info", "#2c5ea8");
-  const good = token("--ok", "#2d7a4c");
-  const warn = token("--warn", "#9a5b06");
-  const bad = token("--bad", "#b42318");
-  const purple = token("--violet", "#6d4fb0");
-  const teal = token("--hl-b", "#2c5ea8");
-  const font = token("--font-sans", "ui-sans-serif, system-ui, sans-serif");
+  // Every name here is a palette token from src/ui/tokens.css, which always
+  // resolves to a hex value, so `mix` can work on it.
+  const token = (name: string) => style.getPropertyValue(name).trim();
+  const dark = document.documentElement.dataset.theme === "dark" ||
+    (!document.documentElement.dataset.theme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const ink = token("--ink");
+  const ink3 = token("--muted");
+  const raise = token("--surface");
+  const chrome = token("--surface-muted");
+  const sunk = token("--forest-soft");
+  const rule = token("--strong-line");
+  const tier = token("--forest");
+  const accent = token("--series-3");
+  const good = token("--series-6");
+  const warn = token("--series-2");
+  const bad = token("--error");
+  const purple = token("--series-4");
+  const teal = token("--accent-ink");
+  const font = token("--sans") || "system-ui, sans-serif";
   const series = [tier, warn, good, purple, bad, teal, accent, ink3];
   const tint = (colour: string, amount = 0.82) => mix(colour, raise, amount);
 

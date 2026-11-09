@@ -214,16 +214,16 @@ function Stage({ deck, mode }: { deck: Deck; mode: "presenter" | "present" }) {
       type="button"
       onClick={() => setBlack(false)}
       aria-label="End the blackout"
-      className="fixed inset-0 z-50 cursor-default bg-black"
+      className="fixed inset-0 z-50 cursor-default bg-code"
     />
   );
 
   if (mode === "present") {
     return (
-      <div className="presenter fixed inset-0 bg-black">
+      <div className="presenter fixed inset-0 bg-code">
         <div className="presenter-well absolute inset-0 p-0">{stage}</div>
         <p
-          className="pointer-events-none absolute bottom-2 right-3 text-[12px] tabular-nums text-white/40"
+          className="pointer-events-none absolute bottom-2 right-3 text-[12px] tabular-nums text-code-muted/70"
           aria-live="polite"
         >
           {index + 1} / {slides.length}

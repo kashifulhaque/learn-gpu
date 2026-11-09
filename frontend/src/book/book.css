@@ -11,30 +11,30 @@
   margin: 19mm 17mm 20mm 21mm;
 
   @top-left {
-    font-family: "IBM Plex Sans", sans-serif;
+    font-family: var(--sans);
     font-size: 7.5pt;
-    color: #706a60;
+    color: var(--muted);
     vertical-align: bottom;
     padding-bottom: 4mm;
   }
   @top-right {
-    font-family: "IBM Plex Sans", sans-serif;
+    font-family: var(--sans);
     font-size: 7.5pt;
-    color: #706a60;
+    color: var(--muted);
     vertical-align: bottom;
     padding-bottom: 4mm;
   }
   @bottom-left {
-    font-family: "IBM Plex Sans", sans-serif;
+    font-family: var(--sans);
     font-size: 8pt;
-    color: #48443d;
+    color: var(--ink);
     vertical-align: top;
     padding-top: 5mm;
   }
   @bottom-right {
-    font-family: "IBM Plex Sans", sans-serif;
+    font-family: var(--sans);
     font-size: 8pt;
-    color: #48443d;
+    color: var(--ink);
     vertical-align: top;
     padding-top: 5mm;
   }
@@ -112,7 +112,7 @@ body,
 }
 html,
 body {
-  background: #fff;
+  background: var(--surface);
   /* 12.5px puts the chapter text, at 1.0625rem, on 10pt. */
   font-size: 12.5px;
 }
@@ -122,7 +122,23 @@ body {
 }
 
 .book {
-  --paper: #fff;
+  --paper: var(--surface);
+  /* The site draws code on the dark-green slab. Paper takes a light panel
+     with dark ink instead, so code prints on any printer and reads in
+     greyscale. The syntax colours come from the palette's darker tones. */
+  --code-bg: var(--surface-muted);
+  --code-ink: var(--ink);
+  --code-line: var(--line);
+  --code-muted: var(--muted);
+  --code-button-line: var(--line);
+  --slab-bad: var(--error);
+  --syn-keyword: var(--accent-ink);
+  --syn-string: var(--series-6);
+  --syn-number: var(--series-2);
+  --syn-comment: var(--muted);
+  --syn-function: var(--series-3);
+  --syn-type: var(--series-4);
+  --syn-punct: var(--muted);
 }
 
 /* ------------------------------------------------------------------------
@@ -138,7 +154,7 @@ body {
   padding: 22mm 20mm 18mm 24mm;
   background: var(--well);
   break-after: page;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
 }
 .cover-top {
   display: flex;
@@ -155,12 +171,12 @@ body {
 .cover-kicker {
   font-size: 9.5pt;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .cover-title {
   margin-top: 4mm;
   max-width: 120mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 46pt;
   font-weight: 600;
   line-height: 1.02;
@@ -171,7 +187,7 @@ body {
 .cover-subtitle {
   margin-top: 6mm;
   max-width: 115mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 15pt;
   font-style: italic;
   line-height: 1.3;
@@ -190,7 +206,7 @@ body {
 }
 .cover-edition-blurb {
   margin-top: 2mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 10.5pt;
   line-height: 1.45;
   color: var(--fg-subtle);
@@ -233,7 +249,7 @@ body {
 }
 .front-title {
   margin-bottom: 8mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 22pt;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -241,7 +257,7 @@ body {
 }
 
 .toc {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 9pt;
   line-height: 1.4;
   color: var(--fg-muted);
@@ -259,6 +275,15 @@ body {
 }
 .toc-title {
   min-width: 0;
+  /* The design system's .toc-title is the mono "On this page" label. A
+     contents entry here is ordinary text, so undo that. */
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  color: inherit;
 }
 /* The dot leader between a title and its page number. */
 .toc-leader {
@@ -301,14 +326,14 @@ body {
 }
 .toc-n {
   min-width: 13mm;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.92em;
   color: var(--fg-subtle);
 }
 
 /* How to use this book. */
 .about-prose {
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 1.0625rem;
   line-height: 1.6;
   color: var(--fg-muted);
@@ -327,7 +352,7 @@ body {
   margin-block: 6mm;
   display: grid;
   gap: 2.5mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
 }
 .about-list > div {
   display: grid;
@@ -343,7 +368,7 @@ body {
 }
 .about-list dd {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 10pt;
   line-height: 1.45;
   color: var(--fg-muted);
@@ -359,14 +384,14 @@ body {
   padding-top: 12mm;
 }
 .part-kicker {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 10pt;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .part-title {
   margin-top: 3mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 30pt;
   font-weight: 600;
   line-height: 1.1;
@@ -386,9 +411,9 @@ body {
 }
 .part-chapter-n {
   min-width: 8mm;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 9.5pt;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .part-chapter-text {
   min-width: 0;
@@ -396,7 +421,7 @@ body {
 }
 .part-chapter-title {
   display: block;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 12.5pt;
   font-weight: 600;
   color: var(--fg);
@@ -404,7 +429,7 @@ body {
 .part-chapter-q {
   display: block;
   margin-top: 0.6mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 9.5pt;
   line-height: 1.4;
   font-style: italic;
@@ -412,7 +437,7 @@ body {
 }
 .part-chapter-pg {
   align-self: baseline;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 9.5pt;
   color: var(--fg-subtle);
   text-decoration: none;
@@ -431,20 +456,20 @@ body {
   display: flex;
   align-items: baseline;
   gap: 3mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 9pt;
   color: var(--fg-subtle);
 }
 .opener-n {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .opener-minutes {
   margin-left: auto;
 }
 .opener-title {
   margin-top: 3mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 26pt;
   font-weight: 600;
   line-height: 1.12;
@@ -454,7 +479,7 @@ body {
 }
 .opener-question {
   margin-top: 3mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 12pt;
   font-style: italic;
   line-height: 1.4;
@@ -471,13 +496,13 @@ body {
 }
 .mini-toc-label {
   margin-bottom: 1.5mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8pt;
   font-weight: 600;
   color: var(--fg-subtle);
 }
 .opener-objectives {
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 10pt;
   line-height: 1.45;
   color: var(--fg-muted);
@@ -493,11 +518,11 @@ body {
   content: "→";
   position: absolute;
   left: 0;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   color: var(--fg-faint);
 }
 .mini-toc {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8.8pt;
   color: var(--fg-muted);
 }
@@ -510,9 +535,9 @@ body {
 }
 .mini-toc-n {
   min-width: 7mm;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.92em;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .mini-toc-lab {
   font-weight: 500;
@@ -612,7 +637,7 @@ body {
   content: "Answer";
   display: block;
   margin-bottom: 0.2rem;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--fg-subtle);
@@ -670,10 +695,10 @@ body {
   display: flex;
   align-items: baseline;
   gap: 3mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8.5pt;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .lab-runs {
   margin-left: auto;
@@ -682,7 +707,7 @@ body {
 }
 .lab-title {
   margin-top: 1.5mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 1.45rem;
   font-weight: 600;
   line-height: 1.25;
@@ -692,21 +717,21 @@ body {
 }
 .lab-brief {
   margin-top: 2.5mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 1.0625rem;
   line-height: 1.55;
   color: var(--fg-muted);
 }
 .lab-online {
   margin-top: 2.5mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8.5pt;
   line-height: 1.5;
   color: var(--fg-subtle);
 }
 .lab-online a,
 .solution-back {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
 }
 .pg-inline {
@@ -719,7 +744,7 @@ body {
   align-items: baseline;
   gap: 1.2mm 1.6mm;
   margin-top: 2.5mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8pt;
   color: var(--fg-subtle);
 }
@@ -728,7 +753,7 @@ body {
   font-weight: 600;
 }
 .lab-metrics code {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 7.6pt;
   background: var(--code-bg);
   border: 1px solid var(--line);
@@ -746,7 +771,7 @@ body {
   margin: 0;
 }
 .codefile-lines {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   color: var(--fg-faint);
 }
 .codefile pre {
@@ -766,14 +791,14 @@ body {
   break-inside: avoid;
 }
 .lab-hints-title {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 1rem;
   font-weight: 600;
   color: var(--fg);
 }
 .lab-hints-note {
   margin-top: 0.5mm;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 8.5pt;
   color: var(--fg-subtle);
 }
@@ -781,7 +806,7 @@ body {
   margin-top: 2.5mm;
   padding-left: 1.6em;
   list-style: decimal;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 1rem;
   line-height: 1.55;
   color: var(--fg-muted);
@@ -791,7 +816,7 @@ body {
   margin-top: 1.5mm;
 }
 .lab-hints-list > li::marker {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.85em;
   color: var(--fg-faint);
 }
@@ -817,7 +842,7 @@ body {
 }
 .solution-chapter {
   margin-top: 1mm;
-  font-family: var(--font-serif);
+  font-family: var(--serif);
   font-size: 10pt;
   font-style: italic;
   color: var(--fg-subtle);

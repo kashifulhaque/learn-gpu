@@ -33,6 +33,8 @@ type Props = {
   name: string;
   /** How many things are running on a GPU provider, or null while unknown. */
   active: number | null;
+  /** Opens the "/" search dialog. */
+  onSearch: () => void;
 };
 
 const SHUT_PARTS_KEY = "lg.sidebar.shutParts";
@@ -72,11 +74,11 @@ function NavItem({
       onClick={onClick}
       className={({ isActive }) =>
         `flex h-9 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors lg:h-8 ${
-          isActive ? "bg-tint text-fg" : "text-fg-muted hover:bg-tint/70 hover:text-fg"
+          isActive ? "bg-accent-soft text-accent" : "text-fg-muted hover:bg-surface-muted hover:text-fg"
         }`
       }
     >
-      <span className="text-fg-subtle">{icon}</span>
+      <span className="opacity-80">{icon}</span>
       <span className="flex-1">{children}</span>
       {aside}
     </NavLink>
@@ -93,6 +95,7 @@ export default function Sidebar({
   onToggleCollapsed,
   name,
   active,
+  onSearch,
 }: Props) {
   const [filter, setFilter] = useState("");
   const [shutParts, setShutParts] = useState<string[]>(readShutParts);
@@ -138,7 +141,7 @@ export default function Sidebar({
         isActive ? "bg-tint text-fg" : "text-fg-subtle hover:bg-tint hover:text-fg"
       }`;
     return (
-      <aside className="hidden w-14 shrink-0 flex-col border-r border-line bg-well lg:flex">
+      <aside className="hidden w-14 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-12 shrink-0 items-center justify-center">
           <IconButton
             onClick={onToggleCollapsed}
@@ -198,21 +201,28 @@ export default function Sidebar({
     );
   }
 
+  const next = chapters.find((c) => progress[c.slug] !== "done");
+
   return (
     <aside
       className={`${
         open ? "translate-x-0 shadow-pop" : "-translate-x-full"
-      } fixed inset-y-0 left-0 z-30 flex w-[min(17.5rem,86vw)] shrink-0 flex-col border-r border-line bg-well transition-transform duration-200 lg:static lg:w-68 lg:translate-x-0 lg:shadow-none`}
+      } fixed inset-y-0 left-0 z-30 flex w-[min(17.5rem,86vw)] shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 lg:static lg:w-[var(--rail-width)] lg:translate-x-0 lg:shadow-none`}
       // A shut drawer is only translated out of view, so without this its links
       // stay in the tab order and a screen reader still reads them out. From
       // `lg` up the same element is the static sidebar, which is never shut.
       inert={!wide && !open ? true : undefined}
     >
-      <div className="flex h-12 shrink-0 items-center gap-2 pl-3.5 pr-2">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-line pl-4 pr-2">
         <NavLink to="/" onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
-          <Mark className="size-6" />
-          <span className="truncate text-[14px] font-semibold tracking-tight text-fg">
-            learn-gpu
+          <Mark className="size-8" />
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-[17px] font-bold leading-tight tracking-[-0.045em] text-fg">
+              learn<span className="text-terracotta">/</span>gpu
+            </span>
+            <span className="truncate font-mono text-[9px] uppercase leading-tight tracking-[0.2em] text-fg-subtle">
+              Field notes
+            </span>
           </span>
         </NavLink>
         <IconButton
@@ -229,7 +239,7 @@ export default function Sidebar({
         </IconButton>
       </div>
 
-      <nav className="shrink-0 space-y-px px-2 pb-3" aria-label="App">
+      <nav className="shrink-0 space-y-px px-2.5 pb-2 pt-3" aria-label="App">
         <NavItem to="/" end icon={<HomeIcon />} onClick={onNavigate}>
           Overview
         </NavItem>
@@ -257,28 +267,8 @@ export default function Sidebar({
         {book && <DownloadBookItem book={book} />}
       </nav>
 
-      <div className="shrink-0 border-t border-line px-3.5 pb-3 pt-3.5">
-        <div className="mb-2 flex items-baseline justify-between text-[12px]">
-          <span className="font-medium text-fg-muted">Progress</span>
-          <span className="tabular-nums text-fg-subtle">
-            {done} of {chapters.length}
-          </span>
-        </div>
-        <div
-          className="h-1 overflow-hidden rounded-full bg-line"
-          role="progressbar"
-          aria-label="Chapters complete"
-          aria-valuenow={done}
-          aria-valuemin={0}
-          aria-valuemax={chapters.length}
-        >
-          <div
-            className="h-full rounded-full bg-ok transition-[width] duration-500"
-            style={{ width: `${completion}%` }}
-          />
-        </div>
-
-        <label className="relative mt-3.5 block">
+      <div className="flex shrink-0 gap-1.5 px-2.5 pb-2.5">
+        <label className="relative block min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-faint" />
           <input
             value={filter}
@@ -286,39 +276,48 @@ export default function Sidebar({
             onKeyDown={(event) => {
               if (event.key === "Escape") setFilter("");
             }}
-            placeholder="Find a chapter"
-            aria-label="Find a chapter"
-            className="h-8 w-full rounded-md border border-line bg-card pl-8 pr-2.5 text-[13px] text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-line-strong"
+            placeholder="Filter chapters"
+            aria-label="Filter chapters"
+            className="h-8 w-full rounded-[5px] border border-line bg-paper pl-8 pr-2.5 text-[13px] text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-line-strong"
           />
         </label>
+        <button
+          type="button"
+          onClick={onSearch}
+          title="Search chapters and sections (/)"
+          aria-label="Search chapters and sections"
+          className="flex h-8 shrink-0 items-center rounded-[5px] border border-line bg-paper px-2 font-mono text-[11px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
+        >
+          /
+        </button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4" aria-label="Chapters">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-line px-2.5 pb-4 pt-2" aria-label="Chapters">
         {parts.map(([part, items]) => {
           const shut = shutParts.includes(part) && !needle;
           const { label, name: partName } = splitPart(part);
           const partDone = items.filter((c) => progress[c.slug] === "done").length;
           return (
-            <div key={part} className="mt-1">
+            <div key={part} className="mt-2 first:mt-0">
               <button
                 onClick={() => togglePart(part)}
-                className="group flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-left text-[12px] transition-colors hover:bg-tint/60 lg:py-1.5"
+                className="sidebar-group-title group flex w-full items-center gap-1.5 rounded-[5px] px-1.5 py-1.5 text-left transition-colors hover:bg-surface-muted !mx-0 !my-0.5"
                 aria-expanded={!shut}
               >
                 <ChevronDownIcon
-                  className={`size-3 text-fg-faint transition-transform duration-200 ${shut ? "-rotate-90" : ""}`}
+                  className={`size-3 shrink-0 text-fg-faint transition-transform duration-200 ${shut ? "-rotate-90" : ""}`}
                 />
                 <span className="min-w-0 flex-1 truncate">
-                  {label && <span className="text-fg-subtle">{label} · </span>}
-                  <span className="font-semibold text-fg-muted">{partName}</span>
+                  {label && <span className="text-kicker">{label} · </span>}
+                  <span>{partName}</span>
                 </span>
-                <span className="font-mono text-[11px] tabular-nums text-fg-faint">
+                <span className="tabular-nums text-fg-faint">
                   {partDone}/{items.length}
                 </span>
               </button>
 
               {!shut && (
-                <ul className="mb-1">
+                <ul className="mb-1 space-y-px">
                   {items.map((chapter) => {
                     const status = progress[chapter.slug];
                     return (
@@ -327,47 +326,26 @@ export default function Sidebar({
                           to={`/c/${chapter.slug}`}
                           onClick={onNavigate}
                           className={({ isActive }) =>
-                            `group relative flex items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-[13px] leading-5 transition-colors lg:py-1.5 ${
-                              isActive
-                                ? "bg-card text-fg shadow-[inset_0_0_0_1px_var(--line)]"
-                                : "text-fg-muted hover:bg-tint/60 hover:text-fg"
+                            `sidebar-lesson !items-center ${isActive ? "is-active" : ""} ${
+                              status === "done" ? "is-complete" : ""
                             }`
                           }
                         >
-                          {({ isActive }) => (
-                            <>
-                              {isActive && (
-                                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent" aria-hidden />
-                              )}
-                              <span
-                                className={`flex w-7 shrink-0 justify-center font-mono text-[11px] tabular-nums ${
-                                  status === "done"
-                                    ? "text-ok"
-                                    : isActive
-                                      ? "text-accent"
-                                      : status
-                                        ? "text-fg-muted"
-                                        : "text-fg-faint"
-                                }`}
-                                aria-hidden
-                              >
-                                {status === "done" ? (
-                                  <CheckIcon className="size-3.5" />
-                                ) : (
-                                  numbers.get(chapter.slug)
-                                )}
-                              </span>
-                              <span className="min-w-0 flex-1 truncate" title={chapter.title}>
-                                {chapter.title}
-                                {status === "done" && <span className="sr-only"> (done)</span>}
-                              </span>
-                              {chapter.lab && (
-                                <span title={labTitle(chapter)} className="text-fg-faint">
-                                  <FlaskIcon className="size-3.5" />
-                                  <span className="sr-only">{labTitle(chapter)}</span>
-                                </span>
-                              )}
-                            </>
+                          <span className="sidebar-lesson-number tabular-nums" aria-hidden>
+                            {numbers.get(chapter.slug)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate" title={chapter.title}>
+                            {chapter.title}
+                            {status === "done" && <span className="sr-only"> (done)</span>}
+                          </span>
+                          {chapter.lab && status !== "done" && (
+                            <span title={labTitle(chapter)} className="text-fg-faint">
+                              <FlaskIcon className="size-3.5" />
+                              <span className="sr-only">{labTitle(chapter)}</span>
+                            </span>
+                          )}
+                          {status === "done" && (
+                            <CheckIcon className="size-3.5 shrink-0 text-accent" aria-hidden />
                           )}
                         </NavLink>
                       </li>
@@ -384,21 +362,47 @@ export default function Sidebar({
         )}
       </nav>
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-2.5">
-        <span
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-tint text-[12px] font-semibold uppercase text-fg-muted"
-          aria-hidden
+      <div className="shrink-0 border-t border-line px-4 pb-3 pt-3.5">
+        <div className="mb-2 flex items-baseline justify-between">
+          <span className="kicker !text-fg-subtle">Your progress</span>
+          <span className="font-mono text-[11px] tabular-nums text-fg-muted">
+            {done} / {chapters.length}
+          </span>
+        </div>
+        <div
+          className="progress-track"
+          role="progressbar"
+          aria-label="Chapters complete"
+          aria-valuenow={done}
+          aria-valuemin={0}
+          aria-valuemax={chapters.length}
         >
-          {name.slice(0, 1)}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg-muted" title={`Signed in as ${name}`}>
-          {name}
-        </span>
-        <ThemeSwitch />
+          <div className="progress-fill" style={{ width: `${completion}%` }} />
+        </div>
+        <div className="mt-2.5 flex items-center justify-between gap-2 text-[12px]">
+          {next ? (
+            <NavLink
+              to={`/c/${next.slug}`}
+              onClick={onNavigate}
+              className="font-semibold text-accent hover:underline"
+            >
+              {progress[next.slug] ? "Resume" : "Start"} {numbers.get(next.slug)} →
+            </NavLink>
+          ) : (
+            <span className="font-semibold text-accent">Course complete</span>
+          )}
+          <ThemeSwitch />
+        </div>
+        <p
+          className="mt-2.5 truncate text-[11.5px] text-fg-subtle"
+          title={`Signed in as ${name}. Progress, drafts, and notes are saved to your account.`}
+        >
+          Saved for <span className="font-medium text-fg-muted">{name}</span>
+        </p>
       </div>
 
-      <p className="hidden shrink-0 items-center gap-1.5 px-3.5 pb-2.5 text-[11.5px] text-fg-faint lg:flex">
-        <Kbd>{TOGGLE_KEY}</Kbd> hides the sidebar
+      <p className="hidden shrink-0 items-center gap-1.5 px-4 pb-2.5 text-[11px] text-fg-faint lg:flex">
+        <Kbd>{TOGGLE_KEY}</Kbd> hides the sidebar · <Kbd>/</Kbd> searches
       </p>
     </aside>
   );

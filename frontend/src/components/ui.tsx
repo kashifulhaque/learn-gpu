@@ -144,8 +144,8 @@ export function BlockHeading({
 }) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-4">
-      <Tag className="text-[13px] font-semibold text-fg">{children}</Tag>
-      {aside && <div className="text-[12px] text-fg-subtle">{aside}</div>}
+      <Tag className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-kicker">{children}</Tag>
+      {aside && <div className="font-mono text-[10.5px] text-fg-subtle">{aside}</div>}
     </div>
   );
 }
@@ -153,7 +153,7 @@ export function BlockHeading({
 /** A bordered surface. Most blocks on a page are one of these. */
 export function Panel({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={`rounded-lg border border-line bg-card ${className}`}>{children}</div>
+    <div className={`rounded-[7px] border border-line bg-card ${className}`}>{children}</div>
   );
 }
 

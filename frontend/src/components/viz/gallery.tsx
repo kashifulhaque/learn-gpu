@@ -14,7 +14,13 @@ function Gallery() {
     .filter((name) => name.startsWith(only))
     .sort();
   const [narrow, setNarrow] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    // `?theme=dark` opens the gallery in that theme, for screenshots.
+    const asked = new URLSearchParams(window.location.search).get("theme");
+    const initial = asked === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", initial);
+    return initial;
+  });
 
   function pick(next: "light" | "dark") {
     setTheme(next);
@@ -23,7 +29,7 @@ function Gallery() {
 
   return (
     <div className="min-h-full bg-paper">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-well px-5 py-2 text-[13px]">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-5 py-2 text-[13px]">
         <strong className="text-fg">{names.length} figures</strong>
         <button type="button" className="viz-button" onClick={() => pick(theme === "light" ? "dark" : "light")}>
           {theme === "light" ? "Dark" : "Light"}

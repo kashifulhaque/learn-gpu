@@ -13,12 +13,10 @@
     "build:slides": "node scripts/build-slides.mjs"
   },
   "dependencies": {
-    "@fontsource-variable/source-serif-4": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@monaco-editor/react": "^4.7.0",
     "highlight.js": "^11.12.0",
     "katex": "^0.16.22",
+    "mermaid": "^12.1.0",
     "monaco-editor": "^0.56.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -27,19 +25,18 @@
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
-    "remark-math": "^6.0.0",
-    "mermaid": "^12.1.0"
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.13",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
+    "jsdom": "^29.1.1",
     "pdf-lib": "^1.17.1",
     "puppeteer-core": "^24.43.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5",
-    "jsdom": "^29.1.1"
+    "vite": "^7.1.5"
   }
 }

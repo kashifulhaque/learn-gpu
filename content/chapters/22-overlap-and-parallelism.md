@@ -28,7 +28,7 @@ lab: 22-streams-overlap
 
 A training step isn't one long kernel. It's a mix of kernels, copies, and network transfers, and the GPU can do several of those at once: its SMs run a kernel while a DMA engine moves bytes over PCIe and another engine pushes bytes over NVLink. A step that does them one after another leaves most of that hardware idle. The same step, rearranged so the engines run together, finishes in the time of the slowest one.
 
-This chapter is about that rearrangement, in two halves. The first half is the mechanism on one GPU: streams, events, pinned memory, and the chunked pipeline, which you build in the lab. The second half asks what changes when a model spans many GPUs, and looks at data, sharded, tensor, pipeline, and expert parallelism from the kernel's point of view. Each one adds specific kernels and collectives to the timeline, and the difference between a framework that scales and one that doesn't is how well it overlaps them.
+This chapter is about that rearrangement, in two halves. The first half is the mechanism on one GPU: streams, events, pinned memory, and the chunked pipeline, which you build in this chapter's lab. The second half names the collective each strategy adds, and how a framework overlaps it. You write bucketed data parallel and ZeRO-1 in [chapter 25](/c/25-ddp-and-zero), and tensor parallelism, pipeline parallelism, expert parallelism, and overlap inside a kernel stay short sections here.
 
 The mechanism is the same at every scale. A DDP all-reduce hiding behind a backward pass, a `cp.async` hiding behind an MMA ([chapter 12](/c/12-pipelining-and-async-copies)), and a PCIe copy hiding behind a kernel are all the same idea: two things that don't depend on each other should not run one after the other.
 
@@ -236,6 +236,10 @@ The practical rules are short:
 
 This section answers: how does DDP hide the gradient all-reduce, and when can't it?
 
+You write that schedule in [chapter 25](/c/25-ddp-and-zero). On CPU tensors with gloo, lab `25-ddp-and-zero` checks that `assign_buckets([16, 16, 16, 48], 128, 4)` returns `[[3], [2, 1], [0]]` and that `assign_buckets([10, 100, 10], 40, 4)` returns `[[2], [1], [0]]`. `BucketedDDP` passes when it broadcasts rank 0, sets the gradient to 1.5, the mean of the constants 1 and 2, issues exactly three `async_op=True` all-reduces during backward, and leaves the ranks equal after one SGD step.
+
+An all-reduce that skips the division leaves 3, and the gradient check fails that result. The NCCL bus-bandwidth sweep runs only when the machine has two GPUs. It records no bandwidth when it skips, and a missing two-GPU endpoint does not send the job to the single A100.
+
 In data parallelism every GPU holds a full copy of the model, runs forward and backward on its own slice of the batch, and averages gradients with an all-reduce so the replicas stay identical. The kernel's view is a backward pass followed by one big all-reduce, and if the all-reduce runs after the backward finishes, the GPU is idle for the whole of it.
 
 Run the numbers for a 7-billion-parameter model with bf16 gradients, which is $7 \times 10^{9} \times 2 = 14$ GB. A ring all-reduce over $p = 8$ ranks sends $2(p - 1)/p \times 14$ GB $= 1.75 \times 14 = 24.5$ GB per rank. Over NVLink 3 at 300 GB/s per direction:
@@ -265,6 +269,8 @@ The bucket size trades two costs from chapter 21's alpha-beta model. A small buc
 ## Sharding the state: ZeRO and FSDP
 
 This section answers: what does it cost, in kernels, to stop keeping a full copy of the model on every GPU?
+
+ZeRO-1 is the stage you write, in the same [chapter 25](/c/25-ddp-and-zero) lab, which keeps a full copy of the weights and of the gradients and shards the optimizer state. For 96 float32 parameters and two ranks, the sharded moments are $2 \times 96 \times 4 / 2 = 384$ bytes, and both moments of the full vector are $2 \times 96 \times 4 = 768$ bytes, which the byte check rejects. The lab also requires two calls each to reduce-scatter and all-gather across two Adam steps, and weights within $10^{-5}$ of `torch.optim.Adam`. ZeRO-2, ZeRO-3, and FSDP stay the description in the rest of this section.
 
 DDP replicates everything, and replication is wasteful. [ZeRO](https://arxiv.org/abs/1910.02054) counts what a mixed-precision Adam run keeps per parameter: 2 bytes of fp16 weights, 2 of fp16 gradients, and 12 of fp32 optimizer state (an fp32 copy of the weights, the first moment, and the second), which totals $16\Psi$ bytes for $\Psi$ parameters. Sharding those across $N$ ranks in stages gives the ZeRO table. The paper's worked example is $\Psi = 7.5$ billion and $N = 64$:
 
@@ -437,3 +443,4 @@ A common layout keeps tensor parallelism inside a node, where NVLink carries its
 - [Flux](https://arxiv.org/abs/2406.06858) and [PyTorch async tensor parallelism](https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487): communication overlap inside and around matmul kernels.
 - [The ultra-scale playbook](https://huggingface.co/spaces/nanotron/ultrascale-playbook): a survey of data, tensor, pipeline, context, and expert parallelism.
 - The companion course's [tensor parallelism chapter](https://qwen.ifkash.dev/c/19-tensor-parallelism), and this course's [collective communication](/c/21-collective-communication) and [fusion and compilers](/c/17-fusion-and-compilers) chapters.
+- This course's [data parallel and ZeRO-1](/c/25-ddp-and-zero) chapter, where you write the bucketed wrapper and the ZeRO-1 Adam. The lab checks the bucket lists, the mean gradient 1.5, three asynchronous all-reduces, 384 bytes of optimizer state per rank, and a two-GPU NCCL sweep that records no bandwidth when it skips.

@@ -2,7 +2,7 @@
 title: Overlap and parallelism
 subtitle: Streams, copy engines, and what each parallelism strategy adds to the timeline
 notes: |
-  This chapter is about hardware that sits idle. A GPU has engines for kernels, for copies over PCIe, and for copies over NVLink, and a naive step uses one at a time. By the end, the audience can say when a copy overlaps with a kernel, compute the time of a chunked pipeline, and name the collective each parallelism strategy adds and how the framework hides it.
+  This chapter is about hardware that sits idle. A GPU has engines for kernels, for copies over PCIe, and for copies over NVLink, and a naive step uses one at a time. By the end, the audience can say when a copy overlaps with a kernel, compute the time of a chunked pipeline, and name the collective each parallelism strategy adds and how the framework hides it. Chapter 25 is where they write bucketed DDP and ZeRO-1. This deck's lab stays the chunked pipeline.
 ---
 
 # Introduction
@@ -10,7 +10,7 @@ notes: |
 The question this chapter answers: when two pieces of work don't depend on each other, how do you make the GPU run them at the same time?
 
 Note:
-Open with the idea that a launch is only a queue entry, from chapter 0. Because it's a queue entry, you can fill several queues before any work runs. The first half of the talk is one GPU and one lab. The second half is the same idea applied to a cluster, where the "copies" are collectives and the "kernel" is a transformer layer.
+Open with the idea that a launch is only a queue entry, from chapter 0. Because it's a queue entry, you can fill several queues before any work runs. This talk's lab is the chunked pipeline on one GPU. Tell them that chapter 25 is where they write bucketed DDP and ZeRO-1, and that tensor parallelism, pipeline parallelism, expert parallelism, and overlap inside a kernel stay a map. The second half applies the same idea to a cluster, where the copies are collectives and the kernel is a transformer layer.
 
 ### Idle hardware is the cost {#idle-hardware}
 
@@ -36,7 +36,7 @@ flowchart LR
 ```
 
 Note:
-Six stops. Streams and events are the vocabulary. Pinned memory is the condition for copies. The chunked pipeline is the lab. Then the parallelism strategies, in the order they add communication to the timeline, and last, overlap pushed down inside a single kernel.
+Six stops. Streams and events are the vocabulary. Pinned memory is the condition for copies. The chunked pipeline is this chapter's lab. Chapter 25 is where the audience writes bucketed DDP and ZeRO-1. That lab checks the bucket lists, a gradient of 1.5 against a sum of 3, three asynchronous all-reduces during backward, and 384 bytes of Adam state on each rank. The NCCL sweep runs only when two GPUs are present, and it records no bandwidth when it skips. Tensor parallelism, pipeline parallelism, expert parallelism, and overlap inside a kernel stay the map.
 
 # Streams and events
 
@@ -247,7 +247,7 @@ flowchart LR
 - Every rank launches in bucket order
 
 Note:
-Backward produces gradients from the last layer to the first, so the last layers' gradients are final early. A hook per parameter marks it ready, and when a bucket is full the reducer launches an asynchronous all-reduce. The compute stream keeps running backward. Every rank must launch the same buckets in the same order, or the job hangs, which is why assignment is fixed at construction. Mention that compiling the whole backward as one graph delays the hooks.
+Backward produces gradients from the last layer to the first, so the last layers' gradients are final early. A hook per parameter marks it ready, and when a bucket is full the reducer launches an asynchronous all-reduce. The compute stream keeps running backward. Every rank must launch the same buckets in the same order, or the job hangs, which is why assignment is fixed at construction. Mention that compiling the whole backward as one graph delays the hooks. The audience writes this wrapper in chapter 25. The lab checks the bucket lists, a gradient of 1.5 against the undivided sum 3, and exactly three asynchronous all-reduces during backward.
 
 ### Is the all-reduce hidden? {#ddp-arithmetic}
 
@@ -278,7 +278,7 @@ A 7-billion-parameter model with bf16 gradients is 14 GB, and p is 8. The backwa
 - A rate limiter allows two all-gathers in flight
 
 Note:
-This is the price of a one-over-N memory footprint. Without a separate stream NCCL would wait for the default stream's compute, and nothing would overlap. Backward prefetching issues the next unit's all-gather before the current reduce-scatter, and the FSDP paper reports about 18 percent speedup from it on GPT-175B. The rate limiter exists because the all-gather stream can over-reserve memory in the caching allocator.
+This is the price of a one-over-N memory footprint. Without a separate stream NCCL would wait for the default stream's compute, and nothing would overlap. Backward prefetching issues the next unit's all-gather before the current reduce-scatter, and the FSDP paper reports about 18 percent speedup from it on GPT-175B. The rate limiter exists because the all-gather stream can over-reserve memory in the caching allocator. Chapter 25 writes ZeRO-1, which shards the optimizer state and keeps the weights. The three collectives on this slide are the ZeRO-3 and FSDP pattern.
 
 ### ZeRO trades memory for communication {#zero}
 
@@ -294,7 +294,7 @@ This is the price of a one-over-N memory footprint. Without a separate stream NC
 
 
 Note:
-The 16 bytes per parameter are 2 for the fp16 weight, 2 for its gradient, and 12 for the fp32 weight copy and the two Adam moments. These are the ZeRO paper's example figures. Stage 3 moves three psi per step against DDP's two psi, so it costs half again as much communication.
+The 16 bytes per parameter are 2 for the fp16 weight, 2 for its gradient, and 12 for the fp32 weight copy and the two Adam moments. These are the ZeRO paper's example figures. Stage 3 moves three psi per step against DDP's two psi, so it costs half again as much communication. ZeRO-1 is the row the audience writes in chapter 25. For 96 float32 parameters and two ranks, the sharded moments are 384 bytes, which is 2 times 96 times 4, divided by 2. The lab rejects 768 bytes, both moments of the full vector, and it checks two reduce-scatters, two all-gathers, and weights within 1e-5 of Adam.
 
 ## Tensor, pipeline, and expert parallelism
 
@@ -450,4 +450,4 @@ Each of these is arithmetic the chapter shows, from the PCIe and NVLink per-dire
 | Expert | All-to-all x2 per layer | Yes |
 
 Note:
-Use this table to close. Tensor and expert parallelism sit on the critical path and want the fastest links, so they stay inside a node. DDP and FSDP have independent work to hide behind, which is why they scale across nodes. Pipeline parallelism has the bubble, which no second stream can fill. The next chapter leaves NVIDIA hardware: AMD, TPUs, Apple silicon, and tile DSLs.
+Use this table to close. Tensor and expert parallelism sit on the critical path and want the fastest links, so they stay inside a node. DDP and FSDP have independent work to hide behind, which is why they scale across nodes. Pipeline parallelism has the bubble, which no second stream can fill. Chapter 25, later in this part, is where they write the bucketed DDP wrapper and the ZeRO-1 Adam. The next chapter leaves NVIDIA hardware: AMD, TPUs, Apple silicon, and tile DSLs.

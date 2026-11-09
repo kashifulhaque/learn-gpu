@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 25 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 24 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 26 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 25 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -59,8 +59,11 @@ one exists.
 | 22 | [Overlap and parallelism](content/chapters/22-overlap-and-parallelism.md) | Part 5 — Many GPUs | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. |
 | 23 | [Beyond CUDA](content/chapters/23-beyond-cuda.md) | Part 6 — Beyond | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
 | 24 | [A CuTe DSL GEMM](content/chapters/24-cute-dsl-gemm.md) | Part 3 — Matrix multiplication | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
+| 25 | [Data parallel and ZeRO-1](content/chapters/25-ddp-and-zero.md) | Part 5 — Many GPUs | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
+
+Chapter 25 belongs to Part 5, with chapters 21 and 22. It is numbered 25, after chapter 24, because chapters 00 through 24 stay where they are. Filename order places 25 after 24.
 
 ## Run it locally
 

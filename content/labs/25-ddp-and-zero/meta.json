@@ -1,0 +1,27 @@
+{
+  "id": "25-ddp-and-zero",
+  "title": "Bucketed DDP and ZeRO-1",
+  "brief": "Bucket gradients in reverse parameter order, overlap an asynchronous all-reduce with backward on gloo, and shard Adam's moments so each rank stores 1/N of the optimizer state. A two-GPU NCCL sweep runs only when the machine has two GPUs.",
+  "gpu": "A100-80GB",
+  "gpus": 2,
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 600,
+  "metrics": [
+    "ddp_buckets",
+    "grad_max_abs_err",
+    "zero_state_bytes",
+    "zero_full_state_bytes",
+    "fit_alpha_us",
+    "fit_bandwidth_gbs"
+  ],
+  "hints": [
+    "Start with assign_buckets. Walk the parameter indices from last to first. Close the current bucket when the next parameter does not fit. A parameter larger than the cap is a bucket by itself, and the indices inside a bucket stay in the order you visited them.",
+    "The worked example is numels [16, 16, 16, 48], a cap of 128 bytes, and 4 bytes per element. That is the buckets [[3], [2, 1], [0]].",
+    "Call register_post_accumulate_grad_hook on each parameter. When a bucket's last gradient is ready, launch dist.all_reduce on the flattened bucket with async_op=True, during backward. In finish_gradient_synchronization, wait, divide by the world size, and copy the buffer back into each .grad.",
+    "Launch buckets in index order, not in the order they happen to become ready. Every rank has to issue the same collectives in the same order, or gloo waits forever. The harness turns that wait into a timeout.",
+    "Broadcast rank 0's parameters in the constructor so the replicas start equal. all_reduce sums. The mean is that sum divided by the world size.",
+    "Zero1Adam keeps exp_avg and exp_avg_sq only for this rank's slice of the flattened parameters. step reduce-scatters the gradients, runs one Adam update on the slice, and all-gathers the parameters. The flattened length has to divide the world size.",
+    "The gloo checks need no GPU. The NCCL sweep runs only when this machine has two GPUs. A missing two-GPU endpoint does not send the job to the single A100."
+  ]
+}

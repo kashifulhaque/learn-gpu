@@ -600,3 +600,26 @@ Part 3 — Matrix multiplication. Numbered 24, after chapter 23, because chapter
    Take: The algebra chapter 13 implements, as a lecture.
 8. **GPU MODE, lecture 114: PyCuTe.** Cris Cecka. <https://github.com/gpu-mode/lectures#lecture-114-pycute>  
    Take: PyCuTe is Cecka's library at <https://github.com/NVlabs/CuTe>. The kernel in this chapter uses NVIDIA's CuTe DSL, a different package.
+
+## 25-ddp-and-zero: Data parallel and ZeRO-1
+
+Part 5 — Many GPUs. Numbered 25, after chapter 24, because chapters 00 through 24 are not renumbered.
+
+1. **Distributed data parallel.** PyTorch 2.14. <https://docs.pytorch.org/docs/2.14/notes/ddp.html>  
+   Take: Reverse-order buckets, the asynchronous all-reduce, and launching in bucket-index order.
+2. **`DistributedDataParallel`.** PyTorch 2.14. <https://docs.pytorch.org/docs/2.14/generated/torch.nn.parallel.DistributedDataParallel.html>  
+   Take: `bucket_cap_mb` defaults to 25 MiB.
+3. **`register_post_accumulate_grad_hook`.** PyTorch 2.14. <https://docs.pytorch.org/docs/2.14/generated/torch.Tensor.register_post_accumulate_grad_hook.html>  
+   Take: The hook runs after `.grad` is written, and only on a leaf tensor.
+4. **CS336 assignment 2, systems and parallelism.** Stanford, 2026. <https://github.com/stanford-cs336/assignment2-systems/blob/main/cs336_assignment2_systems.pdf>  
+   Take: Overlapped DDP from that hook, with `async_op=True` and `finish_gradient_synchronization`, and a sharded optimizer.
+5. **ZeRO: Memory optimizations toward training trillion parameter models.** Samyam Rajbhandari and others, 2019. <https://arxiv.org/abs/1910.02054>  
+   Take: $K = 12$, the $P_{os}$ memory $4\Psi + K\Psi/N$, and the $2\Psi$ volume of reduce-scatter plus all-gather.
+6. **nccl-tests performance notes.** NVIDIA. <https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md>  
+   Take: algbw, busbw, and the $2(n-1)/n$ factor for all-reduce.
+7. **GPU MODE, lecture 17: GPU collective communication (NCCL).** Dan Johnson. <https://github.com/gpu-mode/lectures/tree/main/lecture_017>  
+   Take: The lecture index's NCCL session. Chapter 21 is the cost model this chapter applies.
+8. **GPU MODE, lecture 67: NCCL and NVSHMEM.** Jeff Hammond. <https://github.com/gpu-mode/lectures#lecture-67-nccl--nvshmem>  
+   Take: The lecture index lists the session. This chapter stops at the collectives NCCL runs.
+9. **GPU MODE, lecture 39: TorchTitan.** Mark Saroufim and Tianyu Liu. <https://github.com/gpu-mode/lectures#lecture-39-torchtitan>  
+   Take: The lecture index lists TorchTitan. The folder `lecture_039` was not present when this chapter was written.

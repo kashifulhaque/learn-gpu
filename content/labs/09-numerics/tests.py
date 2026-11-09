@@ -6,6 +6,25 @@ from lab_common import A100, Checks, bandwidth_gbs, cuda_time, require_cuda
 # The mantissa bits m of each format. The unit roundoff is 2**-(m + 1).
 MANTISSA_BITS = {"fp32": 23, "tf32": 10, "bf16": 7, "fp16": 10, "e4m3": 3, "e5m2": 2}
 
+# Chapter 9's fused-multiply-add example, as a short vector. Length 8 keeps
+# the check off the one-element kernel path.
+_FMA_N = 8
+_FMA_A = 1.0 + 2.0**-12
+_FMA_C = -(1.0 + 2.0**-11)
+_FMA_FUSED = 2.0**-24
+
+
+def separate_in_float64(a: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """A plausible wrong fma_versus_separate.
+
+    It squares in float64 and then adds, and it returns that total for both
+    paths. On the chapter's inputs the product 1 + 2**-11 + 2**-24 is exact
+    in float64, so the separate path returns 2**-24. The float32 separate
+    path returns 0.
+    """
+    total = (a.double() * a.double() + c.double()).to(dtype=torch.float32)
+    return total, total
+
 
 def _rel_err(value: float, exact: float, scale: float) -> float:
     """|value - exact| relative to `scale`, here the sum of absolute values."""
@@ -19,6 +38,7 @@ def run(submission):
         "round_tf32",
         "roundtrip",
         "measured_roundoff",
+        "fma_versus_separate",
         "sum_bf16_sequential",
         "sum_bf16_pairwise",
         "seq_sum_cuda",
@@ -30,7 +50,6 @@ def run(submission):
     ]
     if not c.require(submission, *names):
         return c.finish()
-    require_cuda()
 
     # ------------------------------------------------------------------
     # Part 1: format round trips
@@ -154,6 +173,106 @@ def run(submission):
             pass
 
     # ------------------------------------------------------------------
+    # Fused multiply-add. CPU only: the chapter's fp32 example.
+    # separate_in_float64 fails the chapter example. Its separate path is
+    # 2**-24, and the float32 separate path is 0.
+    # ------------------------------------------------------------------
+    print("\nFused multiply-add", flush=True)
+
+    def _call_fma(a, c):
+        try:
+            separate, fused = submission.fma_versus_separate(a, c)
+        except Exception as exc:  # noqa: BLE001 - an unfinished function fails the check
+            detail = type(exc).__name__
+            if str(exc):
+                detail = f"{detail}: {exc}"
+            return None, None, detail
+        return separate, fused, ""
+
+    def fma_chapter_example():
+        value = torch.full((_FMA_N,), _FMA_A)
+        addend = torch.full((_FMA_N,), _FMA_C)
+        want_separate = torch.zeros(_FMA_N)
+        want_fused = torch.full((_FMA_N,), _FMA_FUSED)
+        wrong_separate, _wrong_fused = separate_in_float64(value, addend)
+        separate, fused, error = _call_fma(value, addend)
+        if error:
+            return False, (
+                f"expected separate {want_separate[0].item()} and fused {want_fused[0].item()}, "
+                f"got {error}. separate_in_float64 returns separate {wrong_separate[0].item()}."
+            )
+        if not torch.is_tensor(separate) or not torch.is_tensor(fused):
+            return False, (
+                f"expected two float32 tensors, got {type(separate).__name__} and {type(fused).__name__}. "
+                f"separate_in_float64 returns separate {wrong_separate[0].item()}."
+            )
+        if separate.dtype != torch.float32 or fused.dtype != torch.float32:
+            return False, (
+                f"expected dtype float32, got separate {separate.dtype} and fused {fused.dtype}"
+            )
+        if tuple(separate.shape) != (_FMA_N,) or tuple(fused.shape) != (_FMA_N,):
+            return False, (
+                f"expected shape ({_FMA_N},), got separate {tuple(separate.shape)} "
+                f"and fused {tuple(fused.shape)}"
+            )
+        c.metric("fma_residual", float(fused[0].item()))
+        ok = torch.equal(separate, want_separate) and torch.equal(fused, want_fused)
+        return ok, (
+            f"separate got {separate[0].item()}, expected {want_separate[0].item()}; "
+            f"fused got {fused[0].item()}, expected {want_fused[0].item()}. "
+            f"separate_in_float64 returns separate {wrong_separate[0].item()}."
+        )
+
+    c.check(
+        "fma_versus_separate: the chapter example is 0 one way and 2^-24 the other",
+        fma_chapter_example,
+    )
+
+    def fma_seeded_residual():
+        generator = torch.Generator().manual_seed(9)
+        a = (1.0 + torch.rand(4096, generator=generator)).float()
+        product = a * a
+        addend = -product
+        exact = a.double() * a.double()
+        want_fused = (exact - product.double()).float()
+        want_separate = torch.zeros_like(a)
+        bound = (2.0**-24) * exact.abs()
+        separate, fused, error = _call_fma(a, addend)
+        if error:
+            return False, (
+                f"expected separate max abs 0 and fused max abs error 0, got {error}"
+            )
+        if not torch.is_tensor(separate) or not torch.is_tensor(fused):
+            return False, (
+                f"expected two float32 tensors, got {type(separate).__name__} and {type(fused).__name__}"
+            )
+        if separate.dtype != torch.float32 or fused.dtype != torch.float32:
+            return False, (
+                f"expected dtype float32, got separate {separate.dtype} and fused {fused.dtype}"
+            )
+        if tuple(separate.shape) != tuple(a.shape) or tuple(fused.shape) != tuple(a.shape):
+            return False, (
+                f"expected shape {tuple(a.shape)}, got separate {tuple(separate.shape)} "
+                f"and fused {tuple(fused.shape)}"
+            )
+        separate_err = (separate - want_separate).abs().max().item()
+        fused_err = (fused - want_fused).abs().max().item()
+        over = (fused.double().abs() - bound).max().item()
+        nonzero = int((want_fused != 0).sum().item())
+        ok = separate_err == 0.0 and fused_err == 0.0 and over <= 0.0 and nonzero > 0
+        return ok, (
+            f"separate max abs {separate_err}, expected 0; "
+            f"fused max abs error {fused_err}, expected 0; "
+            f"largest residual past 2^-24 times the exact product {over}, expected <= 0; "
+            f"nonzero fused values {nonzero}, expected > 0"
+        )
+
+    c.check(
+        "fma_versus_separate: a seeded cancellation stays inside the unit roundoff",
+        fma_seeded_residual,
+    )
+
+    # ------------------------------------------------------------------
     # Part 2: accumulation order in bfloat16
     # ------------------------------------------------------------------
     print("\nPart 2: accumulation order in bfloat16", flush=True)
@@ -206,9 +325,19 @@ def run(submission):
     c.check("5120 uniform values: the sequential sum stalls, the pairwise sum doesn't", accuracy_gap)
 
     # ------------------------------------------------------------------
-    # Part 3: summation kernels
+    # Part 3: summation kernels. Skipped, not failed, when this machine has
+    # no CUDA device. The checks above are the CPU numerics.
     # ------------------------------------------------------------------
+    if not torch.cuda.is_available():
+        print(
+            "\nNo CUDA device is visible, so the summation kernels and the "
+            "--use_fast_math checks are skipped.",
+            flush=True,
+        )
+        return c.finish()
+
     print("\nPart 3: summation kernels (the first call compiles with nvcc)", flush=True)
+    require_cuda()
     dev = torch.device("cuda")
 
     def scaled_error(fn, x):

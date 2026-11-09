@@ -49,8 +49,9 @@ scale. You can't reason about any of them without knowing what a float can and
 can't hold.
 
 You build the lab bottom-up: round-trip a value through each format and measure
-its error, watch a bfloat16 sum stall, write Kahan and fixed-order tree sums in
-CUDA, and count how many different answers `atomicAdd` gives you on one input.
+its error, compare a fused multiply-add with a separate multiply and add, watch
+a bfloat16 sum stall, write Kahan and fixed-order tree sums in CUDA, and count
+how many different answers `atomicAdd` gives you on one input.
 
 ## Before you start
 
@@ -322,6 +323,11 @@ wrong in the IEEE sense. They are different programs. NVIDIA's
 works the same trap in binary with a value squared minus one, and says that to
 stop a fusion you use the intrinsics `__fmul_rn` and `__fadd_rn`, which `nvcc`
 never merges.
+
+In `fma_versus_separate`, you compute both sides of this example. The
+separate multiply and add returns $0$, and the fused multiply-add returns
+$2^{-24}$. On the lab's seeded values, the fused residual stays within the
+unit roundoff, $2^{-24}$ times the exact product.
 
 ### What --use_fast_math does
 
@@ -780,15 +786,18 @@ pay for it in a lower peak. That is a design choice to make on purpose.
 ## Lab
 
 > [!TRY] Numerics on the GPU
-> Open `09-numerics`. In `starter.py` you write four things: the format
-> functions (`format_stats`, `round_tf32`, `roundtrip`, `measured_roundoff`), the
+> Open `09-numerics`. In `starter.py` you write the format
+> functions (`format_stats`, `round_tf32`, `roundtrip`, `measured_roundoff`),
+> `fma_versus_separate`, the
 > two bfloat16 sums (`sum_bf16_sequential`, `sum_bf16_pairwise`), three CUDA
 > kernels (Kahan, a fixed-order tree, and a one-pass `atomicAdd`), and two probes
-> of `--use_fast_math`. You pass when the format limits match `torch.finfo`, 1024
-> ones sum to exactly 256 sequentially, the Kahan sum errs by under $3 \times 10^{-7}$ on
+> of `--use_fast_math`. You pass when the format limits match `torch.finfo`, the
+> fused multiply-add of $(1 + 2^{-12})^{2} - (1 + 2^{-11})$ is $2^{-24}$ and the
+> separate multiply and add is $0$, 1024 ones sum to exactly 256 sequentially,
+> the Kahan sum errs by under $3 \times 10^{-7}$ on
 > $2^{20}$ values, the tree sum returns one bit pattern in 20 runs, and each sum is
 > correct on awkward sizes such as 1, 7, and 1,000,003.
-> The lab reports `bf16_roundoff`, `e4m3_roundoff`, `bf16_seq_rel_err`,
+> The lab reports `bf16_roundoff`, `e4m3_roundoff`, `fma_residual`, `bf16_seq_rel_err`,
 > `seq_rel_err`, `kahan_rel_err`, `tree_rel_err`, `atomic_distinct`, `tree_gbs`,
 > `expf_ulp`, and `fast_expf_ulp`. A sum reads each float once, so
 > the lab sets only a loose floor for `tree_gbs`: a quarter of the 1275 GB/s copy

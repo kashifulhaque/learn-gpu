@@ -13,6 +13,7 @@ objectives:
   - "Explain what unified memory removes and what it doesn't on Apple silicon, and say what Metal and MLX are for."
   - "Say what a tile-level language (Triton, CuTe DSL, ThunderKittens, TileLang, HipKittens) abstracts, and what it leaves to you."
   - "Choose what to keep hardware-agnostic in a kernel project, and apply the three questions (what bounds it, how far from the bound, what moves it) to a kernel on any machine."
+lab: 23-wavefront-reduction
 ---
 
 # Beyond CUDA
@@ -388,6 +389,33 @@ The failures below are the ones a port provokes. Each is silent.
 - **Comparing peaks across vendors.** A sparse figure against a dense one, GiB against GB (the TPU v5e's 800 is GiB per second), or a total against a per-direction link rate gives a ratio that is wrong by a factor of 2 or more. Convert before you divide.
 - **Trusting a translation.** A kernel that HIPIFY converted runs on AMD hardware, and that's all you know. It isn't tuned, and its speed says nothing about the hardware.
 
+The first two failures return a number and raise no error. The Lab section grades both of them.
+
+Take a wavefront of 64 lanes. Lanes 0 to 31 each hold 1, so that half sums to 32. Lanes 32 to 63 each hold 3, so that half sums to 96. Add the halves:
+
+$$
+32 + 96 = \boxed{128}
+$$
+
+Lane 0 holds 128 when the tree covers every lane. The `warp_sum_32` fragment in the Wavefronts of 64 section starts at offset 16 and folds 32 lanes, so lane 0 holds 32. Lanes 32 to 63 stay out of that sum. Start that tree at `width / 2` and lane 0 holds 128.
+
+A ballot has the same cutoff. When only lane 40 is active, the mask is $2^{40}$. When you mask that value with `0xffffffff`, the result is 0, because the constant keeps bits 0 to 31.
+
+Lane 40 was active, and the stored mask reports it as inactive. A mask that keeps `width` bits still holds $2^{40}$.
+
+The scratchpad fails on size. This lab counts one buffer, a 128 by 128 tile of fp16 values, and the pipeline keeps three stages. Multiply the shape, the element size, and the stage count:
+
+$$
+128 \times 128 \times 2 \times 3 = \boxed{98{,}304}
+$$
+
+The product is 98,304 bytes, which is 96 KiB. The A100 allows 163 KB of shared memory per block, $163 \times 1{,}024 = 166{,}912$ bytes, so 98,304 fits. An MI300X CU has 64 KB of LDS, $64 \times 1{,}024 = 65{,}536$ bytes, and 98,304 doesn't fit.
+
+Drop the three stages and the same tile is $128 \times 128 \times 2 = 32{,}768$ bytes. That count fits in 65,536 bytes, so a budget that ignores the stages hides the failure.
+
+> [!EXAMPLE] The numbers the lab grades
+> `reduce_simd` on this 64-lane vector returns 128. A fold of the first 32 lanes returns 32. `ballot_mask` with lane 40 active returns $2^{40}$, and the same mask combined with `0xffffffff` returns 0. `scratchpad_bytes(128, 128, 2, 3)` returns 98,304. That byte count fits in 166,912 bytes and doesn't fit in 65,536.
+
 ## The course in three questions
 
 You now have the toolkit, and you can compress it into three questions you ask of any kernel on any machine. This section answers one question: what is the habit that outlasts the details?
@@ -441,6 +469,29 @@ The best way to keep the skill is to apply it to a kernel you didn't write again
 
 > [!QUESTION] A blog compares an MI300X's FP8 rate against an H100's, and the ratio looks too good. Name two things to check.
 > Check whether both figures are dense, because sparse figures are twice the dense ones, and whether both are rated at the same precision and clock. Also check the hardware of any measured result. A peak is a rating, so the ratio of two ratings isn't a measured speedup.
+
+## Lab
+
+> [!TRY] Write the reduction and the scratchpad budget
+> Implement `reduce_simd`, `ballot_mask`, `ridge_flops_per_byte`, `scratchpad_bytes`, `scratchpad_fits`, and `reduction_source` in `starter.py`. The checks are pure Python and run without a GPU.
+>
+> You pass the first check when `reduce_simd([1, 2, 3, 4], 4)` returns 10. You pass the wavefront check when the 64-lane vector, 32 ones followed by 32 threes, returns 128. A fold of the first 32 lanes returns 32 on that vector, and that result fails.
+>
+> You pass the ballot checks when a width of 4 with lanes 0 and 2 active returns 5, and when lane 40 of a 64-lane mask returns $2^{40}$. The value `0xffffffff` clears bit 40, and that result fails.
+>
+> You pass the ridge check when 312 TFLOP/s and 1,935 GB/s return $312 \times 1{,}000 / 1{,}935$, about 161.24 FLOP per byte, and when 1,307.4 TFLOP/s and 5,300 GB/s return about 246.68. A quotient with no factor of 1,000 is about 0.161 on the A100 pair, and that result fails.
+>
+> You pass the scratchpad checks when `scratchpad_bytes(128, 128, 2, 3)` returns 98,304, that count fits in 166,912 bytes, and it doesn't fit in 65,536 bytes. You pass the source check when `reduction_source` returns a loop whose offset starts from `width`, for example `width / 2`. A loop that starts at 16 fails.
+
+A TFLOP is $10^{12}$ FLOP and a GB is $10^{9}$ bytes, so FLOP per byte is the TFLOP/s rating times 1,000, divided by the GB/s rating:
+
+$$
+\frac{312 \times 1{,}000}{1{,}935} = \boxed{161.2403}
+$$
+
+That is the table's 161 for the lab A100, with the factor of 1,000 still visible, and it rounds to about 161.24. The same division for the MI300X is $1{,}307.4 \times 1{,}000 / 5{,}300 = 246.6792$, which the MI300X paragraph rounds to 246.7.
+
+The slide deck is [Beyond CUDA](/slides/23-beyond-cuda).
 
 ## Further reading
 

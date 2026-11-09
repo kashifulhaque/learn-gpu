@@ -42,9 +42,9 @@ lab: 03-bandwidth-probe
   two-digit chapter number. [docs/CURRICULUM.md](../docs/CURRICULUM.md) fixes
   every slug, part, and lab id: copy them exactly.
 - `gpu: true` marks a chapter whose lab runs on the GPU.
-- `lab` names a directory in `content/labs/`. A chapter with no lab, such as
-  chapter 23, leaves `lab:` out and omits the `## Lab` section. Everything else
-  in the shape below still applies.
+- `lab` names a directory in `content/labs/`. A chapter with no lab leaves
+  `lab:` out and omits the `## Lab` section. Everything else in the shape
+  below still applies.
 
 ## The shape of a chapter
 

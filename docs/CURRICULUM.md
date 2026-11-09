@@ -50,7 +50,7 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 20 | 20-moe-and-sparse-kernels | Mixture-of-experts and sparse kernels | Part 4 — Kernels for ML | 20-grouped-gemm | Token permutation and a grouped GEMM in Triton; 2:4 structured sparsity. |
 | 21 | 21-collective-communication | Collective communication | Part 5 — Many GPUs | 21-ring-allreduce | Ring all-reduce with torch.distributed point-to-point; the alpha-beta cost model. |
 | 22 | 22-overlap-and-parallelism | Overlap and parallelism | Part 5 — Many GPUs | 22-streams-overlap | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. Bucketed DDP and ZeRO-1 are the lab in chapter 25. |
-| 23 | 23-beyond-cuda | Beyond CUDA | Part 6 — Beyond | (none) | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
+| 23 | 23-beyond-cuda | Beyond CUDA | Part 6 — Beyond | 23-wavefront-reduction | A pure-Python wavefront reduction, a 64-bit ballot, the ridge point, and a scratchpad budget. The checks run without a GPU. |
 | 24 | 24-cute-dsl-gemm | A CuTe DSL GEMM | Part 3 — Matrix multiplication | 24-cute-dsl-gemm | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
 | 25 | 25-ddp-and-zero | Data parallel and ZeRO-1 | Part 5 — Many GPUs | 25-ddp-and-zero | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 | 26 | 26-hopper-gemm | Hopper GEMM | Part 3 — Matrix multiplication | 26-hopper-gemm | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |

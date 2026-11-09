@@ -16,7 +16,7 @@ that one touches.
 | Path | Contents |
 |---|---|
 | `content/chapters/` | 27 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 26 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/labs/` | 27 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -57,7 +57,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 20 | [Mixture-of-experts and sparse kernels](content/chapters/20-moe-and-sparse-kernels.md) | Part 4 — Kernels for ML | Token permutation and a grouped GEMM in Triton; 2:4 structured sparsity. |
 | 21 | [Collective communication](content/chapters/21-collective-communication.md) | Part 5 — Many GPUs | Ring all-reduce with torch.distributed point-to-point; the alpha-beta cost model. |
 | 22 | [Overlap and parallelism](content/chapters/22-overlap-and-parallelism.md) | Part 5 — Many GPUs | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. Bucketed DDP and ZeRO-1 are the lab in chapter 25. |
-| 23 | [Beyond CUDA](content/chapters/23-beyond-cuda.md) | Part 6 — Beyond | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
+| 23 | [Beyond CUDA](content/chapters/23-beyond-cuda.md) | Part 6 — Beyond | A pure-Python wavefront reduction, a 64-bit ballot, the ridge point, and a scratchpad budget. The checks run without a GPU. |
 | 24 | [A CuTe DSL GEMM](content/chapters/24-cute-dsl-gemm.md) | Part 3 — Matrix multiplication | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
 | 25 | [Data parallel and ZeRO-1](content/chapters/25-ddp-and-zero.md) | Part 5 — Many GPUs | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 | 26 | [Hopper GEMM](content/chapters/26-hopper-gemm.md) | Part 3 — Matrix multiplication | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |

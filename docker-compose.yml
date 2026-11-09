@@ -41,6 +41,9 @@ services:
       - ./book:/app/book:ro
     networks:
       - edge
+    # This service only proxies lab runs to RunPod, so the container stays small.
+    cpus: 0.5
+    mem_limit: 384m
     healthcheck:
       test:
         - CMD

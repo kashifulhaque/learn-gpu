@@ -11,9 +11,10 @@ transformer is, but has never written a kernel. No C++ background assumed
 beyond reading it.
 
 Lab hardware: one **A100 80GB PCIe** (Ampere, sm_80) on a RunPod serverless
-endpoint, the same as learn-inference. Hopper (H100, sm_90) and Blackwell
-(B200, sm_100) features are taught in prose, figures, and slides, with Ampere
-labs that exercise the same idea where one exists.
+endpoint, the same as learn-inference. Chapter 26 is a Hopper lab, gated on an
+H100: the CPU checks run on any machine, and the TMA and `wgmma` kernels run
+only when an H100 endpoint is configured. Blackwell (B200, sm_100) stays in
+prose, figures, and slides.
 
 Labs write CUDA C++ compiled from Python with
 `torch.utils.cpp_extension.load_inline`, or Triton. Chapter 24 writes the
@@ -52,7 +53,10 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 23 | 23-beyond-cuda | Beyond CUDA | Part 6 — Beyond | (none) | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
 | 24 | 24-cute-dsl-gemm | A CuTe DSL GEMM | Part 3 — Matrix multiplication | 24-cute-dsl-gemm | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
 | 25 | 25-ddp-and-zero | Data parallel and ZeRO-1 | Part 5 — Many GPUs | 25-ddp-and-zero | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
+| 26 | 26-hopper-gemm | Hopper GEMM | Part 3 — Matrix multiplication | 26-hopper-gemm | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |
 
 Chapter 24 is part of Part 3, with the GEMM chapters. Its file number is 24, after chapter 23, because chapters 00 through 23 are not renumbered.
 
 Chapter 25 is part of Part 5, with chapters 21 and 22. Its file number is 25, after chapter 24, because chapters 00 through 24 are not renumbered. Filename order places 25 after 24.
+
+Chapter 26 is part of Part 3, with chapters 10 to 14 and chapter 24. Its file number is 26, after chapter 25, because chapters 00 through 25 are not renumbered. Filename order places 26 after 25. Prerequisites are chapter 12 and chapter 24.

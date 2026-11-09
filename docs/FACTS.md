@@ -252,6 +252,11 @@ The 5,120 versus about 2,000 bytes per clock gap on L2 is a source disagreement 
 | `mbarrier.expect_tx` | `txCount` is a 32-bit unsigned byte count; the pending tx-count range is about ±(2^20 − 1); scope `.cta` or `.cluster` | S | [PTX] |
 | TMA descriptor needs | a global-memory allocation (hence `triton.set_allocator`) | C | [TRITON-MKDESC] |
 | Hopper TMA and tuning guidance | TMA avoids using registers and SM instructions for data movement, which enables warp specialization | C | [HOPPER-TUNING] |
+| TMA `globalStrides` | rank minus 1 entries, in bytes; each entry is a multiple of 16 | C | [CUDA-TMAP] |
+| TMA box limits | each `boxDim` entry is at most 256; with no interleave, the inner dimension in bytes is a multiple of 16 and no larger than the swizzle span | C | [CUDA-TMAP] |
+| TMA out-of-bounds fill | `CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE` writes zeros for coordinates outside the tensor | C | [CUDA-TMAP] |
+| 128-byte swizzle, 16-byte atomicity | physical chunk = logical chunk XOR (row mod 8); byte = row × 128 + physical chunk × 16. Row 1, chunk 1 is byte 128 | C | [PTX] |
+| mbarrier phase completion | the phase completes when the pending arrival count is 0 and the pending transaction-byte count is 0 | C | [PTX] |
 | Thread block clusters | Portable maximum 8 blocks; 16 on H100 and B200 with `cudaFuncAttributeNonPortableClusterSizeAllowed`; DSMEM accesses should be coalesced and aligned to 32-byte segments | C | [HOPPER-TUNING], [BW-TUNING] |
 | L2 residency control | Ampere adds L2 cache residency controls for the programmer | C | [GA100-WP] |
 
@@ -399,6 +404,9 @@ For the lab's `mma.sync.m16n8k16` with fp16 inputs on sm_80: A is a 16x16 tile (
 | K per instruction | 16 (f16, bf16), 8 (tf32), 32 (fp8, int8); sparse doubles K | C | [PTX] |
 | Operands | A from registers or a shared-memory descriptor; B from a shared-memory descriptor; accumulator in registers | C | [PTX] |
 | Sequence | `wgmma.fence` then `wgmma.mma_async` then `wgmma.commit_group` then `wgmma.wait_group N`; touching the accumulator before the matching wait is undefined | C | [PTX] |
+| Descriptor address fields | start, leading-byte offset, and stride-byte offset are stored as `(value & 0x3FFFF) >> 4`, in bits 0–13, 16–29, and 32–45. Each input is a multiple of 16 | C | [CUTLASS-GMMA], [CUTLASS-DSL-WGMMA] |
+| Descriptor layout type | bits 62–63: 0 none, 1 the 128-byte mode, 2 the 64-byte mode, 3 the 32-byte mode. The driver enum is different: 128B is enumerator 3 | C | [CUTLASS-GMMA], [CUDA-TMAP] |
+| K-major bf16, no swizzle | leading byte offset 128 and stride byte offset 256 for the core-matrix atom with an 8-element group (`8 × 2 = 16` bytes) | C | [COLFAX-WGMMA] |
 | Measured on H800 PCIe | FP16 m64n256k16: 729.3 TFLOP/s of 756.5 peak (96%) with zero-filled inputs; 704.5 with random inputs (93%); FP8 m64n256k32: 1,448 of 1,513 (96%); latency 128 cycles per instruction | C | [LUO-HOPPER], Table VIII |
 | Measured on A100 PCIe, `mma.sync` | m16n8k16 FP16 to FP16: 310.6 TFLOP/s; FP16 to FP32: 303.4 (97% of 312); TF32 m16n8k8: 151.5 (97% of 156); INT8 m16n8k32: 607.6 TOPS (97% of 624); latency 24.6 to 26.3 cycles | C | [LUO-HOPPER], Table VII |
 | Dense versus sparse measured on A100 | FP16 m16n8k16 sparse: 622.8 TFLOP/s | C | [LUO-HOPPER], Table VII |
@@ -789,6 +797,12 @@ Primary and secondary sources used above. Each URL was fetched on 2026-10-22 unl
 | HOPPER-TUNING | CUDA Hopper Tuning Guide | https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html |
 | BW-TUNING | CUDA Blackwell Tuning Guide | https://docs.nvidia.com/cuda/blackwell-tuning-guide/index.html |
 | PTX | PTX ISA 9.4 (read by the research agent) | https://docs.nvidia.com/cuda/parallel-thread-execution/index.html |
+| CUDA-TMAP | CUDA Driver API, tensor map object management (`cuTensorMapEncodeTiled`) | https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html |
+| CUTLASS-GMMA | CUTLASS 3.9.2, `include/cute/arch/mma_sm90_desc.hpp` (GmmaDescriptor) | https://github.com/NVIDIA/cutlass/blob/v3.9.2/include/cute/arch/mma_sm90_desc.hpp |
+| CUTLASS-DSL-WGMMA | CuTe DSL primitives, WgmmaSmemDesc bit layout | https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/primitives.html |
+| COLFAX-WGMMA | Colfax Research, CUTLASS tutorial: wgmma on Hopper | https://research.colfax-intl.com/cutlass-tutorial-wgmma-hopper/ |
+| GPUMODE-23 | GPU MODE lecture 23, Tensor Cores, Vijay Thakkar and Pradeep Ramani | https://github.com/gpu-mode/lectures#lecture-23-tensor-cores |
+| GPUMODE-36 | GPU MODE lecture 36, CUTLASS and FlashAttention-3, Jay Shah | https://github.com/gpu-mode/lectures/tree/main/lecture_036 |
 | CUDA-RN | CUDA Toolkit release notes | https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html |
 | NCU-GUIDE | Nsight Compute Profiling Guide | https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html |
 | NV-MATMUL | NVIDIA Matrix Multiplication Background User's Guide | https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html |

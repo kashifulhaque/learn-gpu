@@ -623,3 +623,24 @@ Part 5 — Many GPUs. Numbered 25, after chapter 24, because chapters 00 through
    Take: The lecture index lists the session. This chapter stops at the collectives NCCL runs.
 9. **GPU MODE, lecture 39: TorchTitan.** Mark Saroufim and Tianyu Liu. <https://github.com/gpu-mode/lectures#lecture-39-torchtitan>  
    Take: The lecture index lists TorchTitan. The folder `lecture_039` was not present when this chapter was written.
+
+## 26-hopper-gemm: Hopper GEMM
+
+Part 3 — Matrix multiplication. Numbered 26, after chapter 25, because chapters 00 through 25 are not renumbered. Prerequisites are chapter 12 and chapter 24.
+
+1. **Tensor map object management.** NVIDIA, CUDA Driver API. <https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html>  
+   Take: `cuTensorMapEncodeTiled`. Strides are rank minus 1, in bytes, and a multiple of 16. Each box dimension is at most 256. Out-of-bounds fill none writes zeros. The 128-byte swizzle is the fourth driver enumerator.
+2. **PTX ISA.** NVIDIA. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html>  
+   Take: Section 5.5.7, the 128-byte swizzle table with 16-byte atomicity. The mbarrier phase completes when the arrival count and the transaction-byte count are both zero. `cp.async.bulk.tensor` completes through that barrier.
+3. **`mma_sm90_desc.hpp`.** NVIDIA, CUTLASS 3.9.2. <https://github.com/NVIDIA/cutlass/blob/v3.9.2/include/cute/arch/mma_sm90_desc.hpp>  
+   Take: The 64-bit descriptor. Layout type 0, 1, 2, 3 is none, 128B, 64B, 32B. Address fields drop the low 4 bits.
+4. **CuTe DSL primitives.** NVIDIA. <https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/primitives.html>  
+   Take: The same descriptor bit layout, and the rule that a start address advances in multiples of 16 bytes.
+5. **CUTLASS tutorial: wgmma on Hopper.** Colfax Research. <https://research.colfax-intl.com/cutlass-tutorial-wgmma-hopper/>  
+   Take: B is a shared-memory descriptor, the accumulator is registers, and the K-major no-swizzle atom uses a leading offset of 128 bytes and a stride of 256 bytes.
+6. **GPU MODE, lecture 36: CUTLASS and FlashAttention-3.** Jay Shah. <https://github.com/gpu-mode/lectures/tree/main/lecture_036>  
+   Take: The lecture index titles this session CUTLASS and FlashAttention-3. The slides cover WGMMA, TMA, and warp specialization.
+7. **GPU MODE, lecture 23: Tensor Cores.** Vijay Thakkar and Pradeep Ramani. <https://github.com/gpu-mode/lectures#lecture-23-tensor-cores>  
+   Take: The lecture index titles this session Tensor Cores. It is the series' tensor-core lecture. This chapter does not use it as a TMA source.
+8. **`mma_traits_sm90_gmma.hpp`.** NVIDIA, CUTLASS 3.9.2. <https://github.com/NVIDIA/cutlass/blob/v3.9.2/include/cute/atom/mma_traits_sm90_gmma.hpp>  
+   Take: `CLayout_64xN` strides `(128,1,16)` and `(64,8,512)`. The 64 by 8 fragment map in the lab is the column-major reading of those strides. The HTML fetch of this file dropped template arguments, so the thread shape `(4,8,4)` is the shape that makes the strides a bijection, not a line copied verbatim.

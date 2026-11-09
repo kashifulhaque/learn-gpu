@@ -346,11 +346,11 @@ NVIDIA's guide uses exactly this on the A100's 108 SMs. The 9 extra tiles use 8.
 
 - Smaller tiles: more waves, less reuse per tile
 - Persistent kernel: one block per SM looping over tiles
-- Split-K: divide the reduction among several blocks
-- Stream-K: split total work evenly across SMs (Osama et al., 2023)
+- Split-K: 2 splits of 117 tiles is 234 blocks, tail 18
+- Stream-K (Osama and others, 2023): 468 iterations, bounds (4, 5)
 
 Note:
-Brief on purpose. Chapters 10 to 14 build the tiled kernels these choices apply to. The trade in each case is more parallel work units against extra overhead or reuse. Stream-K is the most general: it ignores tile boundaries and gives every SM an equal share of the multiply-accumulate iterations.
+Tell the audience to compute three counts in the lab, on the same 108 SMs as the tile example. The 117-tile grid leaves a 9-tile tail, and a full wave of 108 tiles leaves 0. Two splits of those 117 tiles launch 234 blocks, and the remainder of 234 on 108 is 18. Stream-K assigns 4 K-iterations to each tile, 468 iterations in total, and deals them out one at a time. 72 SMs receive 4 and 36 receive 5, so the bounds are (4, 5). The lab grades the 9-tile tail, the 234-block split, and the (4, 5) stream-K bounds. Chapters 10 to 14 build the tiled kernels these schedules apply to. Smaller tiles give up reuse per tile to shrink the tail, and a persistent kernel keeps one block resident on each SM.
 
 ### Small grids also break Little's law {#small-grids}
 

@@ -41,6 +41,26 @@ def gemm_wave_efficiency(
     return wave_efficiency(gemm_tiles(m, n, tile_m, tile_n), blocks_per_sm, sm_count)
 
 
+def partial_wave(num_blocks: int, sm_count: int) -> int:
+    # The tail is the remainder. floor_partial uses // and returns 1 for 117
+    # blocks on 108 SMs.
+    return num_blocks % sm_count
+
+
+def split_k_blocks(tiles: int, splits: int) -> int:
+    # One block per tile per split. split_ignores_k returns tiles and misses
+    # the 234-block grid.
+    return tiles * splits
+
+
+def stream_k_bounds(total_iters: int, sm_count: int) -> tuple[int, int]:
+    # Deal iterations one at a time. even_tiles returns (lo, lo) and gives
+    # (4, 4) when 36 SMs must take a fifth iteration.
+    lo = total_iters // sm_count
+    hi = lo + 1 if total_iters % sm_count else lo
+    return lo, hi
+
+
 def bytes_in_flight(bw_gbs: float, latency_cycles: float, clock_mhz: float) -> float:
     latency_s = latency_cycles / (clock_mhz * 1e6)
     return bw_gbs * 1e9 * latency_s

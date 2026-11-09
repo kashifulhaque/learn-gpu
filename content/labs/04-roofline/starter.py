@@ -70,6 +70,42 @@ def gemm_wave_efficiency(
     raise NotImplementedError
 
 
+def partial_wave(num_blocks: int, sm_count: int) -> int:
+    """Return how many blocks sit in the last, partial wave.
+
+    A wave holds `sm_count` blocks when one block is resident per SM, so the
+    tail is num_blocks % sm_count. 117 blocks on 108 SMs leave 9. A grid that
+    fills every wave, such as 108 blocks, leaves 0.
+    """
+    # floor_partial returns num_blocks // sm_count and gives 1 for 117 blocks
+    # on 108 SMs. The tail is the remainder, not the number of full waves.
+    return num_blocks % sm_count
+
+
+def split_k_blocks(tiles: int, splits: int) -> int:
+    """Return the number of blocks a split-K GEMM launches.
+
+    Each output tile becomes `splits` blocks, one per slice of K, so the grid
+    is tiles * splits. Two splits of 117 tiles is 234 blocks, and the partial
+    wave of that grid on 108 SMs is 18.
+    """
+    # split_ignores_k returns tiles and fails the 234-block check.
+    raise NotImplementedError
+
+
+def stream_k_bounds(total_iters: int, sm_count: int) -> tuple[int, int]:
+    """Return (lo, hi), the fewest and most K-iterations any SM receives.
+
+    The iterations are dealt out one at a time. lo is total_iters // sm_count.
+    hi is lo + 1 when total_iters % sm_count is nonzero, and lo otherwise.
+    117 tiles with 4 K-iterations each is 468 iterations. Across 108 SMs the
+    bounds are (4, 5): 36 SMs receive 5 and 72 receive 4.
+    """
+    # even_tiles returns (total_iters // sm_count, total_iters // sm_count)
+    # and gives (4, 4) for 468 iterations on 108 SMs.
+    raise NotImplementedError
+
+
 def bytes_in_flight(bw_gbs: float, latency_cycles: float, clock_mhz: float) -> float:
     """Little's law: return the bytes that must be in flight, across the whole
     GPU, to sustain `bw_gbs` when each request takes `latency_cycles` cycles at

@@ -287,7 +287,7 @@ The tensor core takes 8 clocks per instruction. The problem is getting operands 
 ```
 
 Note:
-Eight rows of 16 bytes make one wavefront if they cover 32 distinct banks. Stride 64 puts all rows on the same four banks: eight wavefronts. Stride 40 and 136 are conflict-free. Swizzling in chapter 13 gets the same effect with no padding.
+Eight rows of 16 bytes make one wavefront if they cover 32 distinct banks. Stride 64 puts all rows on the same four banks: eight wavefronts. Stride 40 and 136 are conflict-free. The 8-row swizzle, chunk XOR (row mod 8), also clears that conflict: lane 1 moves from byte 128 to byte 144, and the lab's CPU check counts 8-way before and 1-way after.
 
 ### Shared-memory budget {#smem-budget}
 
@@ -394,7 +394,7 @@ Close the section by restating the chain: instruction, lane map, loads, budget, 
 - Peak needs pipelined loads
 
 Note:
-Recap in order. Repeat the 16 and the lane rule, then the 100 versus 75 percent budget. The lab asks for both kernels to beat 19.5 TFLOP/s and reports the percentage of torch.matmul.
+Recap in order. Repeat the 16 and the lane rule, then the 100 versus 75 percent budget. The lab's CPU checks grade the lane map, the register count, and the ldmatrix banks, and they run with no GPU. On an A100 both kernels must beat 19.5 TFLOP/s, and the lab reports the percentage of torch.matmul.
 
 ### Decision guide {#decision}
 

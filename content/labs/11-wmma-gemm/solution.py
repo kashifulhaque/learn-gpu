@@ -1,7 +1,41 @@
 """Lab 11: tensor-core GEMM with WMMA, then mma.sync with ldmatrix. Reference solution."""
 
-import torch
+from __future__ import annotations
+
 from lab_common import load_cuda
+
+
+def fragment_cell(operand: str, lane: int, index: int) -> tuple[int, int]:
+    """Row and column of one element in an m16n8k16 fragment."""
+    group = lane // 4
+    thread = lane % 4
+    if operand == "A":
+        row = group if index in (0, 1, 4, 5) else group + 8
+        col = 2 * thread + (index % 2) + (8 if index >= 4 else 0)
+        return row, col
+    if operand == "B":
+        row = 2 * thread + (index % 2) + (8 if index >= 2 else 0)
+        return row, group
+    if operand == "C":
+        row = group if index < 2 else group + 8
+        return row, 2 * thread + (index % 2)
+    raise ValueError(f"operand must be A, B, or C, got {operand!r}")
+
+
+def warp_tile_registers(warp_m: int, warp_n: int) -> tuple[int, int, int]:
+    """Accumulator, A-fragment, and B-fragment registers per lane."""
+    return (warp_m * warp_n // 32, (warp_m // 16) * 4, (warp_n // 8) * 2)
+
+
+def ldmatrix_byte(lane: int, stride_elements: int, swizzle: bool) -> int:
+    """Byte address of the 16-byte row this lane supplies to ldmatrix.x4."""
+    matrix = lane // 8
+    row = (lane % 8) + 8 * (matrix % 2)
+    col = 8 * (lane // 16)
+    if swizzle:
+        chunk = col // 8
+        col = ((chunk ^ (row % 8)) * 8) + (col % 8)
+    return 2 * (row * stride_elements + col)
 
 CPP_SRC = """
 torch::Tensor wmma_gemm_padded(torch::Tensor a, torch::Tensor b);
@@ -226,6 +260,8 @@ def _round_up(x: int, m: int) -> int:
 
 def _pad(a: torch.Tensor, rows: int, cols: int) -> torch.Tensor:
     """Zero-pad a 2-D tensor to (rows, cols). Returns the input if it already fits."""
+    import torch
+
     if tuple(a.shape) == (rows, cols):
         return a.contiguous()
     out = torch.zeros(rows, cols, dtype=a.dtype, device=a.device)

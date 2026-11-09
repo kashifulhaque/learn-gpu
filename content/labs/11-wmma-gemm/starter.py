@@ -1,15 +1,74 @@
 """Lab 11: tensor-core GEMM with WMMA, then mma.sync with ldmatrix.
 
-You fill in the TODOs in the CUDA source below. The scaffolding (the global to
-shared-memory copy, the padding wrapper, the launchers) is done. The tile
+Do the CPU pieces first. They need no GPU.
+
+1. fragment_cell
+2. warp_tile_registers
+3. ldmatrix_byte
+
+Then fill in the TODOs in the CUDA source below. The scaffolding (the global
+to shared-memory copy, the padding wrapper, the launchers) is done. The tile
 geometry is fixed: a 128 x 128 block tile, K step 32, eight warps in a 2 x 4
 grid, each warp owning a 64 x 32 piece of C. A is (M, K) row-major bf16, B is
 (K, N) row-major bf16, C is fp32. Shared memory holds A as [128][40] and B as
 [32][136] bf16.
 """
 
-import torch
+from __future__ import annotations
+
 from lab_common import load_cuda
+
+
+def fragment_cell(operand: str, lane: int, index: int) -> tuple[int, int]:
+    """Row and column of one element in an m16n8k16 fragment.
+
+    `operand` is `"A"`, `"B"`, or `"C"` (C and D share the layout). `index`
+    is the scalar inside the lane's registers: 0 to 7 for A, two bf16 values
+    in each of `a0` to `a3`, and 0 to 3 for B and for C. Group `g` is
+    `lane // 4` and thread `t` is `lane % 4`.
+
+    A, element `index`: row `g` when `index` is 0, 1, 4, or 5, and row `g + 8`
+    otherwise. Column is `2 * t + (index % 2)`, plus 8 when `index >= 4`.
+    B, element `index`: row `2 * t + (index % 2)`, plus 8 when `index >= 2`,
+    and column `g`. C, element `index`: row `g` when `index < 2` and row
+    `g + 8` otherwise, column `2 * t + (index % 2)`.
+
+    Lane 5 on A is the worked case: rows 1 and 9, columns 2 and 3, then
+    columns 10 and 11.
+    """
+    raise NotImplementedError("fragment_cell")
+
+
+def warp_tile_registers(warp_m: int, warp_n: int) -> tuple[int, int, int]:
+    """Accumulator, A-fragment, and B-fragment registers per lane.
+
+    One K step is 16. Accumulators are `warp_m * warp_n / 32` fp32 registers.
+    A fragments are `(warp_m / 16) * 4` registers. B fragments are
+    `(warp_n / 8) * 2` registers. Return those three counts, in that order.
+
+    A 64 by 32 tile is `(64, 16, 8)`. A 16 by 8 tile, one `mma.sync`, is
+    `(4, 4, 2)`. A 128 by 64 tile is `(256, 32, 16)`.
+    """
+    raise NotImplementedError("warp_tile_registers")
+
+
+def ldmatrix_byte(lane: int, stride_elements: int, swizzle: bool) -> int:
+    """Byte address of the 16-byte row this lane supplies to `ldmatrix.x4`.
+
+    The 16 by 16 tile starts at the origin of a bf16 shared-memory tile whose
+    row stride is `stride_elements`. Lane `l` addresses row `l % 8` of matrix
+    `l // 8`:
+
+    `row = (lane % 8) + 8 * ((lane // 8) % 2)` and `col = 8 * (lane // 16)`.
+
+    When `swizzle` is true the row is 64 bf16 elements and the 8-row swizzle
+    applies: chunk `col // 8` becomes `chunk XOR (row % 8)`. The byte address
+    is `2 * (row * stride_elements + col)`.
+
+    Lane 1 with stride 64 starts at byte 128. With the swizzle on, that row
+    starts at byte 144.
+    """
+    raise NotImplementedError("ldmatrix_byte")
 
 CPP_SRC = """
 torch::Tensor wmma_gemm_padded(torch::Tensor a, torch::Tensor b);
@@ -177,6 +236,8 @@ def _round_up(x: int, m: int) -> int:
 
 def _pad(a: torch.Tensor, rows: int, cols: int) -> torch.Tensor:
     """Zero-pad a 2-D tensor to (rows, cols). Returns the input if it already fits."""
+    import torch
+
     if tuple(a.shape) == (rows, cols):
         return a.contiguous()
     out = torch.zeros(rows, cols, dtype=a.dtype, device=a.device)

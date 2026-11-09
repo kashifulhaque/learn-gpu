@@ -1,9 +1,10 @@
 {
   "id": "05-diagnose",
   "title": "Diagnose three slow kernels",
-  "brief": "Profile three deliberately slow pieces of GPU code, name what is wrong with each from the evidence, and write the fixed versions. Then parse the register counts and SASS that a compiler prints.",
+  "brief": "Profile three deliberately slow pieces of GPU code, name what is wrong with each from the evidence, and write the fixed versions. Classify two recorded Nsight Compute reports as memory-bound or latency-bound, then parse the register counts and SASS that a compiler prints.",
   "gpu": "A100-80GB",
   "needs_gpu": true,
+  "device_agnostic": true,
   "timeout": 1200,
   "metrics": [
     "scale_speedup",
@@ -24,6 +25,7 @@
     "Slow function 2: every .item() is a host-device round trip that stalls the launch queue. Compute the scale factor on the GPU with torch.clamp and multiply. torch.stack on equal-sized tensors turns hundreds of tiny launches into a handful.",
     "The test runs your clip function under torch.cuda.set_sync_debug_mode('error'). Creating a tensor from a Python float on the GPU also synchronizes, so use Python scalars in arithmetic with tensors instead.",
     "Slow kernel 3: half the lanes of every warp take one path and half take the other, so the warp runs both paths one after the other with half its lanes idle. Let each thread do both paths, for two neighboring elements, so every lane is active in both passes.",
-    "parse_ptxas_info reads the text that `nvcc -Xptxas -v` prints. count_sass reads the text that `cuobjdump -sass` prints. The opcode is the first word after the address and an optional predicate such as @P0 or @!P1; its base is the part before the first dot."
+    "parse_ptxas_info reads the text that `nvcc -Xptxas -v` prints. count_sass reads the text that `cuobjdump -sass` prints. The opcode is the first word after the address and an optional predicate such as @P0 or @!P1; its base is the part before the first dot.",
+    "diagnose_ncu receives the parsed report and must not open the CSV. dram_bytes adds dram__bytes_read.sum and dram__bytes_write.sum. Return memory-bound when dram__throughput.avg.pct_of_peak_sustained_elapsed is at least 50 and sm__throughput.avg.pct_of_peak_sustained_elapsed is at most 20. Return latency-bound when the DRAM percent is at most 10, the SM percent is at most 20, and smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg is at least four times every other metric whose name starts with smsp__pcsamp_warps_issue_stalled_. The DRAM percent is a fraction of the 1935 GB/s A100 80GB PCIe HBM peak."
   ]
 }

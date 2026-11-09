@@ -51,5 +51,8 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 22 | 22-overlap-and-parallelism | Overlap and parallelism | Part 5 — Many GPUs | 22-streams-overlap | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. |
 | 23 | 23-beyond-cuda | Beyond CUDA | Part 6 — Beyond | (none) | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
 | 24 | 24-cute-dsl-gemm | A CuTe DSL GEMM | Part 3 — Matrix multiplication | 24-cute-dsl-gemm | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
+| 25 | 25-ddp-and-zero | Data parallel and ZeRO-1 | Part 5 — Many GPUs | 25-ddp-and-zero | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 
 Chapter 24 is part of Part 3, with the GEMM chapters. Its file number is 24, after chapter 23, because chapters 00 through 23 are not renumbered.
+
+Chapter 25 is part of Part 5, with chapters 21 and 22. Its file number is 25, after chapter 24, because chapters 00 through 24 are not renumbered. Filename order places 25 after 24.

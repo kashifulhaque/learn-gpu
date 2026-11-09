@@ -1,6 +1,6 @@
 # learn-gpu fact sheet
 
-This file is the shared ground truth for the 24 `learn-gpu` chapters, labs, and slides. Research date: 2026-10-22.
+This file is the shared ground truth for the 26 `learn-gpu` chapters, labs, and slides. Research date: 2026-10-22.
 
 **Rule for writers.** Every number in a chapter must come from one of three places: arithmetic on a row of this file (show the arithmetic), a cited source in this file, or a measurement your own lab code produces. If a number is not here, do not invent it. Ask the research lead or leave it out.
 
@@ -548,6 +548,29 @@ T_ring = 2 (p - 1) alpha + 2 (p - 1) / p x n / B
 
 **Published NCCL bus bandwidth figures: none confirmed.** Reports of about 230 to 240 GB/s busbw for 8x A100 on NVSwitch and 450 to 480 GB/s for 8x H100 appear in forum threads and vendor blogs (S, unverified) but not in a primary document I could read. For the ceiling, use the link bandwidth per direction (300 GB/s A100, 450 GB/s H100); a measured busbw below that is normal. Writers should compute the ceiling and tell the reader to measure it. (U)
 
+### 7.3 Buckets and ZeRO-1 (chapter 25)
+
+Inputs already in this file: ring time $T = 2(p-1)\alpha + 2(p-1)/p \times n/B$, NVLink 3 at 300 GB/s per direction, PCIe Gen4 x16 at 31.5 GB/s per direction, and the assumed $\alpha = 5$ µs (U). Chapter 25 applies them. It does not add a measured bus bandwidth.
+
+| Quantity | Value | Tag | Source |
+|---|---|---|---|
+| `bucket_cap_mb` when the caller omits it | 25 MiB ($25 \times 2^{20} = 26{,}214{,}400$ bytes) | C | [PT-DDP] |
+| Bucket order | Roughly the reverse of `Model.parameters()`, fixed at construction | C | [PT-DDP-NOTES] |
+| One-bucket crossover, $n = \alpha p B$, at $p = 8$, $\alpha = 5$ µs, $B = 300$ GB/s | $5 \times 10^{-6} \times 8 \times 300 \times 10^{9} = 12$ MB | D | section 7.1, section 7.2 |
+| 16 MiB, 8 ranks, NVLink 3, one bucket | Latency $2 \times 7 \times 5$ µs $= 70$ µs. Bandwidth $1.75 \times 16{,}777{,}216 / 300 \times 10^{9} = 97.867$ µs. Total 167.867 µs. | D | section 7.2 |
+| Same 16 MiB in 8 buckets | Latency $8 \times 70 = 560$ µs. Bandwidth still 97.867 µs. Total 657.867 µs. | D | section 7.2 |
+| One 25 MiB bucket, 8 ranks, NVLink 3 | Latency 70 µs. Bandwidth $1.75 \times 26{,}214{,}400 / 300 \times 10^{9} = 152.917$ µs. | D | [PT-DDP], section 7.2 |
+| 14 GB gradient at a 25 MiB cap | $\lceil 14 \times 10^{9} / 26{,}214{,}400 \rceil = 535$ buckets. Serialized latency $535 \times 70$ µs $= 37.45$ ms. Bandwidth $1.75 \times 14 / 300 = 81.67$ ms (chapter 22 rounds this term to 82 ms). Serialized total 119.12 ms. | D | section 7.2, [PT-DDP] |
+| Mixed-precision Adam state per parameter | $K = 12$ bytes (fp32 master, momentum, variance). With 2 bytes of fp16 weights and 2 bytes of fp16 gradients, the replicated footprint is $16\Psi$. | C | [ZERO] |
+| ZeRO-1 ($P_{os}$) memory per rank | $4\Psi + K\Psi / N_d$. At $\Psi = 7.5 \times 10^{9}$ and $N_d = 64$: $4 \times 7.5 + 12 \times 7.5 / 64 = 31.40625$ GB. The paper prints 31.4 GB. | C for the formula and the printed 31.4; D for 31.40625 | [ZERO] |
+| Ring factor $2(p-1)/p$ at $p = 64$ | $126 / 64 = 1.96875$ | D | section 7.2 |
+| Bytes one rank sends, fp16 array of 15 GB ($7.5 \times 10^{9} \times 2$) | 15, 22.5, 26.25, and 29.53125 GB at 2, 4, 8, and 64 ranks. Data parallel and ZeRO-1 match when the parameter array has the same byte count, because reduce-scatter plus all-gather is the ring all-reduce. | D | [ZERO], section 7.2 |
+| Optimizer state, $K\Psi = 90$ GB | Data parallel stores 90 GB on every rank. ZeRO-1 stores 45, 22.5, 11.25, and 1.40625 GB at 2, 4, 8, and 64 ranks. | D | [ZERO] |
+| 1 GiB, 2 ranks, $\alpha = 5$ µs | Ring factor 1. NVLink 3: $2^{30} / 300 \times 10^{9} = 3.579$ ms plus 10 µs, total 3.589 ms. PCIe Gen4: $2^{30} / 31.5 \times 10^{9} = 34.087$ ms plus 10 µs, total 34.097 ms. | D | section 7.1, section 7.2 |
+| Whether a two-GPU lab endpoint is NVLink-bridged | Unconfirmed. The sweep measures it. A missing `RUNPOD_ENDPOINT_2XA100` does not fall back to the single A100. | U | section 7.1 |
+
+The post-accumulate gradient hook runs after `.grad` is written, and only on a leaf tensor. [PT-HOOK] CS336 assignment 2 starts `dist.all_reduce(..., async_op=True)` from that hook and waits in `finish_gradient_synchronization`. [CS336-A2]
+
 ---
 
 ## 8. Other accelerators (for chapter 23 only)
@@ -778,6 +801,14 @@ Primary and secondary sources used above. Each URL was fetched on 2026-10-22 unl
 | CUTLASS-DSL-PYPI | nvidia-cutlass-dsl 4.8.1 on PyPI (the `[cu13]` extra the worker installs) | https://pypi.org/project/nvidia-cutlass-dsl/4.8.1/ |
 | NCCL-DOCS | NCCL documentation (2.32.3) | https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/index.html |
 | NCCL-TESTS-PERF | nccl-tests PERFORMANCE.md | https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md |
+| PT-DDP-NOTES | PyTorch 2.14, distributed data parallel design notes | https://docs.pytorch.org/docs/2.14/notes/ddp.html |
+| PT-DDP | PyTorch 2.14, DistributedDataParallel (`bucket_cap_mb` default 25 MiB) | https://docs.pytorch.org/docs/2.14/generated/torch.nn.parallel.DistributedDataParallel.html |
+| PT-HOOK | PyTorch 2.14, register_post_accumulate_grad_hook | https://docs.pytorch.org/docs/2.14/generated/torch.Tensor.register_post_accumulate_grad_hook.html |
+| ZERO | Rajbhandari et al., ZeRO (arXiv 1910.02054) | https://arxiv.org/abs/1910.02054 |
+| CS336-A2 | Stanford CS336 assignment 2, systems and parallelism (2026 handout) | https://github.com/stanford-cs336/assignment2-systems/blob/main/cs336_assignment2_systems.pdf |
+| GPUMODE-17 | GPU MODE lecture 17, GPU collective communication (NCCL), Dan Johnson | https://github.com/gpu-mode/lectures/tree/main/lecture_017 |
+| GPUMODE-39 | GPU MODE lecture 39, TorchTitan, Mark Saroufim and Tianyu Liu | https://github.com/gpu-mode/lectures#lecture-39-torchtitan |
+| GPUMODE-67 | GPU MODE lecture 67, NCCL and NVSHMEM, Jeff Hammond | https://github.com/gpu-mode/lectures#lecture-67-nccl--nvshmem |
 | NCCL-DEMYSTIFY | Demystifying NCCL (arXiv 2507.04786) | https://arxiv.org/abs/2507.04786 |
 | TF32-BLOG | Accelerating AI Training with NVIDIA TF32 Tensor Cores | https://developer.nvidia.com/blog/accelerating-ai-training-with-tf32-tensor-cores/ |
 | NVFP4-BLOG | Introducing NVFP4 for Efficient and Accurate Low-Precision Inference | https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/ |

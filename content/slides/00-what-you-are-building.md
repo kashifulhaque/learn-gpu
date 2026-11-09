@@ -344,7 +344,7 @@ The ridge point depends on which units run. The same matmul in fp32 has a floor 
 
 # The course and the labs
 
-Six parts, 24 labs, one GPU.
+Six parts, 25 labs, one GPU.
 
 Note:
 Section divider. We close with the map and with how a lab runs.

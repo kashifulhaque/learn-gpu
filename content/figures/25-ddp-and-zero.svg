@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img">
+<title>Bytes a rank sends per step, and optimizer-state bytes, at 2, 4, 8, and 64 ranks</title>
+<desc>Paired bars for data parallel and ZeRO-1. The send bars match at every rank count. The state bars fall as 1 over the rank count for ZeRO-1 and stay at 90 GB for data parallel.</desc>
+<rect width="760" height="360" fill="#ffffff"/>
+<text x="217.0" y="20" text-anchor="middle" font-size="13" fill="#1c1917">Bytes one rank sends per step (GB)</text>
+<text x="575.0" y="20" text-anchor="middle" font-size="13" fill="#1c1917">Optimizer state resident per rank (GB)</text>
+<line x1="56.0" y1="300.0" x2="378.0" y2="300.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="48.0" y="304.0" text-anchor="end" font-size="11" fill="#44403c">0</text>
+<line x1="56.0" y1="234.0" x2="378.0" y2="234.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="48.0" y="238.0" text-anchor="end" font-size="11" fill="#44403c">8</text>
+<line x1="56.0" y1="168.0" x2="378.0" y2="168.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="48.0" y="172.0" text-anchor="end" font-size="11" fill="#44403c">16</text>
+<line x1="56.0" y1="102.0" x2="378.0" y2="102.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="48.0" y="106.0" text-anchor="end" font-size="11" fill="#44403c">24</text>
+<line x1="56.0" y1="36.0" x2="378.0" y2="36.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="48.0" y="40.0" text-anchor="end" font-size="11" fill="#44403c">32</text>
+<text x="217.0" y="336" text-anchor="middle" font-size="12" fill="#1c1917">ranks</text>
+<line x1="414.0" y1="300.0" x2="736.0" y2="300.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="406.0" y="304.0" text-anchor="end" font-size="11" fill="#44403c">0</text>
+<line x1="414.0" y1="234.0" x2="736.0" y2="234.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="406.0" y="238.0" text-anchor="end" font-size="11" fill="#44403c">25</text>
+<line x1="414.0" y1="168.0" x2="736.0" y2="168.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="406.0" y="172.0" text-anchor="end" font-size="11" fill="#44403c">50</text>
+<line x1="414.0" y1="102.0" x2="736.0" y2="102.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="406.0" y="106.0" text-anchor="end" font-size="11" fill="#44403c">75</text>
+<line x1="414.0" y1="36.0" x2="736.0" y2="36.0" stroke="#e7e5e4" stroke-width="1"/>
+<text x="406.0" y="40.0" text-anchor="end" font-size="11" fill="#44403c">100</text>
+<text x="575.0" y="336" text-anchor="middle" font-size="12" fill="#1c1917">ranks</text>
+<rect x="70.5" y="176.2" width="22.5" height="123.8" fill="#1d4e89" rx="2"/>
+<text x="81.8" y="172.2" text-anchor="middle" font-size="10" fill="#1c1917">15.00</text>
+<rect x="151.0" y="114.4" width="22.5" height="185.6" fill="#1d4e89" rx="2"/>
+<text x="162.3" y="110.4" text-anchor="middle" font-size="10" fill="#1c1917">22.50</text>
+<rect x="231.5" y="83.4" width="22.5" height="216.6" fill="#1d4e89" rx="2"/>
+<text x="242.8" y="79.4" text-anchor="middle" font-size="10" fill="#1c1917">26.25</text>
+<rect x="312.0" y="56.4" width="22.5" height="243.6" fill="#1d4e89" rx="2"/>
+<text x="323.3" y="52.4" text-anchor="middle" font-size="10" fill="#1c1917">29.53</text>
+<rect x="97.9" y="176.2" width="22.5" height="123.8" fill="#0f766e" rx="2"/>
+<text x="109.1" y="172.2" text-anchor="middle" font-size="10" fill="#1c1917">15.00</text>
+<rect x="178.4" y="114.4" width="22.5" height="185.6" fill="#0f766e" rx="2"/>
+<text x="189.6" y="110.4" text-anchor="middle" font-size="10" fill="#1c1917">22.50</text>
+<rect x="258.9" y="83.4" width="22.5" height="216.6" fill="#0f766e" rx="2"/>
+<text x="270.1" y="79.4" text-anchor="middle" font-size="10" fill="#1c1917">26.25</text>
+<rect x="339.4" y="56.4" width="22.5" height="243.6" fill="#0f766e" rx="2"/>
+<text x="350.6" y="52.4" text-anchor="middle" font-size="10" fill="#1c1917">29.53</text>
+<rect x="428.5" y="62.4" width="22.5" height="237.6" fill="#1d4e89" rx="2"/>
+<text x="439.8" y="58.4" text-anchor="middle" font-size="10" fill="#1c1917">90.00</text>
+<rect x="509.0" y="62.4" width="22.5" height="237.6" fill="#1d4e89" rx="2"/>
+<text x="520.3" y="58.4" text-anchor="middle" font-size="10" fill="#1c1917">90.00</text>
+<rect x="589.5" y="62.4" width="22.5" height="237.6" fill="#1d4e89" rx="2"/>
+<text x="600.8" y="58.4" text-anchor="middle" font-size="10" fill="#1c1917">90.00</text>
+<rect x="670.0" y="62.4" width="22.5" height="237.6" fill="#1d4e89" rx="2"/>
+<text x="681.3" y="58.4" text-anchor="middle" font-size="10" fill="#1c1917">90.00</text>
+<rect x="455.9" y="181.2" width="22.5" height="118.8" fill="#0f766e" rx="2"/>
+<text x="467.1" y="177.2" text-anchor="middle" font-size="10" fill="#1c1917">45.00</text>
+<rect x="536.4" y="240.6" width="22.5" height="59.4" fill="#0f766e" rx="2"/>
+<text x="547.6" y="236.6" text-anchor="middle" font-size="10" fill="#1c1917">22.50</text>
+<rect x="616.9" y="270.3" width="22.5" height="29.7" fill="#0f766e" rx="2"/>
+<text x="628.1" y="266.3" text-anchor="middle" font-size="10" fill="#1c1917">11.25</text>
+<rect x="697.4" y="296.3" width="22.5" height="3.7" fill="#0f766e" rx="2"/>
+<text x="708.6" y="292.3" text-anchor="middle" font-size="10" fill="#1c1917">1.41</text>
+<text x="96.2" y="318" text-anchor="middle" font-size="12" fill="#1c1917">2</text>
+<text x="176.8" y="318" text-anchor="middle" font-size="12" fill="#1c1917">4</text>
+<text x="257.2" y="318" text-anchor="middle" font-size="12" fill="#1c1917">8</text>
+<text x="337.8" y="318" text-anchor="middle" font-size="12" fill="#1c1917">64</text>
+<text x="454.2" y="318" text-anchor="middle" font-size="12" fill="#1c1917">2</text>
+<text x="534.8" y="318" text-anchor="middle" font-size="12" fill="#1c1917">4</text>
+<text x="615.2" y="318" text-anchor="middle" font-size="12" fill="#1c1917">8</text>
+<text x="695.8" y="318" text-anchor="middle" font-size="12" fill="#1c1917">64</text>
+<rect x="180" y="332" width="12" height="12" fill="#1d4e89"/>
+<text x="196" y="343" font-size="12" fill="#1c1917">Data parallel</text>
+<rect x="320" y="332" width="12" height="12" fill="#0f766e"/>
+<text x="336" y="343" font-size="12" fill="#1c1917">ZeRO-1</text>
+</svg>

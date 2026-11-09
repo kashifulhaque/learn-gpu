@@ -12,6 +12,8 @@ objectives:
   - "Compare the two ways to accumulate dQ, atomic adds and a separate kernel, and say what each costs."
   - "Explain causal block skipping, the load imbalance it creates, and how grouped-query attention changes the backward indexing."
   - "Describe what FlashAttention-2, -3, and -4 each changed, and which hardware limit drove each change."
+  - "Name one-query decode, split-KV, and paged KV, and say that the inference course owns those kernels."
+  - "Choose scaled_dot_product_attention, flex_attention, or FlashInfer's paged decode wrapper, and say what each call does not do."
   - "Write FlashAttention-2 forward and backward in Triton and check it against float32 PyTorch and torch.autograd."
 lab: 16-flash-attention
 ---
@@ -35,6 +37,8 @@ lab: 16-flash-attention
 >   scale together.
 > - The lab writes the forward and backward kernels in Triton, causal and not,
 >   and reports TFLOP/s against PyTorch's `scaled_dot_product_attention`.
+>   One-query decode, split-KV, and a paged cache belong to the inference
+>   course. From PyTorch you call SDPA, `flex_attention`, or FlashInfer.
 
 Attention is the one operation in a transformer whose intermediate result grows
 with the square of the sequence length. Everything else, the projections, the MLP,
@@ -48,12 +52,12 @@ through HBM. Training depends on it twice over: the backward pass has the same
 $N \times N$ problem as the forward pass, and a training step that couldn't fit
 the scores in memory couldn't run at long context at all.
 
-The companion course wrote the forward pass for inference in
+The inference course wrote the forward pass in
 [its chapter 14](https://qwen.ifkash.dev/c/14-flash-attention), and derived the
 online softmax from a four-score example. This chapter takes that as given and
 goes further: why the traffic matters on this hardware, what the second version
 changed, the whole backward pass, and how the kernel bends around the Hopper and
-Blackwell GPUs.
+Blackwell GPUs. One-query decode, split-KV, and paged KV stay in that course.
 
 ## Before you start
 
@@ -645,37 +649,197 @@ Compare the three generations by what limited each:
 
 ## Attention when there is one query
 
-Decoding has $N_q = 1$, and a kernel that parallelizes over query tiles has one tile
-to give. During autoregressive decoding the new token's query attends to a long
-cache, and the kernel has the grid $1 \times B \times H$. For one sequence with 32
-heads, that is 32 programs on 108 SMs, each reading a long KV cache serially.
+This section names the decode case. The inference course ==owns these kernels==.
 
-*Flash-decoding* ([PyTorch blog](https://pytorch.org/blog/flash-decoding/)) splits
-the work along the key axis. Each of $S$ programs handles a slice of the cache and
-returns a partial output $O_s$ and its logsumexp $L_s$. A small second kernel merges
-them, and the logsumexp is what makes it exact:
+Training attention has many query tokens, so a program per query tile can fill
+the GPU. Decode has one new query. The launch grid is $1 \times B \times H$.
+One sequence with 32 heads is 32 programs on the A100's 108 SMs, and each
+program reads the KV cache on its own.
+
+*Split-KV*, also called flash-decoding in the
+[Flash-Decoding for long-context inference](https://pytorch.org/blog/flash-decoding/)
+post, cuts the key axis. Each program handles one
+slice, returns a partial output $O_s$ and that slice's logsumexp $L_s$, and a
+second kernel merges the slices. The merge is the same rescaling the online
+softmax already uses:
 
 $$
 L = \log \sum_s e^{L_s}, \qquad O = \sum_s e^{L_s - L}\, O_s .
 $$
 
-Each partial $O_s$ is already normalized within its slice, and the weight
-$e^{L_s - L}$ is the slice's share of the full softmax mass. Splitting 32 heads
-four ways gives 128 programs, enough to fill the A100. The same $L$ that the forward
-pass saved for the backward pass is the merge key here. The companion course covers
-the decode path in its [paged attention chapter](https://qwen.ifkash.dev/c/15-paged-attention).
+The weight $e^{L_s - L}$ is that slice's share of the softmax mass. As an
+example of the extra programs, splitting those 32 heads four ways is
+$32 \times 4 = 128$ programs, which covers the 108 SMs. The logsumexp is the
+same value the forward pass saves for the backward pass. The inference course
+owns split-KV decode, and it owns the FlashAttention-2 and FlashAttention-3
+work partitioning for serving.
+
+*Paged KV* stores the cache in fixed-size blocks and keeps a block table that
+says where each block lives. The decode kernel follows the table. The inference
+course builds that allocator and that kernel in
+[paged attention](https://qwen.ifkash.dev/c/15-paged-attention).
 
 ## Using it from PyTorch
 
-PyTorch exposes these kernels through `torch.nn.functional.scaled_dot_product_attention`
-(SDPA), which picks a backend per call. On an A100 with bfloat16, head dimension 64 or
-128, and a causal or no mask, it can choose the FlashAttention-2 kernel, which is what
-the lab compares against. An arbitrary additive mask moves it to a slower backend.
+This section answers ==which function you call==, and what that function does
+not do. The lab still compares your Triton kernels with
+`scaled_dot_product_attention`.
 
-For a mask or score modification that isn't causal, such as a sliding window or ALiBi,
-[FlexAttention](https://pytorch.org/blog/flexattention/) compiles the modification
-into a FlashAttention-style kernel, so you write a small function and get the tiled
-loop. [Chapter 17](/c/17-fusion-and-compilers) covers the compiler machinery behind it.
+The choice depends on the tensors you have:
+
+| You have | Function you call | What that call does not do |
+|---|---|---|
+| Dense query, key, and value tensors. | `scaled_dot_product_attention` | Take a page table, or return the logsumexp. |
+| A score change, or a mask other than `is_causal`. | `flex_attention` | Read a paged KV cache. |
+| Decode queries plus a paged KV cache. | `BatchDecodeWithPagedKVCacheWrapper` | Return $dQ$, $dK$, and $dV$. |
+
+### The SDPA backends
+
+Call `torch.nn.functional.scaled_dot_product_attention` when query, key, and
+value are dense tensors. The PyTorch 2.14 page
+[torch.nn.functional.scaled_dot_product_attention](https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html)
+lists three implementations: FlashAttention-2, memory-efficient attention, and
+a C++ implementation that matches the formula on that page. On CUDA, the
+function selects an implementation that accepts the inputs. On every other
+device, it uses the C++ implementation.
+
+The return value is the output tensor. Fused kernels accept only some inputs.
+If none can run, the call warns you and uses the C++ path. That path follows
+the formula on the page, which builds an attention bias with one row per query
+and one column per key.
+
+Passing `attn_mask` and `is_causal=True` together raises. A boolean mask uses
+`True` for a position that participates. `MultiheadAttention` uses `True` for
+padding, so invert a padding mask when you move it across.
+
+Grouped-query attention needs `enable_gqa=True`, a query-head count divisible
+by the key-head count, and equal key and value head counts. Nested tensors are
+outside what that page allows for grouped-query attention.
+
+Pass `dropout_p=0.0` when you are not training, because the function applies
+the probability you pass. Two backends can disagree in the last bits, because
+fusion changes the order of rounding. The math backend keeps float16 and
+bfloat16 intermediates in float32.
+
+Pick the implementation with `torch.nn.attention.sdpa_kernel`. The PyTorch 2.14
+page [torch.nn.attention.sdpa_kernel](https://docs.pytorch.org/docs/2.14/generated/torch.nn.attention.sdpa_kernel.html)
+is a context manager: you pass one backend or a list, and leaving the block
+turns every backend back on. With `set_priority=True`, the list order is the
+priority order.
+
+The PyTorch 2.14 page
+[SDPBackend](https://docs.pytorch.org/docs/2.14/generated/torch.nn.attention.SDPBackend.html)
+names the members. The
+[SDPBackend member descriptions](https://docs.pytorch.org/docs/main/generated/torch.nn.attention.SDPBackend.html)
+say what each member selects:
+
+- `MATH` is the C++ implementation that matches the SDPA formula.
+- `FLASH_ATTENTION` is the FlashAttention backend. That page says the default
+  CUDA implementation uses FlashAttention-2.
+- `EFFICIENT_ATTENTION` is memory-efficient attention.
+- `CUDNN_ATTENTION` is the cuDNN implementation.
+- `OVERRIDEABLE` is a backend an extension registers.
+- `ERROR` means the selector failed.
+
+The following sample forces the FlashAttention backend:
+
+```python
+from torch.nn.attention import SDPBackend, sdpa_kernel
+from torch.nn.functional import scaled_dot_product_attention
+
+with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
+    scaled_dot_product_attention(query, key, value, is_causal=True)
+```
+
+`query`, `key`, and `value` are the dense tensors from the SDPA page.
+
+`scaled_dot_product_attention` does not take a block table, and it does not
+return the logsumexp. A page table and a one-query merge belong to the
+inference course.
+
+### flex_attention
+
+Call `torch.nn.attention.flex_attention.flex_attention` when you need to change
+the scores, or when the mask is not the built-in causal flag. A sliding window
+or an ALiBi bias is this case.
+
+The PyTorch 2.14 page
+[torch.nn.attention.flex_attention](https://docs.pytorch.org/docs/2.14/nn.attention.flex_attention.html)
+defines `score_mod(score, batch, head, q_idx, k_idx)`, which runs after the
+dot product, and `create_block_mask(mask_mod, B, H, Q_LEN, KV_LEN)`. The mask
+function `mask_mod(b, h, q_idx, kv_idx)` returns whether that pair
+participates. The page marks the API as a prototype.
+
+Query, key, and value stay dense. Their shapes on that page are
+$(B, H_q, L, E)$ and $(B, H_{kv}, S, E)$. A `BlockMask` records which blocks of
+that score matrix participate. `flex_attention` reads those dense tensors, and
+it has no page-index argument.
+
+The blog post
+[FlexAttention: The Flexibility of PyTorch with the Performance of FlashAttention](https://pytorch.org/blog/flexattention/)
+says the fused kernel is the lowering through `torch.compile`, and that the
+backward pass is generated with it. Compile the call when you want that fused
+kernel. [Chapter 17](/c/17-fusion-and-compilers) covers `torch.compile`. The
+same post says it does not show how to implement paged attention.
+
+The following sample builds a causal block mask and calls `flex_attention`:
+
+```python
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
+
+def causal(batch, head, q_idx, kv_idx):
+    return q_idx >= kv_idx
+
+block_mask = create_block_mask(causal, B, H, Q_LEN, KV_LEN)
+flex_attention(query, key, value, block_mask=block_mask)
+```
+
+`B`, `H`, `Q_LEN`, and `KV_LEN` are the batch, the query heads, the query
+length, and the key length.
+
+### What FlashInfer is for
+
+Call FlashInfer when the keys and values already live in pages and the query
+is a decode step. The FlashInfer 0.7.3 page
+[FlashInfer Attention Kernels](https://docs.flashinfer.ai/api/attention.html)
+documents `flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper` as decode
+attention with a paged KV cache. The page's example also constructs it as
+`flashinfer.BatchDecodeWithPagedKVCacheWrapper`.
+
+You pass a workspace buffer, call `plan` with the page indptr, the page
+indices, and the last-page lengths, then call `run(q, paged_kv_cache)`.
+Prefill and append use
+`flashinfer.prefill.BatchPrefillWithPagedKVCacheWrapper` on the same page.
+
+`plan` accepts `disable_split_kv`. The class docstring says the workspace holds
+intermediate results of that split. The inference course owns the split-KV
+algorithm.
+
+`run` returns the attention output. With `return_lse=True` it also returns the
+logsumexp. The signatures on that page do not return $dQ$, $dK$, or $dV$, so
+this wrapper does not replace the training backward pass in the lab.
+
+The following sample is the call shape from that page:
+
+```python
+wrapper = flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper(
+    workspace, "NHD",
+)
+wrapper.plan(
+    kv_indptr,
+    kv_indices,
+    kv_last_page_len,
+    num_qo_heads,
+    num_kv_heads,
+    head_dim,
+    page_size,
+)
+out = wrapper.run(q, paged_kv_cache)
+```
+
+`workspace` is the buffer you allocate. `"NHD"` is the KV layout string the
+example passes. The `plan` arguments are the page table, then the query-head
+count, the KV-head count, the head dimension, and the page size.
 
 ## What goes wrong
 
@@ -719,6 +883,9 @@ loop. [Chapter 17](/c/17-fusion-and-compilers) covers the compiler machinery beh
 > - FlashAttention-2 reordered the loops and parallelized the sequence;
 >   FlashAttention-3 and -4 overlap the softmax with the tensor cores on Hopper and
 >   Blackwell, where the exponential and shared-memory rates lag the matmul rate.
+> - One-query decode, split-KV, and paged KV are the inference course's kernels.
+>   Dense tensors use `scaled_dot_product_attention`, a score modification uses
+>   `flex_attention`, and a paged decode cache uses FlashInfer's decode wrapper.
 
 ## Check your understanding
 
@@ -755,6 +922,16 @@ loop. [Chapter 17](/c/17-fusion-and-compilers) covers the compiler machinery beh
 > the cache's size is set by how many KV heads the model stores. If the model still
 > stores $H$ KV heads and repeats them in the cache, the cache is the same size.
 > The cache shrinks only when $H_{KV}$ is stored and read directly.
+
+> [!QUESTION] A decode step has one query per request and a paged KV cache. Which function do you call, and what do the other two calls leave out?
+> Call `flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper`. You pass a
+> workspace, call `plan` with the page indptr, the page indices, and the
+> last-page lengths, then call `run`. `scaled_dot_product_attention` takes
+> dense query, key, and value tensors and returns only the output.
+> `flex_attention` also takes dense tensors. Its `BlockMask` records which
+> score blocks participate, and the FlexAttention blog does not show a
+> paged-attention implementation. The inference course owns the split-KV and
+> paged decode kernels.
 
 > [!QUESTION] On a B200 the forward pass ties tensor cores and exponentials at 1024 cycles per tile. What does FlashAttention-4's software exponential buy?
 > If both units are equally busy, the pass is limited by whichever is slower the
@@ -799,5 +976,9 @@ you check them:
 - [FlashAttention-4](https://arxiv.org/abs/2603.05451) and [Tri Dao's blog post](https://tridao.me/blog/2026/flash4/): the per-SM resource arithmetic on Blackwell.
 - [Online normalizer calculation for softmax](https://arxiv.org/abs/1805.02867) and [Self-attention does not need O(n^2) memory](https://arxiv.org/abs/2112.05682): the recurrence, derived independently.
 - [The Triton fused attention tutorial](https://triton-lang.org/main/getting-started/tutorials/06-fused-attention.html): forward and backward in Triton.
-- [FlexAttention](https://pytorch.org/blog/flexattention/) and the [flash-attention repository](https://github.com/Dao-AILab/flash-attention).
-- The companion course: [chapter 14, FlashAttention for inference](https://qwen.ifkash.dev/c/14-flash-attention).
+- [FlexAttention: The Flexibility of PyTorch with the Performance of FlashAttention](https://pytorch.org/blog/flexattention/) and the [flash-attention repository](https://github.com/Dao-AILab/flash-attention).
+- PyTorch 2.14, [torch.nn.functional.scaled_dot_product_attention](https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html), [torch.nn.attention.sdpa_kernel](https://docs.pytorch.org/docs/2.14/generated/torch.nn.attention.sdpa_kernel.html), and [SDPBackend](https://docs.pytorch.org/docs/2.14/generated/torch.nn.attention.SDPBackend.html). The member descriptions are on the [SDPBackend](https://docs.pytorch.org/docs/main/generated/torch.nn.attention.SDPBackend.html) page.
+- PyTorch 2.14, [torch.nn.attention.flex_attention](https://docs.pytorch.org/docs/2.14/nn.attention.flex_attention.html).
+- FlashInfer 0.7.3, [FlashInfer Attention Kernels](https://docs.flashinfer.ai/api/attention.html).
+- [Flash-Decoding for long-context inference](https://pytorch.org/blog/flash-decoding/).
+- The inference course: [chapter 14, FlashAttention](https://qwen.ifkash.dev/c/14-flash-attention) and [chapter 15, paged attention](https://qwen.ifkash.dev/c/15-paged-attention).

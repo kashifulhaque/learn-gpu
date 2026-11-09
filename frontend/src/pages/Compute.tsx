@@ -113,8 +113,9 @@ export default function Compute() {
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 lg:py-10">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 max-w-2xl">
+          <p className="kicker mb-3">Compute</p>
           <h1
-            className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-fg"
+            className="flex items-center gap-2.5 font-serif text-[2rem] font-medium leading-tight tracking-[-0.035em] text-fg sm:text-[2.4rem]"
             aria-live="polite"
           >
             {status}
@@ -131,7 +132,7 @@ export default function Compute() {
               type="checkbox"
               checked={live}
               onChange={(event) => setLive(event.target.checked)}
-              className="size-3.5 accent-[var(--accent)]"
+              className="size-3.5 accent-[var(--forest)]"
             />
             Auto-refresh
           </label>
@@ -152,7 +153,7 @@ export default function Compute() {
       {facts.length > 0 && (
         <CellGrid className="mt-6 grid-cols-2 sm:grid-cols-4">
           <div className="border-b border-r border-line px-4 py-3">
-            <div className="text-[12px] text-fg-subtle">Active now</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-fg-subtle">Active now</div>
             <div
               className={`mt-0.5 text-lg font-semibold tabular-nums ${
                 active ? "text-bad" : "text-fg"
@@ -167,7 +168,7 @@ export default function Compute() {
               key={`${fact.provider}-${fact.label}`}
               className="min-w-0 border-b border-r border-line px-4 py-3"
             >
-              <div className="truncate text-[12px] text-fg-subtle">{fact.label}</div>
+              <div className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-fg-subtle">{fact.label}</div>
               <div className="mt-0.5 truncate text-lg font-semibold tabular-nums text-fg">
                 {fact.value}
               </div>
@@ -192,7 +193,7 @@ export default function Compute() {
 
       {infra && infra.runs.length > 0 && (
         <Panel className="mt-8 p-4 sm:p-5">
-          <h2 className="text-[15px] font-semibold text-warn">Runs this app never saw finish</h2>
+          <h2 className="font-serif text-[1.35rem] font-medium tracking-[-0.025em] text-warn">Runs this app never saw finish</h2>
           <p className="mt-1 max-w-2xl text-[13px] leading-5 text-fg-muted">
             A run stays here when the browser tab closed mid-stream. The GPU job may still be
             going.
@@ -274,7 +275,7 @@ function ProviderSection({ provider, busy, onAct }: SectionProps) {
   return (
     <Panel className="mt-8 overflow-hidden">
       <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">
-        <h2 className="mr-1 text-[15px] font-semibold text-fg">{label}</h2>
+        <h2 className="mr-1 font-serif text-[1.35rem] font-medium tracking-[-0.025em] text-fg">{label}</h2>
         {provider.default && <Tag tone="accent">Default</Tag>}
         {provider.available ? <Tag tone="ok">Configured</Tag> : <Tag>Unavailable</Tag>}
         {provider.console_url && (
@@ -291,7 +292,7 @@ function ProviderSection({ provider, busy, onAct }: SectionProps) {
       </header>
 
       {!provider.available && (
-        <p className="border-b border-line bg-well px-4 py-2.5 text-[13px] leading-5 text-fg-muted sm:px-5">
+        <p className="border-b border-line bg-surface-muted px-4 py-2.5 text-[13px] leading-5 text-fg-muted sm:px-5">
           {provider.reason}
         </p>
       )}
@@ -314,7 +315,7 @@ function ProviderSection({ provider, busy, onAct }: SectionProps) {
           <div className="-mb-px -mr-px grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
             {provider.facts.map((fact) => (
               <div key={fact.label} className="min-w-0 border-b border-r border-line px-4 py-2.5 sm:px-5">
-                <div className="truncate text-[12px] text-fg-subtle">{fact.label}</div>
+                <div className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-fg-subtle">{fact.label}</div>
                 <div className="mt-0.5 truncate font-mono text-[12.5px] tabular-nums text-fg">
                   {fact.value}
                 </div>

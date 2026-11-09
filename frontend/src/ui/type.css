@@ -1,0 +1,163 @@
+/* Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here. */
+
+/*
+ * Type for every ifkash.dev course site. No webfonts: system stacks only, as
+ * arm64 and tpu do. Serif for ideas, sans for interface, mono for metadata.
+ *
+ * Body prose is 16px, not the references' 14 to 15px, because course chapters
+ * are long and full of math. Rules sit in the base layer so that Tailwind
+ * utilities in the course apps still win.
+ */
+
+:root {
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SFMono-Regular", ui-monospace, Consolas, "Liberation Mono", monospace;
+
+  --prose-size: 16px;
+  --prose-line: 1.8;
+  --measure: 740px;
+  --rail-width: 252px;
+  --heading-tracking: -0.035em;
+  --kicker-size: 10px;
+  --kicker-tracking: 0.14em;
+}
+
+@layer base {
+  html {
+    scroll-padding-top: 96px;
+  }
+
+  body {
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--mono);
+  }
+
+  ::selection {
+    background: var(--forest-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--accent-ink);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* Long-form reading text: lessons, chapters, and paper pages. */
+  .prose {
+    max-width: var(--measure);
+    color: var(--ink);
+    font-size: var(--prose-size);
+    line-height: var(--prose-line);
+    overflow-wrap: break-word;
+  }
+
+  .prose h1,
+  .prose h2,
+  .display {
+    font-family: var(--serif);
+    font-weight: 500;
+    letter-spacing: var(--heading-tracking);
+    line-height: 1.15;
+    color: var(--ink);
+  }
+
+  .prose h1 {
+    font-size: clamp(35px, 3.6vw, 51px);
+    margin: 0 0 0.5em;
+  }
+
+  .prose h2 {
+    font-size: 29px;
+    margin: 1.8em 0 0.6em;
+  }
+
+  .prose h3 {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 1.6em 0 0.5em;
+  }
+
+  .prose p,
+  .prose ul,
+  .prose ol {
+    margin: 0 0 1.1em;
+  }
+
+  .prose a {
+    color: var(--forest);
+    text-underline-offset: 3px;
+  }
+
+  .prose a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .prose :not(pre) > code {
+    padding: 2px 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface-muted);
+    font-size: 0.88em;
+    overflow-wrap: anywhere;
+  }
+
+  .prose em.accent,
+  .display em {
+    color: var(--forest);
+    font-style: normal;
+    font-weight: inherit;
+  }
+
+  .prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .prose th,
+  .prose td {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    text-align: left;
+  }
+
+  .prose th {
+    background: var(--forest-soft);
+    color: var(--forest);
+    font-weight: 600;
+  }
+
+  /* Tiny uppercase mono labels: the field-notebook voice. */
+  .kicker {
+    display: block;
+    color: var(--accent-ink);
+    font-family: var(--mono);
+    font-size: var(--kicker-size);
+    font-weight: 500;
+    letter-spacing: var(--kicker-tracking);
+    text-transform: uppercase;
+  }
+
+  .meta {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+}

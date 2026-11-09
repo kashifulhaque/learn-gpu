@@ -3,8 +3,9 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { api, type ChapterMeta } from "./lib/api";
 import { Mark } from "./components/Brand";
 import ComputeBadge, { useActiveCompute } from "./components/ComputeBadge";
-import { MenuIcon } from "./components/icons";
+import { MenuIcon, SearchIcon } from "./components/icons";
 import Login from "./components/Login";
+import SearchDialog, { useSlashKey } from "./components/SearchDialog";
 import Sidebar from "./components/Sidebar";
 import { IconButton, Loading } from "./components/ui";
 import ChapterPage from "./pages/ChapterPage";
@@ -37,6 +38,13 @@ export default function App() {
   const [gpu, setGpu] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(wasCollapsed);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = useCallback(() => {
+    setMenuOpen(false);
+    setSearchOpen(true);
+  }, []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  useSlashKey(openSearch);
   const active = useActiveCompute(Boolean(name));
 
   useEffect(() => {
@@ -110,30 +118,36 @@ export default function App() {
         onToggleCollapsed={() => setCollapsed((current) => !current)}
         name={name}
         active={active}
+        onSearch={openSearch}
       />
+
+      <SearchDialog chapters={list} open={searchOpen} onClose={closeSearch} />
 
       {menuOpen && (
         <button
           aria-label="Close the menu"
           onClick={() => setMenuOpen(false)}
-          className="fixed inset-0 z-20 bg-fg/25 lg:hidden"
+          className="fixed inset-0 z-20 bg-[var(--scrim)] lg:hidden"
         />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* A wide screen has the sidebar for all of this. A narrow one needs a
             way to open it, and keeps the GPU status in view. */}
-        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-line bg-well px-2 lg:hidden">
+        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-line bg-surface px-2 lg:hidden">
           <IconButton onClick={() => setMenuOpen(true)} aria-label="Open the course list">
             <MenuIcon />
           </IconButton>
           <Link to="/" className="flex min-w-0 items-center gap-2 rounded-md px-1">
             <Mark className="size-5" />
-            <span className="truncate text-[14px] font-semibold tracking-tight text-fg">
-              learn-gpu
+            <span className="truncate text-[15px] font-bold tracking-[-0.03em] text-fg">
+              learn<span className="text-terracotta">/</span>gpu
             </span>
           </Link>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <IconButton onClick={openSearch} aria-label="Search the course">
+              <SearchIcon />
+            </IconButton>
             <ComputeBadge active={active} />
           </div>
         </header>

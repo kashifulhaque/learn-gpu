@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { api, type ChapterMeta, type Run } from "../lib/api";
 import { chapterNumbers, groupByPart, labTitle, splitPart } from "../lib/chapters";
@@ -54,81 +54,206 @@ export default function Dashboard({ chapters, progress, gpu }: Props) {
     { label: "Reading left", value: minutesLeft ? formatMinutes(minutesLeft) : "None", of: "" },
   ];
 
+  const parts = groupByPart(list);
+
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-8 lg:pt-14">
-      <header className="max-w-2xl">
-        <h1 className="font-serif text-[2rem] font-semibold leading-[1.15] tracking-[-0.01em] text-fg sm:text-[2.4rem]">
-          GPU programming for ML
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-fg-muted">
-          From the streaming multiprocessor to the kernels that train and serve models. You write
-          CUDA C++ and Triton, and each lab runs on a real GPU
-          {gpu ? `: an ${gpu}.` : "."}
+    <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-8 lg:px-12 lg:pt-12">
+      <section className="hero">
+        <div className="min-w-0">
+          <p className="kicker mb-4">
+            Course · {list.length} chapters · {labs} labs
+          </p>
+          <h1>
+            GPU programming <em>for ML</em>
+          </h1>
+          <p className="lede">
+            From the streaming multiprocessor to the kernels that train and serve models. You write
+            CUDA C++ and Triton, and each lab runs on a real GPU
+            {gpu ? `: an ${gpu}.` : "."}
+          </p>
+          <div className="hero-actions">
+            {next ? (
+              <Link to={`/c/${next.slug}`} className="button button-primary">
+                {progress[next.slug] ? "Continue" : "Start the course"}
+                <ArrowRightIcon className="size-3.5" />
+              </Link>
+            ) : (
+              <Link to={`/c/${list[0]?.slug ?? ""}`} className="button button-primary">
+                Read it again
+              </Link>
+            )}
+            <Link to="/slides" className="button">
+              Slides
+            </Link>
+          </div>
+          <p className="hero-meta">
+            <span>{done.length} of {list.length} chapters done</span>
+            <span>{labsPassed} of {labs} labs passed</span>
+            <span>{minutesLeft ? `${formatMinutes(minutesLeft)} of reading left` : "Nothing left to read"}</span>
+          </p>
+        </div>
+
+        <div className="min-w-0">
+          {next ? (
+            <Panel className="p-5 sm:p-6">
+              <p className="kicker">
+                {progress[next.slug] ? "Pick up where you left off" : "Start here"}
+              </p>
+              <p className="mt-3 flex items-baseline gap-2.5">
+                <span className="font-mono text-[12px] text-fg-subtle">{numbers.get(next.slug)}</span>
+                <span className="font-serif text-[1.6rem] font-medium leading-tight tracking-[-0.025em] text-fg">
+                  {next.title}
+                </span>
+              </p>
+              <p className="mt-2 text-[13.5px] leading-6 text-fg-muted">{next.summary}</p>
+              <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10.5px] text-fg-subtle">
+                <span>{splitPart(next.part).name}</span>
+                {next.minutes && (
+                  <span className="flex items-center gap-1.5">
+                    <ClockIcon className="size-3.5" />
+                    {next.minutes} min
+                  </span>
+                )}
+                {next.lab && (
+                  <span className="flex items-center gap-1.5">
+                    <FlaskIcon className="size-3.5" />
+                    {next.gpu ? "GPU lab" : "Lab"}
+                  </span>
+                )}
+              </p>
+              <Link to={`/c/${next.slug}`} className={buttonClass("primary", "md", "mt-5")}>
+                {progress[next.slug] ? "Continue" : "Start chapter"}
+                <ArrowRightIcon className="size-3.5" />
+              </Link>
+            </Panel>
+          ) : (
+            <Panel className="p-5 sm:p-6">
+              <p className="kicker">Course complete</p>
+              <p className="mt-3 font-serif text-[1.6rem] font-medium tracking-[-0.025em] text-fg">
+                You've worked through every chapter.
+              </p>
+              <p className="mt-2 text-[13.5px] leading-6 text-fg-muted">
+                The labs stay open, so you can go back and push any of them further.
+              </p>
+            </Panel>
+          )}
+
+          <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-[7px] border border-line bg-line [&>div]:bg-surface">
+            {stats.map((stat) => (
+              <div key={stat.label} className="px-4 py-3">
+                <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-fg-subtle">
+                  {stat.label}
+                </dt>
+                <dd className="mt-1 flex items-baseline gap-1.5">
+                  <span className="font-serif text-[1.5rem] font-medium tabular-nums tracking-[-0.03em] text-fg">
+                    {stat.value}
+                  </span>
+                  {stat.of && <span className="text-[12.5px] tabular-nums text-fg-subtle">{stat.of}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <div className="section-heading">
+        <div>
+          <p className="kicker mb-2">The course</p>
+          <h2>Modules</h2>
+        </div>
+        <p>
+          {parts.length} parts · {list.length} chapters
         </p>
-      </header>
+      </div>
 
-      {next ? (
-        <Panel className="mt-8 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
-          <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-medium text-accent">
-              {progress[next.slug] ? "Pick up where you left off" : "Start here"}
-            </p>
-            <p className="mt-1.5 flex items-baseline gap-2.5">
-              <span className="font-mono text-[13px] text-fg-faint">{numbers.get(next.slug)}</span>
-              <span className="font-serif text-[1.35rem] font-semibold leading-snug text-fg">
-                {next.title}
-              </span>
-            </p>
-            <p className="mt-1.5 text-[13.5px] leading-6 text-fg-subtle">{next.summary}</p>
-            <p className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-fg-subtle">
-              <span>{splitPart(next.part).name}</span>
-              {next.minutes && (
-                <span className="flex items-center gap-1.5">
-                  <ClockIcon className="size-3.5 text-fg-faint" />
-                  {next.minutes} min
+      <div className="module-grid">
+        {parts.map(([part, items], partIndex) => {
+          const { label, name } = splitPart(part);
+          const partDone = items.filter((c) => progress[c.slug] === "done").length;
+          const partNext = items.find((c) => progress[c.slug] !== "done") ?? items[0];
+          const minutes = items.reduce((sum, c) => sum + (c.minutes ?? 0), 0);
+          const percent = items.length ? Math.round((partDone / items.length) * 100) : 0;
+          return (
+            <article
+              key={part}
+              className="module-card"
+              style={{ "--progress": `${percent}%` } as CSSProperties}
+            >
+              <div className="module-card-header">
+                <span className="module-number">{label || `Part ${partIndex + 1}`}</span>
+                <span className="module-icon">{String(partIndex + 1).padStart(2, "0")}</span>
+              </div>
+              <h3>
+                <Link to={`/c/${partNext.slug}`} className="hover:text-accent">
+                  {name}
+                </Link>
+              </h3>
+              <ol className="mb-5 space-y-1 text-[13px] leading-5">
+                {items.map((chapter) => {
+                  const status = progress[chapter.slug];
+                  return (
+                    <li key={chapter.slug}>
+                      <Link
+                        to={`/c/${chapter.slug}`}
+                        className="group flex items-baseline gap-2.5 text-fg-muted hover:text-accent"
+                      >
+                        <span
+                          className={`w-6 shrink-0 font-mono text-[10.5px] tabular-nums ${
+                            status === "done" ? "text-accent" : "text-fg-subtle"
+                          }`}
+                        >
+                          {status === "done" ? (
+                            <CheckIcon className="inline size-3" aria-label="Done" />
+                          ) : (
+                            numbers.get(chapter.slug)
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          {chapter.title}
+                          {status === "in_progress" && (
+                            <span className="ml-1.5 inline-flex translate-y-[-1px] align-middle">
+                              <Dot tone="accent" />
+                              <span className="sr-only">In progress</span>
+                            </span>
+                          )}
+                        </span>
+                        {chapter.lab && (
+                          <span title={labTitle(chapter)} className="text-fg-faint">
+                            <FlaskIcon className="size-3" />
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="module-card-footer">
+                <span className="module-count">
+                  {partDone}/{items.length} done{minutes ? ` · ${formatMinutes(minutes)}` : ""}
                 </span>
-              )}
-              {next.lab && (
-                <span className="flex items-center gap-1.5">
-                  <FlaskIcon className="size-3.5 text-fg-faint" />
-                  {next.gpu ? "GPU lab" : "Lab"}
-                </span>
-              )}
-            </p>
-          </div>
-          <Link to={`/c/${next.slug}`} className={buttonClass("primary", "md", "self-start sm:self-center")}>
-            {progress[next.slug] ? "Continue" : "Start chapter"}
-            <ArrowRightIcon className="size-3.5" />
-          </Link>
-        </Panel>
-      ) : (
-        <Panel className="mt-8 p-5 sm:p-6">
-          <p className="text-[12.5px] font-medium text-ok">Course complete</p>
-          <p className="mt-1.5 font-serif text-[1.35rem] font-semibold text-fg">
-            You've worked through every chapter.
-          </p>
-          <p className="mt-1.5 text-[13.5px] leading-6 text-fg-subtle">
-            The labs stay open, so you can go back and push any of them further.
-          </p>
-        </Panel>
-      )}
-
-      <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4 [&>div]:bg-card gap-px">
-        {stats.map((stat) => (
-          <div key={stat.label} className="px-4 py-3.5">
-            <dt className="text-[12px] text-fg-subtle">{stat.label}</dt>
-            <dd className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl font-semibold tabular-nums tracking-tight text-fg">
-                {stat.value}
-              </span>
-              {stat.of && <span className="text-[12.5px] tabular-nums text-fg-faint">{stat.of}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
+                <Link
+                  to={`/c/${partNext.slug}`}
+                  className="flex items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline"
+                >
+                  {partDone === items.length ? "Review" : partDone || progress[partNext.slug] ? "Continue" : "Start"}
+                  <ArrowRightIcon className="size-3.5" />
+                </Link>
+              </div>
+              <div
+                className="module-progress"
+                role="progressbar"
+                aria-label={`${name}: chapters done`}
+                aria-valuenow={partDone}
+                aria-valuemin={0}
+                aria-valuemax={items.length}
+              />
+            </article>
+          );
+        })}
+      </div>
 
       {recent.length > 0 && (
-        <section className="mt-10">
+        <section className="mt-12">
           <BlockHeading aside={`${runs.length} in total`}>Recent lab runs</BlockHeading>
           <Panel className="divide-y divide-line overflow-hidden">
             {recent.map((run) => {
@@ -141,7 +266,7 @@ export default function Dashboard({ chapters, progress, gpu }: Props) {
                   <span className="min-w-0 flex-1 truncate text-[13px] text-fg">
                     {chapter ? chapter.title : run.lab}
                   </span>
-                  <span className="hidden font-mono text-[12px] text-fg-faint sm:inline">
+                  <span className="hidden font-mono text-[12px] text-fg-subtle sm:inline">
                     {run.provider}
                   </span>
                   {seconds !== null && (
@@ -158,7 +283,7 @@ export default function Dashboard({ chapters, progress, gpu }: Props) {
                 <Link
                   key={run.id}
                   to={`/c/${chapter.slug}`}
-                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-tint/60"
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-muted"
                 >
                   {body}
                 </Link>
@@ -171,78 +296,6 @@ export default function Dashboard({ chapters, progress, gpu }: Props) {
           </Panel>
         </section>
       )}
-
-      <section className="mt-12">
-        <BlockHeading aside={`${list.length} chapters`}>Contents</BlockHeading>
-        <div className="space-y-8">
-          {groupByPart(list).map(([part, items]) => {
-            const { label, name } = splitPart(part);
-            const partDone = items.filter((c) => progress[c.slug] === "done").length;
-            return (
-              <div key={part}>
-                <div className="flex items-baseline gap-3 border-b border-line pb-2">
-                  {label && <span className="font-mono text-[12px] text-fg-faint">{label}</span>}
-                  <h3 className="text-[15px] font-semibold text-fg">{name}</h3>
-                  <span className="ml-auto text-[12px] tabular-nums text-fg-subtle">
-                    {partDone} of {items.length} done
-                  </span>
-                </div>
-                <ol>
-                  {items.map((chapter) => {
-                    const status = progress[chapter.slug];
-                    return (
-                      <li key={chapter.slug} className="border-b border-line/70 last:border-b-0">
-                        <Link
-                          to={`/c/${chapter.slug}`}
-                          className="group -mx-2 flex items-start gap-3 rounded-md px-2 py-3 transition-colors hover:bg-tint/50 sm:gap-4"
-                        >
-                          <span
-                            className={`mt-px flex w-8 shrink-0 justify-start font-mono text-[12.5px] tabular-nums ${
-                              status === "done" ? "text-ok" : "text-fg-faint"
-                            }`}
-                          >
-                            {status === "done" ? (
-                              <CheckIcon className="mt-0.5 size-3.5" />
-                            ) : (
-                              numbers.get(chapter.slug)
-                            )}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className="text-[14px] font-medium text-fg group-hover:text-accent">
-                                {chapter.title}
-                              </span>
-                              {status === "in_progress" && (
-                                <span className="flex items-center gap-1.5 text-[12px] text-fg-subtle">
-                                  <Dot tone="accent" />
-                                  <span className="hidden sm:inline">In progress</span>
-                                </span>
-                              )}
-                            </span>
-                            <span className="mt-0.5 block text-[13px] leading-5 text-fg-subtle">
-                              {chapter.summary}
-                            </span>
-                          </span>
-                          <span className="mt-0.5 hidden shrink-0 items-center gap-3 text-[12px] text-fg-faint sm:flex">
-                            {chapter.lab && (
-                              <span title={labTitle(chapter)}>
-                                <FlaskIcon className="size-3.5" />
-                              </span>
-                            )}
-                            {chapter.minutes && (
-                              <span className="w-14 text-right tabular-nums">{chapter.minutes} min</span>
-                            )}
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }

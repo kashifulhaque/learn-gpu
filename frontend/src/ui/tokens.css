@@ -1,0 +1,194 @@
+/* Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here. */
+
+/*
+ * Design tokens for every ifkash.dev course site.
+ *
+ * The palette is arm64 Fieldnotes, copied value for value: green-tinted ink on
+ * warm paper, forest green for interactive elements, and terracotta for small
+ * labels. Components read these variables and never a raw colour, so dark mode
+ * is one re-declaration of the same names.
+ *
+ * Theme selection: with no data-theme attribute, the page follows the system
+ * setting. data-theme="light" or data-theme="dark" on <html> pins a theme.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces, darkest last. */
+  --paper: #f7f6f0;
+  --surface: #fffef9;
+  --surface-muted: #eeeee5;
+
+  /* Text. */
+  --ink: #263e33;
+  --muted: #637065;
+
+  /* Primary hue. Links, active states, progress, and primary buttons. */
+  --forest: #1d4939;
+  --forest-soft: #e5ece1;
+
+  /* Warm accent. Kickers, callout bars, and the focus ring. */
+  --accent: #d6905e;
+  --accent-ink: #97512b;
+  --accent-soft: #f5e9dc;
+
+  /* Hairlines. */
+  --line: #d9ddd1;
+  --strong-line: #b8c2b3;
+
+  /* Errors and failed checks. */
+  --error: #a33832;
+  --error-soft: #f7e6e1;
+
+  --shadow: 0 14px 40px rgb(27 47 34 / 10%);
+
+  /* Plot series for figures, charts, and audio demos. Each pair stays apart
+     for readers who can't tell red from green. */
+  --series-1: #1d4939;
+  --series-2: #b5652f;
+  --series-3: #3f6f95;
+  --series-4: #82508f;
+  --series-5: #a33832;
+  --series-6: #5c7d2e;
+  --demo: var(--forest);
+
+  --scrim: rgb(8 25 16 / 45%);
+}
+
+/* The code slab is dark green in both themes, as arm64 draws it. */
+:root {
+  --code-bg: #18392e;
+  --code-ink: #e8eddf;
+  --code-line: #355645;
+  --code-muted: #b2c7b3;
+  --code-button-line: #55725c;
+  --code-hover: #294837;
+  --code-gutter: #6f8d78;
+  --code-selection: #2f5a45;
+  --code-active-line: #1e4134;
+
+  /* Syntax colours on the slab. */
+  --hl-keyword: #efb48b;
+  --hl-string: #d7e4b9;
+  --hl-number: #e5a16e;
+  --hl-comment: #a8bea6;
+  --hl-title: #b6d3b2;
+  --hl-builtin: #9fd0bd;
+  --hl-type: #9fd0bd;
+  --hl-meta: #b2c7b3;
+  --hl-punct: #c3d1c0;
+  --hl-attr: #e7c9a0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #15241e;
+    --surface: #1b2d25;
+    --surface-muted: #22372d;
+    --ink: #e9ecdf;
+    --muted: #a9b7a7;
+    --forest: #b6d3b2;
+    --forest-soft: #2a4033;
+    --accent: #e5a16e;
+    --accent-ink: #efb78e;
+    --accent-soft: #3b3025;
+    --line: #354a3b;
+    --strong-line: #53694f;
+    --error: #f0a49a;
+    --error-soft: #422c29;
+    --code-bg: #10281e;
+    --code-active-line: #163527;
+    --shadow: 0 14px 40px rgb(0 0 0 / 22%);
+    --series-1: #b6d3b2;
+    --series-2: #e5a16e;
+    --series-3: #8fb8dd;
+    --series-4: #c9a3e0;
+    --series-5: #f0a49a;
+    --series-6: #c3d98f;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #15241e;
+  --surface: #1b2d25;
+  --surface-muted: #22372d;
+  --ink: #e9ecdf;
+  --muted: #a9b7a7;
+  --forest: #b6d3b2;
+  --forest-soft: #2a4033;
+  --accent: #e5a16e;
+  --accent-ink: #efb78e;
+  --accent-soft: #3b3025;
+  --line: #354a3b;
+  --strong-line: #53694f;
+  --error: #f0a49a;
+  --error-soft: #422c29;
+  --code-bg: #10281e;
+  --code-active-line: #163527;
+  --shadow: 0 14px 40px rgb(0 0 0 / 22%);
+  --series-1: #b6d3b2;
+  --series-2: #e5a16e;
+  --series-3: #8fb8dd;
+  --series-4: #c9a3e0;
+  --series-5: #f0a49a;
+  --series-6: #c3d98f;
+}
+
+/*
+ * Compatibility aliases. The course apps already route colour through their
+ * own semantic names, so pointing those names at the palette re-skins most
+ * components without edits. Aliases resolve on the same element as the
+ * palette, so they follow the theme.
+ *
+ * Neither family's --accent is aliased: both apps use it for interactive
+ * colour, which this palette spells --forest. Each app maps its Tailwind
+ * accent colour to --forest in its own index.css.
+ */
+:root {
+  /* Family A: ml, rl, speech. */
+  --canvas: var(--paper);
+  --chrome: var(--surface);
+  --sunk: var(--surface-muted);
+  --raise: var(--surface);
+  --rule: var(--line);
+  --rule-strong: var(--strong-line);
+  --ink-2: var(--ink);
+  --ink-3: var(--muted);
+  --ink-4: color-mix(in oklab, var(--muted) 72%, var(--paper));
+  --good: var(--forest);
+  --bad: var(--error);
+  --warn: var(--accent-ink);
+  --mark: var(--accent-soft);
+  --primary: var(--forest);
+  --on-primary: var(--paper);
+
+  /* Family B: learn-gpu, learn-inference. */
+  --well: var(--surface-muted);
+  --card: var(--surface);
+  --tint: var(--forest-soft);
+  --line-strong: var(--strong-line);
+  --fg: var(--ink);
+  --fg-muted: color-mix(in oklab, var(--ink) 70%, var(--muted));
+  --fg-subtle: var(--muted);
+  --fg-faint: color-mix(in oklab, var(--muted) 72%, var(--paper));
+  --ok: var(--forest);
+  --info: var(--series-3);
+  --violet: var(--series-4);
+  --on-accent: var(--paper);
+  --accent-strong: var(--accent-ink);
+  --pop-shadow: var(--shadow);
+  --syn-keyword: var(--hl-keyword);
+  --syn-string: var(--hl-string);
+  --syn-number: var(--hl-number);
+  --syn-comment: var(--hl-comment);
+  --syn-function: var(--hl-title);
+  --syn-type: var(--hl-type);
+  --syn-punct: var(--hl-punct);
+  --hl-a: var(--series-1);
+  --hl-b: var(--series-3);
+  --hl-c: var(--series-2);
+  --hl-d: var(--series-4);
+}

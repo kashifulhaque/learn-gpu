@@ -1,147 +1,44 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
-@import "@fontsource-variable/source-serif-4/opsz.css";
-@import "@fontsource-variable/source-serif-4/opsz-italic.css";
-@import "@fontsource/ibm-plex-sans/latin-400.css";
-@import "@fontsource/ibm-plex-sans/latin-500.css";
-@import "@fontsource/ibm-plex-sans/latin-600.css";
-@import "@fontsource/ibm-plex-mono/latin-400.css";
-@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "./ui/tokens.css";
+@import "./ui/type.css";
+@import "./ui/components.css";
 
 /* Theme ---------------------------------------------------------------------
 
-   Every colour in the app is one of the semantic tokens below. Components use
-   them through Tailwind (`bg-paper`, `text-fg-muted`, `border-line`,
-   `bg-accent/10`), never a raw hex value, so the light and dark themes are one
-   set of variables apart.
+   The palette, the type, and the shared components come from the course design
+   system in src/ui/, which scripts/sync-ui.sh copies from weights-and-wires/sites.
+   Don't edit those files here. tokens.css defines arm64's names (--paper,
+   --surface, --ink, --forest, --accent, and so on) and aliases this app's own
+   names onto them (--well, --card, --tint, --fg, --ok, --syn-*), so components
+   keep using `bg-well`, `text-fg-muted`, and `border-line` through Tailwind.
+
+   One name changes meaning: in the design system --accent is terracotta, for
+   kickers and callout bars, and --forest is the interactive colour. Tailwind's
+   `accent` colour maps to --forest, so `bg-accent`, `text-accent`, and
+   `border-accent` stay the colour of links, active states, and the primary
+   button.
 
    The theme follows the system unless the reader picks one; the choice is an
    attribute on <html>, set before first paint by the script in index.html. */
 
 :root {
-  color-scheme: light;
+  /* Status colours on the dark-green code slab, the same in both themes. The
+     design system has no slab status tokens yet; these are arm64's status dot
+     and its dark-theme error. */
+  --slab-ok: #b5d49b;
+  --slab-bad: #f0a49a;
 
-  /* Surfaces, from the page outward. */
-  --paper: #fcfbf8; /* the reading surface */
-  --well: #f4f2ed; /* sidebars, bars, and the lab chrome */
-  --card: #ffffff; /* inputs, menus, and raised panels */
-  --tint: #ebe8e1; /* hover and selected rows */
-  --line: #e4e0d7;
-  --line-strong: #cdc7ba;
-
-  /* Text, from most to least important. */
-  --fg: #1d1b18;
-  --fg-muted: #48443d;
-  --fg-subtle: #706a60;
-  --fg-faint: #a09a8f;
-
-  /* One accent, used for the primary action, links, and "you are here". */
-  --accent: #c2410c;
-  --accent-strong: #9a330a;
-  --on-accent: #ffffff;
-
-  /* Status. */
-  --ok: #2d7a4c;
-  --bad: #b42318;
-  --warn: #9a5b06;
-  --info: #2c5ea8;
-  --violet: #6d4fb0;
-
-  /* Code, in the chapter and in the editor. Monaco's themes mirror these. */
-  --code-bg: #f4f2ed;
-  --syn-keyword: #a13d12;
-  --syn-string: #3b7738;
-  --syn-number: #8a5a00;
-  --syn-comment: #8d877c;
-  --syn-function: #2c5ea8;
-  --syn-type: #7446b0;
-  --syn-punct: #6b655b;
-
-  /* The four maths colours, \hla to \hld. */
-  --hl-a: #2d7a4c;
-  --hl-b: #2c5ea8;
-  --hl-c: #a15c07;
-  --hl-d: #b4335a;
-
-  --pop-shadow: 0 1px 2px rgb(40 30 10 / 0.06), 0 8px 24px -6px rgb(40 30 10 / 0.14);
-}
-
-/* Dark is written out twice: once for a system preference the reader has not
-   overridden, and once for an explicit choice. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --paper: #171614;
-    --well: #121110;
-    --card: #1f1d1b;
-    --tint: #282623;
-    --line: #2c2a26;
-    --line-strong: #3d3a35;
-    --fg: #ece8e1;
-    --fg-muted: #c5bfb4;
-    --fg-subtle: #968f83;
-    --fg-faint: #6c665c;
-    --accent: #f0864a;
-    --accent-strong: #f6a574;
-    --on-accent: #1c0e05;
-    --ok: #74c291;
-    --bad: #f2806f;
-    --warn: #e2a954;
-    --info: #8db1ee;
-    --violet: #b8a0ea;
-    --code-bg: #1d1b19;
-    --syn-keyword: #f0955f;
-    --syn-string: #a3cf8c;
-    --syn-number: #e6b566;
-    --syn-comment: #7f786d;
-    --syn-function: #8db1ee;
-    --syn-type: #c2a8f0;
-    --syn-punct: #a39c90;
-    --hl-a: #7fcf9a;
-    --hl-b: #8db1ee;
-    --hl-c: #e6b566;
-    --hl-d: #f08aa6;
-    --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.55);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #171614;
-  --well: #121110;
-  --card: #1f1d1b;
-  --tint: #282623;
-  --line: #2c2a26;
-  --line-strong: #3d3a35;
-  --fg: #ece8e1;
-  --fg-muted: #c5bfb4;
-  --fg-subtle: #968f83;
-  --fg-faint: #6c665c;
-  --accent: #f0864a;
-  --accent-strong: #f6a574;
-  --on-accent: #1c0e05;
-  --ok: #74c291;
-  --bad: #f2806f;
-  --warn: #e2a954;
-  --info: #8db1ee;
-  --violet: #b8a0ea;
-  --code-bg: #1d1b19;
-  --syn-keyword: #f0955f;
-  --syn-string: #a3cf8c;
-  --syn-number: #e6b566;
-  --syn-comment: #7f786d;
-  --syn-function: #8db1ee;
-  --syn-type: #c2a8f0;
-  --syn-punct: #a39c90;
-  --hl-a: #7fcf9a;
-  --hl-b: #8db1ee;
-  --hl-c: #e6b566;
-  --hl-d: #f08aa6;
-  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.55);
+  /* The design system maps \hlc to --series-2, the same terracotta the
+     figures use for their highlight. Olive keeps the four maths colours apart
+     from it and from each other. */
+  --hl-c: var(--series-6);
 }
 
 @theme inline {
   --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-well: var(--well);
   --color-card: var(--card);
   --color-tint: var(--tint);
@@ -151,22 +48,57 @@
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
   --color-fg-faint: var(--fg-faint);
-  --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
+  --color-accent: var(--forest);
+  --color-accent-strong: var(--ink);
+  --color-accent-soft: var(--forest-soft);
   --color-on-accent: var(--on-accent);
+  --color-kicker: var(--accent-ink);
+  --color-terracotta: var(--accent);
+  --color-terracotta-soft: var(--accent-soft);
   --color-ok: var(--ok);
   --color-bad: var(--bad);
   --color-warn: var(--warn);
   --color-info: var(--info);
   --color-violet: var(--violet);
   --color-code: var(--code-bg);
+  --color-code-ink: var(--code-ink);
+  --color-code-line: var(--code-line);
+  --color-code-muted: var(--code-muted);
   --shadow-pop: var(--pop-shadow);
+  --font-sans: var(--sans);
+  --font-serif: var(--serif);
+  --font-mono: var(--mono);
 }
 
-@theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+/* The slab ------------------------------------------------------------------
+
+   The lab's editor and console sit on the dark-green code slab in both themes,
+   as arm64 draws its code blocks. Inside `.slab` this app's own colour names
+   point at slab colours, so a Tag, a Button, or `text-ok` inside the console
+   reads on the dark green without a second set of classes. */
+
+.slab {
+  --paper: var(--code-bg);
+  --well: var(--code-bg);
+  --card: var(--code-active-line);
+  --tint: var(--code-hover);
+  --line: var(--code-line);
+  --line-strong: var(--code-button-line);
+  --fg: var(--code-ink);
+  --fg-muted: color-mix(in oklab, var(--code-ink) 82%, var(--code-muted));
+  --fg-subtle: var(--code-muted);
+  --fg-faint: var(--code-gutter);
+  --forest: var(--hl-title);
+  --forest-soft: var(--code-hover);
+  --on-accent: var(--code-bg);
+  --ink: var(--code-ink);
+  --ok: var(--slab-ok);
+  --bad: var(--slab-bad);
+  --warn: var(--hl-keyword);
+  --info: var(--hl-builtin);
+  color: var(--code-ink);
+  background: var(--paper);
+  color-scheme: dark;
 }
 
 /* Base ---------------------------------------------------------------------- */
@@ -184,7 +116,7 @@ body,
 body {
   background: var(--paper);
   color: var(--fg);
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -223,52 +155,56 @@ body {
   background-color: var(--fg-faint);
 }
 
-::selection {
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
   border-radius: 4px;
 }
-
-kbd {
-  font-family: var(--font-mono);
+.slab :focus-visible {
+  outline-color: var(--hl-keyword);
 }
 
-/* Chapter body ------------------------------------------------------------- */
+kbd {
+  font-family: var(--mono);
+}
+
+/* Chapter body -------------------------------------------------------------
+
+   Sans prose at 16px with a 740px measure, serif headings with tight tracking,
+   and mono for numbers and labels, as the design system sets them. */
 
 .prose-chapter {
-  font-family: var(--font-serif);
-  font-optical-sizing: auto;
-  font-size: 1.0625rem;
-  line-height: 1.7;
-  color: var(--fg-muted);
+  font-family: var(--sans);
+  font-size: var(--prose-size);
+  line-height: var(--prose-line);
+  color: var(--ink);
+  overflow-wrap: break-word;
   hanging-punctuation: first;
 }
 .prose-chapter h1,
 .prose-chapter h2,
 .prose-chapter h3,
 .prose-chapter h4 {
-  font-family: var(--font-sans);
-  color: var(--fg);
+  color: var(--ink);
   text-wrap: balance;
 }
+.prose-chapter h1,
+.prose-chapter h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  letter-spacing: var(--heading-tracking);
+}
 .prose-chapter h1 {
-  font-size: 2rem;
-  font-weight: 600;
+  font-size: 2.25rem;
+  line-height: 1.12;
   margin: 0 0 1.25rem;
-  letter-spacing: -0.015em;
 }
 .prose-chapter h2 {
   display: flex;
   align-items: baseline;
   gap: 0.8rem;
-  font-size: 1.375rem;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
+  font-size: 1.75rem;
+  line-height: 1.2;
   margin: 0 0 1rem;
   scroll-margin-top: 1.25rem;
 }
@@ -278,62 +214,63 @@ kbd {
   content: counter(section, decimal-leading-zero);
   counter-increment: section;
   flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
   font-weight: 500;
-  letter-spacing: 0;
-  color: var(--accent);
-  transform: translateY(-0.08em);
+  letter-spacing: var(--kicker-tracking);
+  color: var(--accent-ink);
+  transform: translateY(-0.35em);
+}
+.prose-chapter h3,
+.prose-chapter h4 {
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .prose-chapter h3 {
-  font-size: 1.075rem;
-  font-weight: 600;
+  font-size: 1.125rem;
   line-height: 1.4;
   margin: 2rem 0 0.6rem;
 }
 .prose-chapter h4 {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1rem;
   margin: 1.5rem 0 0.5rem;
 }
 .prose-chapter p {
-  margin: 0 0 1.05rem;
+  margin: 0 0 1.1rem;
 }
 .prose-chapter strong {
-  color: var(--fg);
-  font-weight: 620;
+  color: var(--ink);
+  font-weight: 650;
 }
 /* Italics mark a term on first use (see content/STYLE.md). */
 .prose-chapter em {
-  color: var(--fg);
+  color: var(--ink);
   font-style: italic;
 }
 /* ==highlight== marks the phrase a skimming reader must not miss. */
 .prose-chapter mark {
-  color: var(--fg);
-  background: linear-gradient(
-    180deg,
-    transparent 58%,
-    color-mix(in srgb, var(--warn) 30%, transparent) 58%
-  );
+  color: var(--ink);
+  background: linear-gradient(180deg, transparent 58%, var(--accent-soft) 58%);
   padding: 0 0.1em;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
 .prose-chapter a {
-  color: var(--accent);
+  color: var(--forest);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--forest) 40%, transparent);
   transition: text-decoration-color 0.15s;
 }
 .prose-chapter a:hover {
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--forest);
+  text-decoration-thickness: 2px;
 }
 .prose-chapter ul,
 .prose-chapter ol {
-  margin: 0 0 1.05rem;
+  margin: 0 0 1.1rem;
   padding-left: 1.35rem;
 }
 .prose-chapter ul {
@@ -347,95 +284,103 @@ kbd {
   padding-left: 0.2rem;
 }
 .prose-chapter li::marker {
-  color: var(--fg-faint);
+  color: var(--forest);
 }
 .prose-chapter ol > li::marker {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-family: var(--mono);
+  font-size: 0.8em;
 }
 .prose-chapter code {
-  font-family: var(--font-mono);
-  font-size: 0.84em;
-  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 0.08em 0.32em;
-  color: var(--fg);
+  color: var(--ink);
   /* A long identifier breaks rather than pushing a narrow column sideways. */
   overflow-wrap: anywhere;
 }
+
+/* A fenced block is the dark-green slab in both themes. */
 .prose-chapter .code-block {
-  margin: 0.25rem 0 1.35rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  --bad: var(--slab-bad);
+  margin: 0.25rem 0 1.4rem;
+  border: 1px solid var(--code-line);
+  border-radius: 6px;
   overflow: hidden;
   background: var(--code-bg);
+  color: var(--code-ink);
 }
 .prose-chapter .code-block-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 2rem;
-  padding: 0 0.4rem 0 0.9rem;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--fg-subtle);
+  height: 2.1rem;
+  padding: 0 0.5rem 0 0.95rem;
+  border-bottom: 1px solid var(--code-line);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--code-muted);
 }
 .prose-chapter .code-block-bar button {
-  font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: 5px;
-  padding: 0.2rem 0.55rem;
-  color: var(--fg-subtle);
-  transition: background 0.15s, color 0.15s;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  border: 1px solid var(--code-button-line);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  color: var(--code-ink);
+  transition: background 0.15s;
 }
 .prose-chapter .code-block-bar button:hover {
-  background: var(--tint);
-  color: var(--fg);
+  background: var(--code-hover);
 }
 .prose-chapter pre {
-  padding: 0.85rem 1rem 0.95rem;
+  padding: 0.95rem 1.1rem 1rem;
   overflow-x: auto;
   margin: 0;
-  font-size: 0.84rem;
-  line-height: 1.6;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  tab-size: 4;
 }
 .prose-chapter pre code {
   background: none;
   border: none;
   padding: 0;
   overflow-wrap: normal;
-  color: var(--fg);
+  color: var(--code-ink);
   font-size: inherit;
 }
 .prose-chapter blockquote {
-  border-left: 2px solid var(--line-strong);
+  border-left: 3px solid var(--strong-line);
   padding-left: 1rem;
   margin: 0 0 1.2rem;
-  color: var(--fg-subtle);
+  color: var(--muted);
 }
 /* A table wider than the column scrolls inside its own frame. */
 .prose-chapter .table-wrap {
   margin: 0.25rem 0 1.4rem;
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .prose-chapter table {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.55;
   font-variant-numeric: tabular-nums;
 }
 .prose-chapter th {
   text-align: left;
   font-weight: 600;
-  color: var(--fg);
-  background: var(--well);
+  color: var(--forest);
+  background: var(--forest-soft);
   border-bottom: 1px solid var(--line);
   padding: 0.55rem 0.8rem;
   white-space: nowrap;
@@ -449,7 +394,7 @@ kbd {
   border-bottom: none;
 }
 .prose-chapter tbody tr:hover td {
-  background: color-mix(in srgb, var(--tint) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
 }
 .prose-chapter hr {
   border: none;
@@ -458,7 +403,7 @@ kbd {
 }
 .prose-chapter .katex {
   font-size: 1.05em;
-  color: var(--fg);
+  color: var(--ink);
 }
 /* A display equation wider than the column scrolls inside its own box, so the
    page body never scrolls sideways. The padding keeps a tall fraction's
@@ -474,13 +419,13 @@ kbd {
   white-space: nowrap;
 }
 .prose-chapter .katex .boxed {
-  border-color: var(--line-strong) !important;
+  border-color: var(--strong-line) !important;
 }
 /* KaTeX renders an error as red inline text. Make it obvious rather than
    something that reads as emphasis. */
 .prose-chapter .katex-error {
-  color: var(--bad);
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  color: var(--error);
+  background: var(--error-soft);
   border-radius: 3px;
   padding: 0 0.25em;
 }
@@ -576,109 +521,113 @@ kbd {
 
 /* Callouts ------------------------------------------------------------------
 
-   A callout is a rule down the left edge in its tone, a label, and a faint
-   wash. The tones come from the status palette, so there are only a handful. */
+   A callout is a 3px bar down the left edge in its tone, a mono label, and a
+   tint, as the design system's .callout draws it. --tone colours the bar and
+   the wash; --tone-ink colours the label, so a light tone never carries text. */
 
 .prose-chapter .callout {
-  --tone: var(--info);
-  margin: 1.5rem 0;
-  border-left: 2px solid var(--tone);
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--tone) 5%, var(--paper));
-  color: var(--fg-muted);
+  --tone: var(--series-3);
+  --tone-ink: var(--series-3);
+  margin: 1.6rem 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tone);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--tone) 6%, var(--paper));
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.75;
 }
 .prose-chapter .callout-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.25rem 0.6rem;
+  gap: 0.3rem 0.6rem;
   margin: 0;
-  padding: 0.75rem 1rem 0;
-  font-family: var(--font-sans);
+  padding: 0.85rem 1.15rem 0;
+  font-family: var(--sans);
 }
 .prose-chapter .callout-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.78rem;
+  gap: 0.45rem;
+  font-family: var(--mono);
+  font-size: 0.625rem;
   font-weight: 600;
-  line-height: 1.4;
-  color: var(--tone);
+  letter-spacing: 0.12em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--tone-ink);
   white-space: nowrap;
 }
 .prose-chapter .callout-label::before {
   content: "";
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.95rem;
+  height: 0.95rem;
   flex-shrink: 0;
-  background: var(--tone);
+  background: var(--tone-ink);
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;
 }
 .prose-chapter .callout-title {
+  display: block;
   flex-basis: 100%;
-  font-size: 0.975rem;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.97rem;
   font-weight: 600;
+  letter-spacing: -0.005em;
   line-height: 1.45;
-  color: var(--fg);
+  text-transform: none;
+  color: var(--ink);
 }
 .prose-chapter .callout-body {
-  padding: 0.4rem 1rem 0.1rem;
+  padding: 0.45rem 1.15rem 0.1rem;
 }
 .prose-chapter .callout-body > :last-child {
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.9rem;
 }
 .prose-chapter .callout ul,
 .prose-chapter .callout ol {
   margin-bottom: 0.8rem;
 }
-.prose-chapter .callout .code-block {
-  background: var(--card);
-}
 
-/* The one idea to carry out of a section. */
+/* The one idea to carry out of a section: arm64's warm note. */
 .prose-chapter .callout-key {
   --tone: var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, var(--paper));
-}
-.prose-chapter .callout-key .callout-body {
-  color: var(--fg);
+  --tone-ink: var(--accent-ink);
+  background: var(--accent-soft);
 }
 /* The chapter summary reads as a boxed abstract, not an alert. */
 .prose-chapter .callout-tldr {
-  --tone: var(--fg-subtle);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--well);
+  --tone: var(--forest);
+  --tone-ink: var(--forest);
+  background: var(--forest-soft);
 }
-.prose-chapter .callout-tldr .callout-label {
-  color: var(--fg-subtle);
-}
-.prose-chapter .callout-recap {
-  --tone: var(--ok);
-}
-.prose-chapter .callout-intuition,
-.prose-chapter .callout-note {
-  --tone: var(--info);
-}
-.prose-chapter .callout-example {
-  --tone: var(--warn);
-}
+.prose-chapter .callout-recap,
 .prose-chapter .callout-tip,
 .prose-chapter .callout-try {
-  --tone: var(--ok);
+  --tone: var(--forest);
+  --tone-ink: var(--forest);
 }
-.prose-chapter .callout-try {
-  --tone: var(--accent);
+.prose-chapter .callout-intuition,
+.prose-chapter .callout-note,
+.prose-chapter .callout-question {
+  --tone: var(--series-3);
+  --tone-ink: var(--series-3);
+}
+.prose-chapter .callout-example {
+  --tone: var(--series-2);
+  --tone-ink: var(--accent-ink);
 }
 .prose-chapter .callout-warning {
-  --tone: var(--bad);
+  --tone: var(--error);
+  --tone-ink: var(--error);
+  background: var(--error-soft);
 }
 .prose-chapter .callout-deepdive {
-  --tone: var(--violet);
-}
-.prose-chapter .callout-question {
-  --tone: var(--info);
+  --tone: var(--series-4);
+  --tone-ink: var(--series-4);
 }
 
 /* Collapsible callouts: a deep dive and a self-check question. */
@@ -792,9 +741,9 @@ kbd {
 .viz {
   margin: 1.75rem 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
-  font-family: var(--font-sans);
+  border-radius: 7px;
+  background: var(--surface);
+  font-family: var(--sans);
   font-size: 0.8125rem;
   color: var(--fg-muted);
   overflow: hidden;
@@ -807,11 +756,12 @@ kbd {
   padding: 0.7rem 1rem 0;
 }
 .viz-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--kicker-tracking);
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .viz-title {
   font-weight: 600;
@@ -832,7 +782,7 @@ kbd {
   width: 100%;
   height: auto;
   overflow: visible;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
 }
 .viz-body svg text {
   fill: var(--fg-subtle);
@@ -856,7 +806,7 @@ kbd {
 }
 .viz-caption code,
 .viz-stat-value code {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.92em;
 }
 
@@ -883,11 +833,11 @@ kbd {
      width, so it gives way first on a narrow screen. */
   flex: 1 1 0;
   min-width: 4rem;
-  accent-color: var(--accent);
+  accent-color: var(--forest);
 }
 .viz-value {
   min-width: 3.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
@@ -923,8 +873,8 @@ kbd {
   color: var(--fg);
 }
 .viz-segments button.is-on {
-  background: color-mix(in srgb, var(--accent) 12%, var(--card));
-  color: var(--accent-strong);
+  background: var(--forest-soft);
+  color: var(--forest);
   font-weight: 500;
 }
 .viz-button {
@@ -943,8 +893,9 @@ kbd {
   color: var(--fg);
 }
 .viz-button[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
-  color: var(--accent-strong);
+  border-color: var(--forest);
+  color: var(--forest);
+  background: var(--forest-soft);
 }
 .viz-steps {
   display: flex;
@@ -969,7 +920,7 @@ kbd {
   color: var(--fg-faint);
 }
 .viz-stat-value {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
@@ -998,7 +949,7 @@ kbd {
   padding: 0.75rem 1rem;
   border: 1px dashed var(--bad);
   border-radius: 6px;
-  font-family: var(--font-sans);
+  font-family: var(--sans);
   font-size: 0.8125rem;
   color: var(--bad);
 }
@@ -1049,12 +1000,13 @@ kbd {
   color: var(--fg);
 }
 .deck-btn-primary {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--forest);
+  background: var(--forest);
   color: var(--on-accent);
 }
 .deck-btn-primary:hover:not(:disabled) {
-  background: var(--accent-strong);
+  border-color: var(--ink);
+  background: var(--ink);
   color: var(--on-accent);
 }
 .deck-kbd {
@@ -1087,19 +1039,20 @@ kbd {
   font-size: calc(max(10px, 2.1cqw) * var(--fit, 1));
 }
 .slide-eyebrow {
-  margin-bottom: 0.6em;
-  font-size: 0.68em;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  margin-bottom: 0.7em;
+  font-family: var(--mono);
+  font-size: 0.6em;
+  font-weight: 500;
+  letter-spacing: var(--kicker-tracking);
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .slide-title {
-  font-family: var(--font-serif);
-  font-size: 1.9em;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  font-family: var(--serif);
+  font-size: 1.95em;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: var(--heading-tracking);
   color: var(--fg);
   text-wrap: balance;
 }
@@ -1113,7 +1066,7 @@ kbd {
   background: var(--accent);
 }
 .slide-title code {
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 0.85em;
 }
 .slide-frame[data-kind="slide"] .slide-eyebrow + .slide-title::before {
@@ -1292,7 +1245,7 @@ kbd {
   .slides-print-page {
     height: auto !important;
     overflow: visible !important;
-    background: #fff !important;
+    background: var(--surface) !important;
   }
   .print-toolbar {
     display: none !important;

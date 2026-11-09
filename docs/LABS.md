@@ -1,6 +1,6 @@
 # Labs
 
-Each chapter except 23 has one lab, in `content/labs/<lab id>/`. The lab ids are
+Each chapter has one lab, in `content/labs/<lab id>/`. The lab ids are
 in [CURRICULUM.md](CURRICULUM.md). A lab runs on a RunPod A100 80GB (sm_80),
 streams its output to the browser, and reports whether its checks passed and
 what it measured. The reader edits `starter.py`; the worker runs `tests.py`

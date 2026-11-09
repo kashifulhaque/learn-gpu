@@ -1,0 +1,21 @@
+{
+  "id": "23-wavefront-reduction",
+  "title": "Wavefront reduction",
+  "brief": "Implement a width-aware reduction, a ballot mask, a ridge point, and a scratchpad budget. The checks are pure Python and run without a GPU.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 120,
+  "metrics": [
+    "wave64_sum",
+    "a100_ridge_flop_per_byte",
+    "tile_scratchpad_bytes"
+  ],
+  "hints": [
+    "A reduction tree of width W starts at offset W / 2, not at 16. The 64-lane vector is 32 ones followed by 32 threes. The first half sums to 32, the second half sums to 96, and the full sum is 128.",
+    "ballot_mask returns an int with one bit per lane. Lane 40 of a 64-lane mask sits above bit 31, so mask & 0xFFFFFFFF drops it.",
+    "FLOP per byte is peak TFLOP/s times 1000, divided by bandwidth in GB/s. 312 / 1935 is about 0.161, which is 1000 times too small. The lab A100 pair is 312 and 1935. The MI300X pair is 1307.4 and 5300.",
+    "scratchpad_bytes is tile_m times tile_n times elem_bytes times stages. Compare that count with the budget argument. 64 KB is 65536 bytes, and 163 KB is 166912 bytes. A 128 by 128 fp16 tile with 3 stages is 98304 bytes.",
+    "reduction_source returns HIP-style text. Start the offset loop from the width argument, for example width / 2. A loop that starts at 16 covers 32 lanes."
+  ]
+}

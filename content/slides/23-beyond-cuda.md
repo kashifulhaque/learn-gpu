@@ -146,7 +146,7 @@ for (int offset = 16; offset > 0; offset >>= 1)
 - On 64 lanes, lane 0 never sees lanes 32 to 63
 
 Note:
-This reduction is right on an NVIDIA GPU and silently wrong on a 64-wide wavefront. A test that fills the input with a constant might not notice. The next slide shows which lanes reach lane 0.
+This reduction is right on an NVIDIA GPU and silently wrong on a 64-wide wavefront. In the lab the audience writes reduce_simd. The vector is 32 ones and then 32 threes, so the first half sums to 32, the second half sums to 96, and the full sum is 128. A tree that starts at offset 16 returns 32. A tree that starts at width divided by 2 returns 128. A test that fills every lane with one constant can miss that gap. The next slide shows which lanes reach lane 0.
 
 ### Which lanes reach lane 0 {#lanes-figure}
 
@@ -155,7 +155,7 @@ This reduction is right on an NVIDIA GPU and silently wrong on a 64-wide wavefro
 ```
 
 Note:
-Toggle the width and the first offset. With offset 16 the sum covers 32 lanes, complete on a warp and half a wavefront. Starting at 32 fixes it for 64 at the cost of one extra step. Better: take the start from warpSize divided by 2. Also mention that a ballot result is 64 bits on a 64-lane wavefront.
+Toggle the width and the first offset. With offset 16 the sum covers 32 lanes, complete on a warp and half a wavefront. Starting at 32 fixes it for 64 at the cost of one extra step. Better: take the start from warpSize divided by 2. Also mention that a ballot result is 64 bits on a 64-lane wavefront. In the lab the audience writes ballot_mask for a width of 64. Lane 40 active must keep a bit above bit 31. A mask truncated with 0xFFFFFFFF drops that lane.
 
 ### The LDS and tile budgets {#lds}
 
@@ -168,7 +168,7 @@ Toggle the width and the first offset. With offset 16 the sum covers 32 lanes, c
 > No: 144 KiB against 64 KB. Shrink the tile or the pipeline. On the MI355X's 160 KB it fits again.
 
 Note:
-Work the arithmetic: 128 times 64 plus 64 times 256 is 24,576 elements, times 2 bytes is 49,152 bytes, 48 KiB per stage. This is a prediction about whether an allocation succeeds, not a measurement. The point: derive the tile from the scratchpad size, as in the Triton chapter.
+Work the arithmetic: 128 times 64 plus 64 times 256 is 24,576 elements, times 2 bytes is 49,152 bytes, 48 KiB per stage. This is a prediction about whether an allocation succeeds, not a measurement. The point: derive the tile from the scratchpad size, as in the Triton chapter. In the lab the audience writes scratchpad_bytes and scratchpad_fits. A 128 by 128 fp16 tile with three stages is 98,304 bytes. That fits the A100 cap of 166,912 bytes and doesn't fit the MI300X LDS of 65,536 bytes. Ignoring the three stages yields 32,768 bytes and hides the overflow.
 
 ### MFMA, HIP, and the tools {#hip-tools}
 
@@ -397,7 +397,7 @@ Close by returning to the A100 and saying that nothing in the questions names a 
 - Tile languages abstract the schedule and leave the algorithm to you
 
 Note:
-Four numbers to carry: 161, the A100 ridge; 64, the CDNA wavefront; 64 KB, the MI300X LDS against the A100's 163 KB per block; 22.8 ms, the M5 Max floor for reading 14 GB. All are ratings or arithmetic on ratings.
+Four numbers to carry: 161, the A100 ridge; 64, the CDNA wavefront; 64 KB, the MI300X LDS against the A100's 163 KB per block; 22.8 ms, the M5 Max floor for reading 14 GB. All are ratings or arithmetic on ratings. The audience writes this 64-lane reduction and the scratchpad budget in the lab. The checks are pure Python and run without a GPU.
 
 ### Three questions for any kernel {#three-questions}
 

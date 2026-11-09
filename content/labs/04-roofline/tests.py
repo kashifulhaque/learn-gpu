@@ -87,6 +87,44 @@ def check_predictors(c: Checks, s) -> None:
 
     c.check("gemm_tiles and gemm_wave_efficiency match NVIDIA's 108-tile example", gemm)
 
+    def partial():
+        # floor_partial returns num_blocks // sm_count and gives 1 for 117
+        # blocks on 108 SMs. The partial wave is the remainder.
+        try:
+            tail = s.partial_wave(117, 108)
+            full = s.partial_wave(108, 108)
+        except NotImplementedError:
+            return False, "NotImplementedError"
+        ok = tail == 9 and full == 0
+        return ok, f"117 blocks -> {tail} (expected 9), 108 blocks -> {full} (expected 0)"
+
+    c.check("partial_wave: 117 blocks on 108 SMs leave a 9-block tail", partial)
+
+    def split():
+        # split_ignores_k returns tiles and fails the 234-block check.
+        try:
+            blocks = s.split_k_blocks(117, 2)
+            tail = s.partial_wave(blocks, 108)
+        except NotImplementedError:
+            return False, "NotImplementedError"
+        ok = blocks == 234 and tail == 18
+        return ok, f"{blocks} blocks, partial wave {tail} (expected 234 blocks and 18)"
+
+    c.check("split_k_blocks: two splits of 117 tiles is 234 blocks", split)
+
+    def stream():
+        # even_tiles returns (total_iters // sm_count, total_iters // sm_count)
+        # and gives (4, 4). 468 = 36 * 5 + 72 * 4, so the bounds are (4, 5).
+        try:
+            bounds = s.stream_k_bounds(117 * 4, 108)
+            exact = s.stream_k_bounds(108, 108)
+        except NotImplementedError:
+            return False, "NotImplementedError"
+        ok = bounds == (4, 5) and exact == (1, 1)
+        return ok, f"468 iterations -> {bounds} (expected (4, 5)); a full wave -> {exact} (expected (1, 1))"
+
+    c.check("stream_k_bounds: 468 iterations on 108 SMs is (4, 5)", stream)
+
     def little():
         rated = s.bytes_in_flight(1935, HBM_LATENCY_CYCLES, 1410)
         measured = s.bytes_in_flight(1275, HBM_LATENCY_CYCLES, 1410)
@@ -130,7 +168,8 @@ def run(submission):
     c = Checks()
     needed = (
         "ridge_point", "roofline_ms", "fma_kernel_counts", "num_waves", "wave_efficiency",
-        "gemm_tiles", "gemm_wave_efficiency", "bytes_in_flight", "predicted_read_gbs", "measured_ridge",
+        "gemm_tiles", "gemm_wave_efficiency", "partial_wave", "split_k_blocks", "stream_k_bounds",
+        "bytes_in_flight", "predicted_read_gbs", "measured_ridge",
     )
     if not c.require(submission, *needed):
         return c.finish()
@@ -138,6 +177,10 @@ def run(submission):
     check_predictors(c, submission)
     if not all(r["passed"] for r in c.results):
         print("      Fix the predictors first: the measurements below use them.", flush=True)
+        return c.finish()
+
+    if not torch.cuda.is_available():
+        print("      No CUDA device is visible, so the kernel checks are skipped.", flush=True)
         return c.finish()
 
     device = require_cuda()

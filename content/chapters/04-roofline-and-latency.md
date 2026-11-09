@@ -441,10 +441,32 @@ $130/256 = 50.8\%$ of that dimension's work is useful. NVIDIA's guide also lists
 64 for fp16, 32 for TF32, and 128 for INT8 on the A100.
 
 Four fixes recur in later chapters. Smaller tiles raise the wave count and shrink the tail, at the cost of less reuse
-per tile. A persistent kernel launches exactly one block per SM and loops over tiles. Split-K divides the reduction
-dimension among several blocks to create more work units. Stream-K (Osama et al., 2023) generalizes the last two by
-splitting the total work evenly across SMs regardless of tile boundaries. [Chapters 10 to 14](/c/10-gemm-from-scratch)
-build the tiled kernels these choices apply to.
+per tile. A persistent kernel launches exactly one block per SM and loops over tiles. You count the partial wave, the
+split-K grid, and the stream-K bounds on the 117-tile grid.
+
+Split-K divides the reduction dimension among several blocks, so each output tile becomes one block per split.
+`split_k_blocks` multiplies the tile count by the number of splits. Two splits of the 117 tiles launch
+$117 \times 2 = 234$ blocks.
+
+The partial wave is the remainder. `partial_wave(234, 108)` is $234 \bmod 108 = 18$, and the grid takes
+$\lceil 234/108 \rceil = 3$ waves. `partial_wave(117, 108)` is the 9-tile tail, and `partial_wave(108, 108)` is 0,
+the full wave at $N = 1536$.
+
+Stream-K (Osama and others, 2023) deals K-iterations out one at a time and ignores tile boundaries. To count it on
+this grid, give each of the 117 tiles 4 K-iterations. The total is $117 \times 4 = 468$. `stream_k_bounds(468, 108)`
+returns $(4, 5)$, because $\lfloor 468 / 108 \rfloor = 4$ and the remainder $468 \bmod 108 = 36$ means 36 SMs
+receive 5 iterations and $108 - 36 = 72$ SMs receive 4.
+
+The following table puts the three counts on the 117-tile grid:
+
+| Schedule | Work units | Count on 108 SMs |
+|---|---|---|
+| One block per tile | 117 blocks | Partial wave 9; efficiency $117/216 = 54.2\%$ |
+| Split-K, 2 splits | 234 blocks | Partial wave 18 |
+| Stream-K, 4 K-iterations per tile | 468 iterations | Bounds $(4, 5)$: 72 SMs get 4 and 36 get 5 |
+
+[Chapters 10 to 14](/c/10-gemm-from-scratch) build the tiled kernels these choices apply to. The lab grades these
+counts with `partial_wave`, `split_k_blocks`, and `stream_k_bounds`.
 
 > [!WARNING] A grid smaller than the machine breaks Little's law as well
 > A kernel launched with 32 blocks keeps at most 32 SMs busy. Bytes in flight are a whole-GPU requirement, 639.9 KB at
@@ -555,6 +577,10 @@ reached.
 - **Treating occupancy as a goal.** Low occupancy with enough bytes in flight per thread isn't a defect.
 - **Wrong resident blocks per SM.** The wave count depends on $r$ from the register and shared-memory limits, not on
   the 32-block cap. The lab forces $r = 1$ with a 100 KiB shared-memory allocation so that you can count waves exactly.
+- **Using the quotient where the count needs a remainder.** `partial_wave` is `num_blocks % sm_count`: 117 blocks on
+  108 SMs leave 9, and integer division of 117 by 108 gives 1. Split-K multiplies tiles by splits, so two splits of
+  117 tiles is 234 blocks, and that remainder is 18. The stream-K high bound is one more than the low bound when a
+  remainder remains, so 468 iterations give `(4, 5)`.
 - **Timing the launch.** Event timing around a single tiny kernel includes the host queueing time. The lab's launch
   floor is a launch-plus-empty-kernel figure, and it is what a user of PyTorch sees.
 - **Expecting a clean corner.** Near the ridge point, memory and arithmetic overlap imperfectly, so a kernel there is
@@ -610,17 +636,18 @@ reached.
 
 > [!TRY] Predict, then measure
 > In `starter.py`, write the predictors: `ridge_point`, `roofline_ms`, `fma_kernel_counts`, `num_waves`,
-> `wave_efficiency`, `gemm_tiles`, `gemm_wave_efficiency`, `bytes_in_flight`, `predicted_read_gbs`, and
-> `measured_ridge`. The tests first check them as pure arithmetic against the numbers in this chapter. They then
-> launch three CUDA kernels, with $k$ FMAs per element, a fixed block workload on one block per SM, and a read kernel
-> with a tunable number of loads in flight, and print each prediction beside the measured time.
+> `wave_efficiency`, `gemm_tiles`, `gemm_wave_efficiency`, `partial_wave`, `split_k_blocks`, `stream_k_bounds`,
+> `bytes_in_flight`, `predicted_read_gbs`, and `measured_ridge`. The tests first check them as pure arithmetic
+> against the numbers in this chapter, including the 9-tile tail, the 234-block split, and the stream-K bounds
+> `(4, 5)`. They then launch three CUDA kernels, with $k$ FMAs per element, a fixed block workload on one block per
+> SM, and a read kernel with a tunable number of loads in flight, and print each prediction beside the measured time.
 >
 > You pass when the predictors are right, no measured time beats the rated roofline, and the measured behavior agrees
 > with the model within loose bounds: the $k=1$ kernel reaches half the copy ceiling, the measured ridge falls
 > within a factor of four of the predicted 15.3 FLOP/byte, 109 blocks take at least 1.6 times as long as 108, and a
 > load-starved read kernel runs at most half as fast as the best. The first run compiles with `nvcc` for 30 to 60
 > seconds. The lab reports `ridge_measured`, `fp32_tflops`, `k1_bw_gbs`, `launch_floor_us`, `wave_step_ratio`,
-> `read_peak_gbs`, and `inflight_kb_per_sm_90pct`.
+> `read_peak_gbs`, and `inflight_kb_per_sm_90pct`. Without a GPU, the arithmetic checks still run.
 
 ## Further reading
 

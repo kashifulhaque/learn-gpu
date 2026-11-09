@@ -1,0 +1,20 @@
+{
+  "id": "26-hopper-gemm",
+  "title": "Hopper GEMM: TMA, mbarrier, and wgmma",
+  "brief": "Compute a TMA box address, the 128-byte swizzle that matches the box, and a wgmma descriptor. The same file carries an sm_90a TMA copy and one wgmma. Those kernels run only on an H100.",
+  "gpu": "H100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "arch": "sm_90a",
+  "timeout": 1200,
+  "metrics": ["tflops"],
+  "hints": [
+    "box_byte_offset adds the box origin before it scales. Dimension 0 is the contiguous column: byte = (origin_col + local_col) * elem_bytes + (origin_row + local_row) * stride_bytes.",
+    "box_load returns 0 for a coordinate outside the matrix. The origin is part of the global coordinate. Using the local index alone reads the wrong tile.",
+    "swizzle_128b_byte XORs (row mod 8) into the 16-byte chunk index, bits 4 to 6 of the byte offset. XORing the row into bits 0 to 2 is a different map. Row 1, chunk 1 lands at byte 128.",
+    "choose_swizzle returns 128B, 64B, or 32B when the box's inner byte count equals that span. Any other multiple of 16 is none. A width that is not a multiple of 16 is illegal.",
+    "wgmma_descriptor stores the 128-byte mode as layout_type 1 in bits 62 to 63. That is not the driver enum, where 128B is the fourth enumerator.",
+    "predicted_ms uses the H100 SXM5 ratings, 989.4 TFLOP/s and 3350 GB/s. The kernel is not graded against that floor.",
+    "tma_copy and wgmma_64x8x16 compile with arch sm_90a. On a machine without an H100 they are skipped, and the job is not sent to the A100."
+  ]
+}

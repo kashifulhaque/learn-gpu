@@ -23,7 +23,7 @@ lab: 00-hello-gpu
 > - Every kernel is bound by one of two rates: bytes per second the memory delivers, or FLOP per second the arithmetic units sustain. On the A100 80GB PCIe those are rated at 1935 GB/s and 312 TFLOP/s, so a kernel needs 161 FLOP per byte to leave the memory side behind.
 > - A GPU is a throughput machine. It hides a memory latency of about 330 ns by keeping about 160,000 four-byte loads (640 KB) in flight, which is why a kernel needs many threads.
 > - A launch is asynchronous. Time a kernel with CUDA events, or synchronize before you read a host clock.
-> - The course has six parts and 25 labs, built around one real A100. Each lab predicts a time from the specs and then measures it.
+> - The course has six parts and 26 labs, built around one real A100. Chapter 26's kernels run only on an H100. Each lab predicts a time from the specs and then measures it.
 
 You write PyTorch, and you know what a transformer is. This course teaches what happens underneath: the machine that runs your tensors, and the kernels that make the difference between a training run that takes a week and one that takes three days.
 
@@ -320,15 +320,15 @@ Every chapter has a book chapter, a lab, and a slide deck. The labs are the poin
 |---|---|---|---|
 | 1. The machine | 0 to 5 | SMs, warps, the memory hierarchy, the roofline, profiling | A device-peak calculator, an occupancy calculator, copy kernels, roofline predictions, a profile-and-fix exercise |
 | 2. CUDA patterns | 6 to 9 | Reductions, scans, shared memory, floating point | Sum and max reductions, scan and histogram, a padded transpose, a numerics study |
-| 3. Matrix multiplication | 10 to 14, and 24 | SGEMM, tensor cores, async pipelines, CUTLASS layouts, Triton, a CuTe DSL GEMM | An SGEMM ladder, a WMMA GEMM, a cp.async pipeline, CuTe layouts, a Triton matmul, a CuTe DSL GEMM |
+| 3. Matrix multiplication | 10 to 14, 24, and 26 | SGEMM, tensor cores, async pipelines, CUTLASS layouts, Triton, a CuTe DSL GEMM, a Hopper box and one wgmma | An SGEMM ladder, a WMMA GEMM, a cp.async pipeline, CuTe layouts, a Triton matmul, a CuTe DSL GEMM, a gated Hopper lab |
 | 4. Kernels for ML | 15 to 20 | Softmax, FlashAttention, fusion, quantization, training kernels, MoE | Online softmax and LayerNorm, FlashAttention-2, torch.compile and CUDA graphs, a W4A16 GEMM, a fused cross-entropy, a grouped GEMM |
-| 5. Many GPUs | 21, 22 | Collectives, overlap, parallelism | A ring all-reduce, stream overlap |
+| 5. Many GPUs | 21, 22, and 25 | Collectives, overlap, parallelism, data parallel | A ring all-reduce, stream overlap, bucketed DDP and ZeRO-1 |
 | 6. Beyond | 23 | AMD, TPUs, Apple silicon, tile languages | None; the chapter is reading |
 
 Part 1 is the machine, and it is the part everything else leans on, so chapters 1 to 5 are shorter and heavier on measurement than the rest. Part 2 teaches the patterns most kernels reuse. Part 3 is the longest, because matrix multiplication is where a model spends most of its arithmetic. Part 4 applies all of it to the kernels a transformer needs, and Part 5 adds more than one GPU.
 
 > [!NOTE] Hopper and Blackwell
-> The labs run on an Ampere A100 (compute capability 8.0). Hopper (H100) and Blackwell (B200) features, such as TMA, `wgmma`, and `tcgen05`, are taught in prose, figures, and slides, and where a lab can exercise the same idea on Ampere it does. Every hardware table names the part it describes.
+> The labs run on an Ampere A100 (compute capability 8.0). Chapter 26 is the Hopper exception: its CPU checks run anywhere, and the TMA and `wgmma` kernels run only when an H100 is configured. Blackwell (B200) features, such as `tcgen05`, stay in prose, figures, and slides. Every hardware table names the part it describes.
 
 ### The kernel languages
 

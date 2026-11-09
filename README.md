@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 26 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 25 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 27 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 26 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -28,9 +28,9 @@ that one touches.
 ## The curriculum
 
 Every chapter has a book chapter, a lab, and a slide deck. The lab hardware is
-one A100 80GB PCIe (Ampere, sm_80). Hopper and Blackwell features are taught in
-prose, figures, and slides, with Ampere labs that exercise the same idea where
-one exists.
+one A100 80GB PCIe (Ampere, sm_80). Chapter 26 is a Hopper lab, gated on an
+H100: the CPU checks run anywhere, and the TMA and wgmma kernels run only when
+that endpoint is configured. Blackwell stays in prose, figures, and slides.
 
 | # | Chapter | Part | Lab |
 |---|---|---|---|
@@ -60,10 +60,13 @@ one exists.
 | 23 | [Beyond CUDA](content/chapters/23-beyond-cuda.md) | Part 6 — Beyond | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
 | 24 | [A CuTe DSL GEMM](content/chapters/24-cute-dsl-gemm.md) | Part 3 — Matrix multiplication | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
 | 25 | [Data parallel and ZeRO-1](content/chapters/25-ddp-and-zero.md) | Part 5 — Many GPUs | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
+| 26 | [Hopper GEMM](content/chapters/26-hopper-gemm.md) | Part 3 — Matrix multiplication | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
 Chapter 25 belongs to Part 5, with chapters 21 and 22. It is numbered 25, after chapter 24, because chapters 00 through 24 stay where they are. Filename order places 25 after 24.
+
+Chapter 26 belongs to Part 3, with chapters 10 to 14 and chapter 24. It is numbered 26, after chapter 25, because chapters 00 through 25 stay where they are. Filename order places 26 after 25. Prerequisites are chapter 12 and chapter 24.
 
 ## Run it locally
 

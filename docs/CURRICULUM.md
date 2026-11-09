@@ -16,8 +16,10 @@ endpoint, the same as learn-inference. Hopper (H100, sm_90) and Blackwell
 labs that exercise the same idea where one exists.
 
 Labs write CUDA C++ compiled from Python with
-`torch.utils.cpp_extension.load_inline`, or Triton. Every lab has `meta.json`,
-`starter.py`, `tests.py`, and `solution.py`.
+`torch.utils.cpp_extension.load_inline`, or Triton. Chapter 24 writes the
+kernel in the CuTe DSL (`nvidia-cutlass-dsl` 4.8.1), which the worker image
+already installs. Every lab has `meta.json`, `starter.py`, `tests.py`, and
+`solution.py`.
 
 Each chapter has a book chapter (`content/chapters/`), a lab (`content/labs/`),
 and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
@@ -48,3 +50,6 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 21 | 21-collective-communication | Collective communication | Part 5 — Many GPUs | 21-ring-allreduce | Ring all-reduce with torch.distributed point-to-point; the alpha-beta cost model. |
 | 22 | 22-overlap-and-parallelism | Overlap and parallelism | Part 5 — Many GPUs | 22-streams-overlap | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. |
 | 23 | 23-beyond-cuda | Beyond CUDA | Part 6 — Beyond | (none) | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
+| 24 | 24-cute-dsl-gemm | A CuTe DSL GEMM | Part 3 — Matrix multiplication | 24-cute-dsl-gemm | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
+
+Chapter 24 is part of Part 3, with the GEMM chapters. Its file number is 24, after chapter 23, because chapters 00 through 23 are not renumbered.

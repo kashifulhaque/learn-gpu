@@ -579,3 +579,24 @@ Part 6 — Beyond.
    Take: Array framework for Apple-silicon GPUs with unified memory.
 12. **Metal Shading Language Specification.** Apple, 2026. <https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf>  
    Take: simdgroup_matrix and threadgroup memory.
+
+## 24-cute-dsl-gemm: A CuTe DSL GEMM
+
+Part 3 — Matrix multiplication. Numbered 24, after chapter 23, because chapters 00 through 23 are not renumbered.
+
+1. **CuTe DSL overview.** NVIDIA, 2026. <https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/overview.html>  
+   Take: The Python programming model: tensors, layouts, atoms, and tiled operations.
+2. **Warp-level MMA instructions.** NVIDIA CUTLASS 4.5.2. <https://docs.nvidia.com/cutlass/4.5.2/media/docs/pythonDSL/mma_docs/wmma_programming.html>  
+   Take: `MmaF16BF16Op`, `make_tiled_mma`, `cute.copy`, and `cute.gemm` for `mma.sync` on Ampere.
+3. **CUTLASS repository.** NVIDIA. <https://github.com/NVIDIA/cutlass>  
+   Take: The Ampere CuTe DSL examples under `examples/python/CuTeDSL`.
+4. **GPU MODE, lecture 15: CUTLASS.** Eric Auld. <https://github.com/gpu-mode/lectures#lecture-15-cutlass>  
+   Take: The lecture list's CUTLASS session.
+5. **GPU MODE, lecture 57: CuTE.** Cris Cecka. <https://github.com/gpu-mode/lectures#lecture-57-cute>  
+   Take: The layout algebra, from the published lecture titles.
+6. **GPU MODE, lecture 86: Introduction to CuTeDSL (for NVIDIA competition).** Vicki Wang. <https://github.com/gpu-mode/lectures/tree/main/lecture_086>  
+   Take: The DSL session. The slide PDF is `lecture_086/cute_dsl_introduce.pdf`.
+7. **GPU MODE, lecture 103: Fundamentals of CuTe Layout Algebra and Category-theoretic Interpretation.** Jack Carlisle and Jay Shah. <https://github.com/gpu-mode/lectures#lecture-103-fundamentals-of-cute-layout-algebra-and-category-theoretic-interpretation>  
+   Take: The algebra chapter 13 implements, as a lecture.
+8. **GPU MODE, lecture 114: PyCuTe.** Cris Cecka. <https://github.com/gpu-mode/lectures#lecture-114-pycute>  
+   Take: PyCuTe is Cecka's library at <https://github.com/NVlabs/CuTe>. The kernel in this chapter uses NVIDIA's CuTe DSL, a different package.

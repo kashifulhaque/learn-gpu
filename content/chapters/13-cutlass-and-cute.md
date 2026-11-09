@@ -394,7 +394,7 @@ A *MMA atom* is one hardware instruction and its three TV layouts (A, B, C). A *
 
 This section puts the pieces together. It shows the shape of a CuTe GEMM kernel for one thread block, so that you can read the real CUTLASS examples.
 
-The excerpt that follows is abbreviated from the style of CUTLASS's Ampere examples and the Colfax tutorials. It is not compiled by this course, and it omits the multistage pipeline of chapter 12 and the epilogue. Read it for its structure:
+The excerpt that follows is abbreviated from the style of CUTLASS's Ampere examples and the Colfax tutorials. This chapter leaves it on the page: it omits the multistage pipeline of chapter 12 and the epilogue. [Chapter 24](/c/24-cute-dsl-gemm) compiles the same three steps in the CuTe DSL and adds the bias-plus-GELU epilogue. Read the excerpt for its structure:
 
 ```cpp
 using namespace cute;

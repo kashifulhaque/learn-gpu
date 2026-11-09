@@ -328,13 +328,15 @@ The algorithm is the same loop. What changes is how much the language reveals. T
 |---|---|---|---|
 | Triton | NVIDIA, and AMD through a separate backend | Threads and instruction choice within a block program | Tile shapes, `num_warps`, `num_stages`, masks |
 | Triton Gluon | Inside Triton | Less: explicit control of layouts and memory, with tutorials for TMA, `wgmma`, `tcgen05`, and warp specialization | Layouts, pipelines, barriers |
-| CuTe DSL (CUTLASS 4.8.1) | NVIDIA | Python front end that mirrors CuTe C++ layouts, tensors, and atoms ([chapter 13](/c/13-cutlass-and-cute)) | Layouts, tile shapes, the MMA atom |
+| CuTe DSL (CUTLASS 4.8.1) | NVIDIA | Python front end that mirrors CuTe C++ layouts, tensors, and atoms ([chapter 13](/c/13-cutlass-and-cute) states the algebra, [chapter 24](/c/24-cute-dsl-gemm) compiles a GEMM) | Layouts, tile shapes, the MMA atom |
 | ThunderKittens | NVIDIA Hopper and Blackwell tested; Ampere no longer actively supported | Tile primitives for registers and shared memory | The schedule across a block |
 | TileLang (v0.1.15) | NVIDIA CUDA, AMD HIP, Apple Metal, and Ascend backends | Tile-level programs lowered to several backends | Tile shapes and pipelining directives |
 | HipKittens | AMD CDNA 3 and 4 | The ThunderKittens tile idea on AMD | The schedule, which the paper says differs from NVIDIA's |
 | Pallas | TPU and NVIDIA GPU (Hopper, Blackwell) | Memory movement and pipelining across both | Block shapes, grid, memory spaces |
 
 The table reflects the projects' state on 2026-10-22, and each is under active development. The Gluon row is described from its tutorial file names, so treat the details as unconfirmed. Mojo is outside the sources this course uses, and this chapter says nothing about it.
+
+Chapter 13 stops at the layout algebra, and the C++ sketch there stays on the page. [Chapter 24](/c/24-cute-dsl-gemm) is where you compile a CuTe DSL kernel: a tensor built from layouts, a TiledCopy, a TiledMMA, and a bias-plus-GELU epilogue on the lab A100.
 
 Every tool abstracts the work between "I want this tile product" and "these instructions run on these threads", and every one stops short of the algorithm. FlashAttention's online softmax ([chapter 16](/c/16-flash-attention)) is still yours to write. That makes tile languages a good bet for portability: the part that transfers is the part you design.
 

@@ -2,7 +2,7 @@
 
 A web app that teaches GPU programming for machine learning, from the
 streaming multiprocessor to the kernels that train and serve models. You write
-CUDA C++ and Triton, and each lab runs on a real A100 through
+CUDA C++ and Triton, and chapter 24 writes a CuTe DSL GEMM. Each lab runs on a real A100 through
 [RunPod](https://runpod.io) and streams its output back to the browser.
 
 The course assumes you write Python and PyTorch and know what a transformer is.
@@ -15,7 +15,7 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 24 chapters, in Markdown with YAML front matter. |
+| `content/chapters/` | 25 chapters, in Markdown with YAML front matter. |
 | `content/labs/` | 24 labs, one per chapter except chapter 23: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
@@ -58,6 +58,9 @@ one exists.
 | 21 | [Collective communication](content/chapters/21-collective-communication.md) | Part 5 — Many GPUs | Ring all-reduce with torch.distributed point-to-point; the alpha-beta cost model. |
 | 22 | [Overlap and parallelism](content/chapters/22-overlap-and-parallelism.md) | Part 5 — Many GPUs | CUDA streams and events: overlap host-device copies with compute; DP/FSDP/TP/PP/EP from the kernel's view. |
 | 23 | [Beyond CUDA](content/chapters/23-beyond-cuda.md) | Part 6 — Beyond | AMD CDNA and HIP, TPUs and XLA/Pallas, Apple silicon, and tile DSLs (ThunderKittens, TileLang, CuTe DSL). |
+| 24 | [A CuTe DSL GEMM](content/chapters/24-cute-dsl-gemm.md) | Part 3 — Matrix multiplication | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
+
+Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
 ## Run it locally
 

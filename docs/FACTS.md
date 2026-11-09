@@ -56,6 +56,8 @@ A 2026 lab image should pin the following. Versions were read on 2026-10-22.
 - `torch.nn.functional.scaled_mm` is the public scaled-GEMM entry point; `torch._scaled_mm` requires compute capability 8.9 or 9.0 and later (or ROCm MI300+), so it fails on the lab A100. MXFP4 checks `major == 10`. (Chapter 09 and 18, prose only.) [PT-DTYPES-RPT]
 - `torch.backends.cuda.matmul.allow_tf32` defaults to `False`, so an FP32 `torch.matmul` on the A100 uses CUDA cores at the 19.5 TFLOP/s FP32 peak, not the 156 TFLOP/s TF32 peak. `torch.backends.cudnn.allow_tf32` defaults to `True`. BF16 GEMM allows reduced-precision reduction by default. Chapter 10 compares SGEMM against cuBLAS with TF32 off. [PT-CUDA-NOTES]
 
+**CuTe DSL on the lab image (chapter 24).** The RunPod worker installs `nvidia-cutlass-dsl[cu13]==4.8.1` and the CUTLASS 3.9.2 headers at `/opt/cutlass/include` (`CUTLASS_INCLUDE_DIR`). Chapter 24 compiles against that Python package, the pin the image already carries. The 3.9.2 tree supplies the C++ headers. The lab calls the DSL. [CUTLASS-DSL-PYPI], [CUTLASS-392]
+
 ---
 
 ## 2. Lab GPU: A100 80GB PCIe (sm_80), with comparison parts
@@ -772,6 +774,8 @@ Primary and secondary sources used above. Each URL was fetched on 2026-10-22 unl
 | TCGEN05-GUIDE | CUTLASS CuTe DSL, tcgen05 MMA Programming Guide (4.6.0) | https://docs.nvidia.com/cutlass/4.6.0/media/docs/pythonDSL/mma_docs/tcgen05_programming.html |
 | CUBLAS-DOC | cuBLAS documentation (block scaling) | https://docs.nvidia.com/cuda/cublas/index.html |
 | CUTLASS-GH | NVIDIA CUTLASS repository | https://github.com/NVIDIA/cutlass |
+| CUTLASS-392 | CUTLASS 3.9.2 release (headers at `/opt/cutlass/include` on the worker) | https://github.com/NVIDIA/cutlass/releases/tag/v3.9.2 |
+| CUTLASS-DSL-PYPI | nvidia-cutlass-dsl 4.8.1 on PyPI (the `[cu13]` extra the worker installs) | https://pypi.org/project/nvidia-cutlass-dsl/4.8.1/ |
 | NCCL-DOCS | NCCL documentation (2.32.3) | https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/index.html |
 | NCCL-TESTS-PERF | nccl-tests PERFORMANCE.md | https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md |
 | NCCL-DEMYSTIFY | Demystifying NCCL (arXiv 2507.04786) | https://arxiv.org/abs/2507.04786 |

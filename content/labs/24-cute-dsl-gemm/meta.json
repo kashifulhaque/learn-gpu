@@ -1,0 +1,18 @@
+{
+  "id": "24-cute-dsl-gemm",
+  "title": "A CuTe DSL GEMM with a fused epilogue",
+  "brief": "Build a tensor from a layout, partition a tile with a TiledCopy thread-value layout, then compile an Ampere CuTe DSL GEMM that fuses bias and GELU into the epilogue. The layout checks run on the CPU. The kernel runs on the A100.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 1200,
+  "metrics": ["tflops"],
+  "hints": [
+    "The first function is tensor_offsets. An integer coordinate into a nested shape is colexicographic: peel off coordinate mod product(mode) for every mode but the last.",
+    "partition_tiled_copy evaluates the thread-value layout at (thread, value). It does not assign element thread + value * num_threads.",
+    "accumulator_mn is the m16n8k16 table from chapter 13: m = floor(lane / 4) + 8 * floor(value / 2), n = 2 * (lane mod 4) + (value mod 2).",
+    "bias_gelu adds the bias, then applies the erf GELU. GELU then bias is a different function.",
+    "The kernel needs nvidia-cutlass-dsl 4.8.1, which the worker image already has. Build a TiledMMA from warp.MmaF16BF16Op and a TiledCopy with make_tiled_copy_tv, then call cute.copy and cute.gemm. Apply the epilogue to the accumulator before the global store.",
+    "The first DSL compile can take a few minutes. Later runs of the same source reuse the build. Shapes that are not multiples of the tile are padded with zeros on the host."
+  ]
+}

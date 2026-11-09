@@ -431,11 +431,14 @@ $$
 L = \log\sum_s e^{L_s}, \qquad O = \sum_s e^{L_s - L}\,O_s
 $$
 
-- One query tile means a grid of batch x heads
-- Split the keys across programs, merge with the saved logsumexp
+- One query: the grid is batch times heads
+- 32 heads is 32 programs on 108 SMs
+- Split-KV merges partial outputs with the logsumexp
+- Paged KV follows a block table
+- The inference course owns both kernels
 
 Note:
-Decode has one query, so query tiles give no parallelism: 32 heads is 32 programs on 108 SMs. Flash-decoding splits the key axis across programs. Each returns a normalized partial output and its logsumexp, and a small kernel merges them. The merge is exact. This is the same logsumexp the training backward pass uses, which is why the forward saves it.
+Decode has one query token, so a program per query tile leaves most of the A100 idle. 32 heads is 32 programs, and the card has 108 SMs. Split-KV cuts the key axis. Each program writes a partial output and a logsumexp, and the formula on the slide merges them. The weight on each partial output is that slice's share of the softmax mass. Paged KV keeps the cache in blocks, and the kernel follows a block table. The inference course owns both kernels. Its public paged-attention chapter is the lesson for the block table. Split-KV is that same course's topic. The logsumexp is the value the training forward saves for the backward pass.
 
 # Summary
 
@@ -471,11 +474,12 @@ The last three rows come from the papers and name their hardware. The first thre
 ### Next: fusion and compilers {#next}
 
 - The lab: forward, backward, causal, GQA, TFLOP/s
-- Chapter 17: how torch.compile fuses what you wrote by hand
-- FlexAttention compiles a mask function into this loop
+- Dense tensors: `scaled_dot_product_attention`, with `sdpa_kernel` to pick the backend
+- A score change: `flex_attention`, lowered through `torch.compile`
+- Paged decode: FlashInfer's `BatchDecodeWithPagedKVCacheWrapper`
 
-> [!QUESTION] When should I write attention myself?
-> Rarely. Use scaled_dot_product_attention or FlexAttention. Write it to understand the kernel, or when a variant needs a score modification no backend supports.
+> [!QUESTION] Which call reads a paged KV cache?
+> FlashInfer's `BatchDecodeWithPagedKVCacheWrapper`. You plan the page table, then run. `scaled_dot_product_attention` takes dense tensors and returns only the output. `flex_attention`'s `BlockMask` is a sparsity pattern, and the FlexAttention blog does not show paged attention.
 
 Note:
-Close by pointing at the lab and at the next chapter, which covers the compiler machinery behind FlexAttention. The honest answer to the last question: in production you almost always use the library kernel. The reason to write it is that every Triton kernel you read afterwards looks familiar.
+Close on the lab, then on which library call matches the tensors in front of you. Dense query, key, and value go to scaled_dot_product_attention, and sdpa_kernel picks the backend. A score modification goes to flex_attention. The FlexAttention blog lowers that call through torch.compile, which is the machinery chapter 17 teaches. A paged decode cache goes to FlashInfer's wrapper: plan the page table, then run. You write the Triton kernels in the lab so those library calls are no longer opaque.

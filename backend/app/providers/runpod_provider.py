@@ -34,7 +34,10 @@ class RunPodProvider:
     def available(self) -> tuple[bool, str]:
         if not self.settings.runpod_api_key:
             return False, "RUNPOD_API_KEY is not set"
-        if not self.settings.runpod_endpoint_id:
+        # Imported here so this module and registry can import each other.
+        from .registry import any_endpoint_configured
+
+        if not any_endpoint_configured():
             return False, "RUNPOD_ENDPOINT_ID is not set"
         return True, ""
 
@@ -46,13 +49,23 @@ class RunPodProvider:
         }
 
     async def run_lab(
-        self, lab_id: str, code: str, gpu: str, timeout: int
+        self, lab_id: str, code: str, gpu: str, timeout: int, gpus: int = 1
     ) -> AsyncIterator[dict[str, Any]]:
-        ok, why = self.available()
-        if not ok:
-            raise ProviderError(why)
+        # Imported here so this module and registry can import each other.
+        from .registry import endpoint_id_for, unavailable_event
 
-        endpoint = f"{API_BASE}/{self.settings.runpod_endpoint_id}"
+        endpoint_id = endpoint_id_for(gpu, gpus)
+        if not endpoint_id:
+            # Do not raise, and do not send the lab to a different GPU.
+            # Checks that need no GPU still run on this machine.
+            yield unavailable_event(gpu, gpus)
+            async for event in _cpu_checks(lab_id, code, timeout):
+                yield event
+            return
+        if not self.settings.runpod_api_key:
+            raise ProviderError("RUNPOD_API_KEY is not set")
+
+        endpoint = f"{API_BASE}/{endpoint_id}"
         payload = {
             "input": {"lab_id": lab_id, "code": code, "gpu": gpu, "timeout": timeout}
         }
@@ -107,7 +120,7 @@ class RunPodProvider:
         # pods when RUNPOD_ENDPOINT_ID is missing. `available` stays
         # honest about whether labs can actually run here.
         runnable, why = self.available()
-        endpoint_id = self.settings.runpod_endpoint_id
+        endpoint_id = _a100_endpoint_id()
         async with httpx.AsyncClient(timeout=30, headers=self._headers) as client:
             account, endpoints, pods, spend, health = await asyncio.gather(
                 self._account(client),
@@ -133,8 +146,13 @@ class RunPodProvider:
 
         notices = []
         if endpoint_id and not any(e.get("id") == endpoint_id for e in endpoints):
+            source = (
+                "RUNPOD_ENDPOINT_A100"
+                if self.settings.runpod_endpoint_a100.strip()
+                else "RUNPOD_ENDPOINT_ID"
+            )
             notices.append(
-                f"RUNPOD_ENDPOINT_ID is {endpoint_id}, but no endpoint with that id "
+                f"{source} is {endpoint_id}, but no endpoint with that id "
                 "exists on this account."
             )
         if not endpoint_id:
@@ -165,7 +183,7 @@ class RunPodProvider:
         """Stop a pod, drop queued jobs, cancel one job, or park the workers."""
         if not self.settings.runpod_api_key:
             raise ProviderError("RUNPOD_API_KEY is not set")
-        endpoint_id = self.settings.runpod_endpoint_id
+        endpoint_id = _a100_endpoint_id()
         if action in ("purge-queue", "cancel-job") and not (target or endpoint_id):
             raise ProviderError("RUNPOD_ENDPOINT_ID is not set")
         async with httpx.AsyncClient(timeout=30, headers=self._headers) as client:
@@ -423,6 +441,54 @@ class RunPodProvider:
                 {"label": "Lab endpoint", "value": ours.get("name") or endpoint_id}
             )
         return facts
+
+
+def _a100_endpoint_id() -> str:
+    """The endpoint the current A100 labs use, including the legacy variable."""
+    from .registry import endpoint_id_for
+
+    return endpoint_id_for("A100-80GB", 1)
+
+
+async def _cpu_checks(
+    lab_id: str, code: str, timeout: int
+) -> AsyncIterator[dict[str, Any]]:
+    """Run the lab here so checks that need no GPU still produce a result.
+
+    The caller already reported that the requested GPU endpoint is missing.
+    This path does not contact RunPod.
+    """
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    def produce() -> None:
+        import sys
+        from pathlib import Path
+
+        try:
+            gpu_dir = Path(__file__).resolve().parents[3] / "gpu"
+            if str(gpu_dir) not in sys.path:
+                sys.path.insert(0, str(gpu_dir))
+            from lab_runner import run_lab_stream
+
+            for event in run_lab_stream(lab_id=lab_id, code=code, timeout=timeout):
+                asyncio.run_coroutine_threadsafe(queue.put(event), loop).result()
+        except Exception as exc:  # noqa: BLE001 - the reader sees this message
+            asyncio.run_coroutine_threadsafe(
+                queue.put({"type": "error", "message": str(exc)}), loop
+            ).result()
+        finally:
+            asyncio.run_coroutine_threadsafe(queue.put(None), loop).result()
+
+    worker = asyncio.create_task(asyncio.to_thread(produce))
+    try:
+        while True:
+            event = await queue.get()
+            if event is None:
+                break
+            yield event
+    finally:
+        await worker
 
 
 def _endpoint_status(live: int, queued: int, always_on: int) -> str:

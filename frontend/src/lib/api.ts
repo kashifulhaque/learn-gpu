@@ -229,7 +229,8 @@ export type RunEvent =
     }
   | { type: "done"; run_id: string; passed: boolean; seconds: number }
   | { type: "error"; message: string }
-  | { type: "out_of_credits"; provider: string; message: string; hint: string };
+  | { type: "out_of_credits"; provider: string; message: string; hint: string }
+  | { type: "unavailable"; gpu: string; gpus: number; message: string };
 
 /**
  * Streams a lab run. The backend answers with server-sent events, so this reads

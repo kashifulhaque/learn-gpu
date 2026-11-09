@@ -36,6 +36,16 @@ model weights. A lab that compiles CUDA needs 30 to 60 seconds for `nvcc` the
 first time, so give it a `timeout` of at least 900 and tell the reader in a hint.
 `metrics` lists the keys `tests.py` reports with `Checks.metric`.
 
+`gpu` defaults to `A100-80GB` when the field is absent. `H100-80GB` routes to
+`RUNPOD_ENDPOINT_H100`, and `"gpus": 2` routes to `RUNPOD_ENDPOINT_2XA100`.
+`RUNPOD_ENDPOINT_ID` is the A100 endpoint when `RUNPOD_ENDPOINT_A100` is unset.
+When the endpoint for that lab is missing, the lab pane shows
+`needs H100, not configured on this deployment` for an unconfigured H100, and
+the same shape of sentence for the other cards. The checks that need no GPU
+still run. The lab is not sent
+to a different card. Optional `arch` is the `nvcc` architecture `load_cuda`
+uses: `sm_80` when the field is absent, and `sm_90a` for a Hopper lab.
+
 ## Writing `tests.py`
 
 `tests.py` defines `run(submission)` and returns `Checks.finish()`:
@@ -74,7 +84,9 @@ Import them with `from lab_common import ...`. The worker puts
 | `cuda_time` | `cuda_time(fn, warmup=10, iters=50, *, flush_l2=False) -> float` | Median milliseconds of one call to `fn`, measured with CUDA events. `flush_l2=True` starts every call with a cold L2. |
 | `bandwidth_gbs` | `bandwidth_gbs(num_bytes, ms) -> float` | GB/s, decimal. Count every byte read and written. |
 | `tflops` | `tflops(flops, ms) -> float` | TFLOP/s. |
-| `load_cuda` | `load_cuda(name, cuda_src, cpp_src, functions, *, fast_math=False, extra_cuda_cflags=(), verbose=False)` | Compiles with `torch.utils.cpp_extension.load_inline`, once per distinct source. Flags: `-O3 -arch=sm_80`, plus `--use_fast_math` only on request. `cpp_src` declares each function; `cuda_src` defines them. |
+| `load_cuda` | `load_cuda(name, cuda_src, cpp_src, functions, *, arch=None, fast_math=False, extra_cuda_cflags=(), verbose=False)` | Compiles with `torch.utils.cpp_extension.load_inline`, once per distinct source. Flags: `-O3 -arch=sm_80`, or `-arch` from `arch` or from `meta.json`, plus `--use_fast_math` only on request. A Hopper lab passes `arch="sm_90a"`. Callers that omit `arch` keep `-arch=sm_80`. `cpp_src` declares each function; `cuda_src` defines them. |
+| `read_ncu_fixture` | `read_ncu_fixture(directory=None, name=None)` | Reads `fixture_ncu_*.csv`, an `ncu --csv` report, into `metrics`. Use it when `ncu` cannot read the performance counters. |
+| `ncu_metrics` | `ncu_metrics(*, directory=None, name=None, live_csv=None, ncu_returncode=None, ncu_output="")` | Grades `live_csv` when `ncu` ran, and the fixture when `ncu` is missing or exits with a permission error. |
 | `A100` | constants object | See below. |
 
 `A100` holds the figures every lab and chapter share, each commented with its
@@ -134,5 +146,14 @@ the course's worker image, or open the lab in the app.
 `gpu/runpod_worker/` builds on `pytorch/pytorch:2.14.1-cuda13.0-cudnn9-devel`: a
 CUDA *devel* image with `nvcc`, plus `ninja`, a pinned `triton`, and the matching
 torch. It sets `TORCH_CUDA_ARCH_LIST=8.0` and a persistent
-`TORCH_EXTENSIONS_DIR`. A change to `lab_common.py` or any lab reaches the GPU
-only when the image is rebuilt.
+`TORCH_EXTENSIONS_DIR`. The image also carries the CUTLASS 3.9.2 headers at
+`CUTLASS_INCLUDE_DIR` (`/opt/cutlass/include`), the `nvidia-cutlass-dsl` 4.8.1
+CUDA 13 package, and the Nsight Compute 2025.3.1 CLI (`ncu`, without the GUI).
+A change to `lab_common.py` or any lab reaches the GPU only when the image is
+rebuilt.
+
+A profiling lab that cannot run `ncu` (the binary is missing, or the container
+lacks permission to read GPU performance counters) grades a recorded report.
+Ship that report as `fixture_ncu_*.csv`, the CSV that `ncu --csv` writes, and
+call `read_ncu_fixture` or `ncu_metrics`. The worker copies `fixture_*.csv`
+next to the submission.

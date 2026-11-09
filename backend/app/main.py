@@ -296,6 +296,7 @@ async def run_lab(body: RunBody, user: str = Depends(current_user)) -> Streaming
                 code=body.code,
                 gpu=lab["gpu"],
                 timeout=lab["timeout"],
+                gpus=int(lab.get("gpus") or 1),
             ):
                 kind = event.get("type")
                 if kind == "job":

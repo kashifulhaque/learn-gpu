@@ -87,6 +87,7 @@ def load_labs() -> dict[str, dict[str, Any]]:
             "title": meta.get("title", lab_id),
             "brief": meta.get("brief", ""),
             "gpu": meta.get("gpu", "A100-80GB"),
+            "gpus": _gpu_count(meta),
             "needs_gpu": meta.get("needs_gpu", True),
             "timeout": meta.get("timeout", 900),
             "hints": meta.get("hints", []),
@@ -99,6 +100,16 @@ def load_labs() -> dict[str, dict[str, Any]]:
             else "",
         }
     return labs
+
+
+def _gpu_count(meta: dict[str, Any]) -> int:
+    """How many GPUs the lab asks for. One, unless meta.json says otherwise."""
+    raw = meta.get("gpus", 1)
+    try:
+        count = int(raw)
+    except (TypeError, ValueError):
+        return 1
+    return count if count > 0 else 1
 
 
 def get_lab(lab_id: str) -> dict[str, Any] | None:

@@ -57,7 +57,9 @@ class Provider(Protocol):
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield events while the lab runs.
 
-        Each event is a dict with a "type" of "log", "result", or "error".
+        Each event is a dict with a "type" of "log", "result", "error",
+        or "unavailable". "unavailable" means this deployment has no
+        endpoint for the lab's GPU. CPU checks still run after it.
         """
 
 

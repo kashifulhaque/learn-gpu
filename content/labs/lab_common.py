@@ -11,11 +11,14 @@ reader's `starter.py` can both write `from lab_common import ...`.
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import json
 import os
 import statistics
 import traceback
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Sequence
 
 
@@ -218,12 +221,54 @@ def tflops(flops: float, ms: float) -> float:
 _CUDA_MODULES: dict[str, Any] = {}
 
 
+def _arch_from_meta() -> str | None:
+    """The `arch` field of the current lab's meta.json, when the lab sets one.
+
+    The worker sets `LG_LAB_ID`. A lab that omits `arch` returns None, and
+    `load_cuda` keeps `-arch=sm_80`. Hopper labs set `"arch": "sm_90a"`.
+    """
+    lab_id = os.environ.get("LG_LAB_ID", "").strip()
+    if not lab_id:
+        return None
+    roots: list[Path] = []
+    override = os.environ.get("LG_LABS_DIR", "").strip()
+    if override:
+        roots.append(Path(override))
+    roots.append(Path(__file__).resolve().parent)
+    for root in roots:
+        path = root / lab_id / "meta.json"
+        if not path.is_file():
+            continue
+        try:
+            meta = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            return None
+        arch = meta.get("arch")
+        if isinstance(arch, str) and arch.strip():
+            return arch.strip()
+        return None
+    return None
+
+
+def _torch_arch_list(arch: str) -> str:
+    """`sm_80` becomes `8.0`, and `sm_90a` becomes `9.0a`."""
+    body = arch[3:] if arch.startswith("sm_") else arch
+    suffix = ""
+    if body.endswith("a"):
+        suffix = "a"
+        body = body[:-1]
+    if not body.isdigit() or len(body) < 2:
+        return "8.0"
+    return f"{int(body[:-1])}.{body[-1]}{suffix}"
+
+
 def load_cuda(
     name: str,
     cuda_src: str,
     cpp_src: str | Sequence[str],
     functions: Sequence[str],
     *,
+    arch: str | None = None,
     fast_math: bool = False,
     extra_cuda_cflags: Sequence[str] = (),
     verbose: bool = False,
@@ -232,17 +277,21 @@ def load_cuda(
 
     `cpp_src` declares each function in `functions`, for example
     `"torch::Tensor add(torch::Tensor a, torch::Tensor b);"`; `cuda_src` defines
-    them. The flags are `-O3 -arch=sm_80`. `--use_fast_math` is off unless you
-    ask for it with `fast_math=True`, because it changes results: it swaps
-    division, `expf`, and `rsqrtf` for faster, less accurate versions, and a
-    test that checks numerics should not pass or fail on it by accident.
+    them. The flags are `-O3 -arch=sm_80` unless you pass `arch` or the lab's
+    `meta.json` sets `arch`. A Hopper lab passes `arch="sm_90a"`. Callers that
+    omit `arch`, and labs that omit the field, keep `-arch=sm_80`.
+    `--use_fast_math` is off unless you ask for it with `fast_math=True`,
+    because it changes results: it swaps division, `expf`, and `rsqrtf` for
+    faster, less accurate versions, and a test that checks numerics should
+    not pass or fail on it by accident.
 
     Results are cached in the process by a hash of the sources, the function
     names, and the flags, so a test that asks for the same kernel twice
     compiles once. torch also caches the built library on disk, so a worker
     that has run the lab before skips the 30 to 60 seconds of nvcc.
     """
-    flags = ["-O3", "-arch=sm_80"]
+    chosen = (arch or "").strip() or _arch_from_meta() or "sm_80"
+    flags = ["-O3", f"-arch={chosen}"]
     if fast_math:
         flags.append("--use_fast_math")
     flags += list(extra_cuda_cflags)
@@ -255,19 +304,211 @@ def load_cuda(
     if cached is not None:
         return cached
 
-    # The Python-side flag list must not pick a different arch than nvcc gets.
-    os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.0")
+    # The Python-side arch list must not pick a different arch than nvcc gets.
+    # The default leaves a worker's TORCH_CUDA_ARCH_LIST=8.0 in place. A
+    # Hopper compilation sets 9.0a for this call and then restores the previous
+    # value, so a later sm_80 compile is unchanged.
+    previous_arch = os.environ.get("TORCH_CUDA_ARCH_LIST")
+    if chosen == "sm_80":
+        os.environ.setdefault("TORCH_CUDA_ARCH_LIST", _torch_arch_list(chosen))
+    else:
+        os.environ["TORCH_CUDA_ARCH_LIST"] = _torch_arch_list(chosen)
     from torch.utils.cpp_extension import load_inline
 
-    # The name is part of the build directory, so two sources under one name
-    # would collide; the hash keeps edits from reusing a stale library.
-    module = load_inline(
-        name=f"{name}_{key[:10]}",
-        cpp_sources=cpp,
-        cuda_sources=cuda_src,
-        functions=list(functions),
-        extra_cuda_cflags=flags,
-        verbose=verbose,
-    )
+    try:
+        # The name is part of the build directory, so two sources under one name
+        # would collide; the hash keeps edits from reusing a stale library.
+        module = load_inline(
+            name=f"{name}_{key[:10]}",
+            cpp_sources=cpp,
+            cuda_sources=cuda_src,
+            functions=list(functions),
+            extra_cuda_cflags=flags,
+            verbose=verbose,
+        )
+    finally:
+        if chosen != "sm_80":
+            if previous_arch is None:
+                os.environ.pop("TORCH_CUDA_ARCH_LIST", None)
+            else:
+                os.environ["TORCH_CUDA_ARCH_LIST"] = previous_arch
     _CUDA_MODULES[key] = module
     return module
+
+
+# ---------------------------------------------------------------------------
+# Recorded Nsight Compute reports
+# ---------------------------------------------------------------------------
+
+# ncu --csv writes one row per metric. These are the columns a lab grades.
+_NCU_METRIC = "Metric Name"
+_NCU_VALUE = "Metric Value"
+_NCU_UNIT = "Metric Unit"
+_NCU_KERNEL = "Kernel Name"
+
+
+def _metric_number(text: str) -> float | str:
+    raw = text.strip()
+    if not raw:
+        return raw
+    try:
+        return float(raw.replace(",", ""))
+    except ValueError:
+        return raw
+
+
+def read_ncu_csv(source: str | Path) -> dict[str, Any]:
+    """Parse an `ncu --csv` report into metrics a lab can grade.
+
+    Pass a path or the CSV text. `ncu` writes one row per metric, with
+    `Metric Name`, `Metric Value`, and `Kernel Name`. A number comes back as
+    a float. Anything else, such as `n/a`, stays a string.
+
+    The result has `kernels`, `metrics` (kernel, then metric name, then
+    value), and `units`.
+    """
+    if isinstance(source, Path) or (isinstance(source, str) and "\n" not in source and Path(source).is_file()):
+        path = Path(source)
+        text = path.read_text()
+        origin = path.name
+    else:
+        text = str(source)
+        origin = ""
+
+    rows = list(csv.DictReader(text.splitlines()))
+    if not rows:
+        return {"kernels": [], "metrics": {}, "units": {}, "source": origin}
+
+    metrics: dict[str, dict[str, float | str]] = {}
+    units: dict[str, dict[str, str]] = {}
+    kernels: list[str] = []
+    for row in rows:
+        # DictReader keeps the header text, including a stray space.
+        cells = {key.strip(): (value or "") for key, value in row.items() if key}
+        kernel = cells.get(_NCU_KERNEL, "").strip() or "kernel"
+        if kernel not in metrics:
+            metrics[kernel] = {}
+            units[kernel] = {}
+            kernels.append(kernel)
+        if _NCU_METRIC in cells:
+            metric = cells[_NCU_METRIC].strip()
+            if not metric:
+                continue
+            metrics[kernel][metric] = _metric_number(cells.get(_NCU_VALUE, ""))
+            unit = cells.get(_NCU_UNIT, "").strip()
+            if unit:
+                units[kernel][metric] = unit
+            continue
+        # A wide CSV has one column per metric and one row per kernel.
+        for metric, value in cells.items():
+            if metric in {_NCU_KERNEL, "ID", "Process ID", "Process Name", "Host Name"}:
+                continue
+            metrics[kernel][metric] = _metric_number(value)
+    return {"kernels": kernels, "metrics": metrics, "units": units, "source": origin}
+
+
+def _fixture_dirs(directory: str | Path | None) -> list[Path]:
+    found: list[Path] = []
+    if directory is not None:
+        found.append(Path(directory))
+    found.append(Path.cwd())
+    lab_id = os.environ.get("LG_LAB_ID", "").strip()
+    if lab_id:
+        override = os.environ.get("LG_LABS_DIR", "").strip()
+        if override:
+            found.append(Path(override) / lab_id)
+        found.append(Path(__file__).resolve().parent / lab_id)
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in found:
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique.append(path)
+    return unique
+
+
+def read_ncu_fixture(
+    directory: str | Path | None = None, name: str | None = None
+) -> dict[str, Any]:
+    """Read a `fixture_ncu_*.csv` report so a lab can grade without `ncu`.
+
+    Search `directory` when you pass one, then the working directory, then
+    the lab directory. `name` selects one file when a lab ships more than
+    one. The worker copies `fixture_*.csv` next to the submission, which is
+    the working directory of the tests.
+
+    Raises FileNotFoundError when the lab shipped no matching fixture.
+    """
+    pattern = name or "fixture_ncu_*.csv"
+    matches: list[Path] = []
+    for folder in _fixture_dirs(directory):
+        if not folder.is_dir():
+            continue
+        matches = sorted(folder.glob(pattern))
+        if matches:
+            break
+    if not matches:
+        raise FileNotFoundError(
+            "No fixture_ncu_*.csv report was found. Profile with ncu, or ship "
+            "a recorded report named fixture_ncu_*.csv."
+        )
+    report = read_ncu_csv(matches[0])
+    report["source"] = matches[0].name
+    report["from_fixture"] = True
+    return report
+
+
+def ncu_profile_blocked(returncode: int, output: str = "") -> bool:
+    """True when `ncu` failed because it cannot read performance counters.
+
+    A container without the profiling capability prints `ERR_NVGPUCTRPERM`
+    or a permission error. A missing `ncu` binary is the same outcome for a
+    lab: grade the recorded fixture instead of a live report. Any other
+    failure, such as an unknown metric name, is not a permission failure.
+    """
+    if returncode == 0:
+        return False
+    text = output.lower()
+    markers = (
+        "err_nvgpuctrperm",
+        "permission",
+        "not permitted",
+        "insufficient privilege",
+        "operation not permitted",
+        "no such file or directory",
+        "ncu: not found",
+        "command not found",
+    )
+    return returncode == 127 or any(marker in text for marker in markers)
+
+
+def ncu_metrics(
+    *,
+    directory: str | Path | None = None,
+    name: str | None = None,
+    live_csv: str | Path | None = None,
+    ncu_returncode: int | None = None,
+    ncu_output: str = "",
+) -> dict[str, Any]:
+    """The report a profiling lab grades.
+
+    Pass `live_csv` when `ncu` wrote a report. When `ncu` is missing, or
+    `ncu_profile_blocked` is true, read `fixture_ncu_*.csv` instead. A live
+    failure that is not a permission error raises RuntimeError and does not
+    grade the fixture.
+    """
+    blocked = (
+        ncu_returncode is not None and ncu_profile_blocked(ncu_returncode, ncu_output)
+    )
+    if live_csv is not None and not blocked:
+        report = read_ncu_csv(live_csv)
+        report["from_fixture"] = False
+        if not report.get("source") and isinstance(live_csv, Path):
+            report["source"] = live_csv.name
+        return report
+    if ncu_returncode not in (None, 0) and not blocked:
+        detail = ncu_output.strip() or f"ncu exited with status {ncu_returncode}"
+        raise RuntimeError(detail)
+    return read_ncu_fixture(directory, name)

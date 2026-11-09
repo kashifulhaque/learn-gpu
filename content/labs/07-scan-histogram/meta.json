@@ -1,9 +1,10 @@
 {
   "id": "07-scan-histogram",
   "title": "Scan and histogram",
-  "brief": "Write two block scans (Kogge-Stone and Blelloch), a device-wide exclusive scan of int32 and float32 by reduce-then-scan with warp shuffles, and a shared-memory privatized 256-bin byte histogram. Compare each with the copy ceiling.",
+  "brief": "Write two block scans (Kogge-Stone and Blelloch), a device-wide exclusive scan of int32 and float32 by reduce-then-scan with warp shuffles, and a shared-memory privatized 256-bin byte histogram. Also write a CPU counting sort: histogram small integer keys, exclusive-scan the counts, and scatter each key into its bin. Compare each kernel with the copy ceiling.",
   "gpu": "A100-80GB",
   "needs_gpu": true,
+  "device_agnostic": true,
   "timeout": 900,
   "metrics": [
     "kogge_stone_gbs",
@@ -28,6 +29,7 @@
     "In scan_tiles_kernel, scan each thread's four items serially, scan the 256 thread totals with the block scan, then add the prefix and the tile offset to every item. The first tile has offset 0.",
     "In the histogram, zero the shared bins and call __syncthreads() before the first atomicAdd, and call it again before you merge the bins into global memory.",
     "The floors are loose: 40% of the copy ceiling for the scan, counting 3n elements moved, and 25% for the histogram, counting n bytes. If you are far below, check that a warp's loads are contiguous and that the kernel launches enough blocks.",
-    "Stretch goal: implement histogram256_aggregated with __match_any_sync, then compare it with the privatized kernel on uniform and on all-equal data. Decoupled look-back for the scan is a second stretch goal, described in the chapter."
+    "Stretch goal: implement histogram256_aggregated with __match_any_sync, then compare it with the privatized kernel on uniform and on all-equal data. Decoupled look-back for the scan is a second stretch goal, described in the chapter.",
+    "counting_sort is pure Python and runs on the CPU. Histogram the keys into num_bins bins, exclusive-scan the counts so offsets[b] is the first output slot of bin b, and scatter the keys in input order. torch.cumsum of the counts is the inclusive scan: on the chapter's digits that is [1, 4, 6, 8], not the exclusive offsets [0, 1, 4, 6]."
   ]
 }

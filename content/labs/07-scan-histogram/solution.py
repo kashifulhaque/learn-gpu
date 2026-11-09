@@ -1,6 +1,6 @@
 """Lab 07: Scan and histogram. Reference solution.
 
-Three groups of kernels, all in one CUDA source:
+The CUDA source holds three groups of kernels:
 
 1. Block scans, one element per thread, one 256-element tile per block:
    Kogge-Stone and Blelloch, both in shared memory.
@@ -10,6 +10,9 @@ Three groups of kernels, all in one CUDA source:
    serial scan in registers, and a warp-shuffle scan across threads.
 3. A 256-bin histogram of bytes: global atomics (given), a shared-memory
    privatized version, and a warp-aggregated version for skewed data.
+
+`counting_sort` is Python, on the CPU: histogram the keys, exclusive-scan the
+counts, and scatter each key into the next slot of its bin.
 """
 
 import torch
@@ -437,3 +440,35 @@ def histogram256(x: torch.Tensor) -> torch.Tensor:
 def histogram256_aggregated(x: torch.Tensor) -> torch.Tensor:
     """Stretch goal: warp-aggregated histogram, for skewed data. Returns int32[256]."""
     return _mod().histogram_cuda(x.contiguous(), 2)
+
+
+def counting_sort(keys: torch.Tensor, num_bins: int):
+    """Stable counting sort of non-negative integer keys in ``0 .. num_bins - 1``.
+
+    Histogram the keys, take the exclusive scan of the counts, and scatter each
+    key into the next free slot of its bin. Return ``(sorted_keys, offsets)``.
+    ``offsets[b]`` is the first output index of bin ``b``. This runs on the CPU.
+    """
+    if isinstance(num_bins, bool) or not isinstance(num_bins, int) or num_bins < 1:
+        raise ValueError(f"num_bins must be a positive int, actual {num_bins!r}")
+    if keys.ndim != 1:
+        raise ValueError(f"keys must be a 1-D tensor, actual shape {tuple(keys.shape)}")
+    work = keys.detach().to(dtype=torch.int64, device="cpu")
+    if work.numel() and int(work.min()) < 0:
+        raise ValueError(f"keys must be non-negative, actual min {int(work.min())}")
+    counts = torch.bincount(work, minlength=num_bins)
+    if int(counts.numel()) != num_bins:
+        raise ValueError(
+            f"every key must be in 0 .. {num_bins - 1}, actual histogram length {int(counts.numel())}"
+        )
+    # Exclusive scan: the inclusive total of earlier bins, which is cumsum minus
+    # this bin's own count. torch.cumsum alone is the inclusive scan.
+    offsets = torch.cumsum(counts, dim=0) - counts
+    out = torch.empty(work.numel(), dtype=torch.int64)
+    cursor = offsets.clone()
+    for index in range(int(work.numel())):
+        key = int(work[index])
+        slot = int(cursor[key])
+        out[slot] = work[index]
+        cursor[key] = slot + 1
+    return out.to(dtype=keys.dtype), offsets

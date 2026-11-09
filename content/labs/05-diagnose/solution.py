@@ -191,3 +191,45 @@ def max_load_bits(sass: str) -> int:
                 bits = _WIDTHS[mod]
         widest = max(widest, bits)
     return widest
+
+
+# ---------------------------------------------------------------------------
+# Part 4: classify a recorded Nsight Compute report
+# ---------------------------------------------------------------------------
+
+_DRAM_READ = "dram__bytes_read.sum"
+_DRAM_WRITE = "dram__bytes_write.sum"
+_DRAM_PCT = "dram__throughput.avg.pct_of_peak_sustained_elapsed"
+_SM_PCT = "sm__throughput.avg.pct_of_peak_sustained_elapsed"
+_LONG_STALL = "smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg"
+_STALL_PREFIX = "smsp__pcsamp_warps_issue_stalled_"
+
+
+def dram_bytes(metrics: dict) -> float:
+    """DRAM bytes read plus DRAM bytes written, for one kernel."""
+    return float(metrics[_DRAM_READ]) + float(metrics[_DRAM_WRITE])
+
+
+def diagnose_ncu(report: dict) -> str:
+    """Classify the one kernel in a parsed Nsight Compute report.
+
+    `report` is the dict `read_ncu_fixture` or `ncu_metrics` returns. The DRAM
+    percent is a fraction of the A100 80GB PCIe HBM2e rating, 1935 GB/s.
+    Memory-bound: DRAM percent at least 50 and SM percent at most 20.
+    Latency-bound: DRAM percent at most 10, SM percent at most 20, and the
+    long-scoreboard average at least four times every other stall average.
+    """
+    metrics = report["metrics"][report["kernels"][0]]
+    dram_pct = float(metrics[_DRAM_PCT])
+    sm_pct = float(metrics[_SM_PCT])
+    if dram_pct >= 50 and sm_pct <= 20:
+        return "memory-bound"
+    others = [
+        float(value)
+        for name, value in metrics.items()
+        if name.startswith(_STALL_PREFIX) and name != _LONG_STALL
+    ]
+    long_stall = float(metrics[_LONG_STALL])
+    if dram_pct <= 10 and sm_pct <= 20 and others and long_stall >= 4 * max(others):
+        return "latency-bound"
+    raise ValueError("the report is neither memory-bound nor latency-bound")

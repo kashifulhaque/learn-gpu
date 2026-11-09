@@ -180,7 +180,7 @@ The two look alike in a summary and different in the trace. Launch-bound means t
 # One kernel under Nsight Compute
 
 Note:
-Section four zooms in on one kernel. We teach Nsight Compute from described reports, because the lab container usually cannot read hardware counters.
+Section four zooms in on one kernel. A managed container usually cannot read hardware counters. In the lab, the audience classifies two recorded reports, scale and wait, as memory-bound or latency-bound. The reports are examples, and no counter on the lab A100 produced them.
 
 ### What ncu does, and what it needs {#ncu-needs}
 
@@ -193,7 +193,7 @@ ncu --set full -k regex:slow_scale -s 3 -c 1 -o report python lab.py
 ```
 
 Note:
-Be upfront: the lab does not run ncu, because a cloud container typically fails with a counter-permission error. The lab uses torch.profiler and events. We teach ncu from described reports, and you run it on a machine you control. Two surprises: it replays the kernel, and it locks clocks and flushes caches, so use ncu for ratios and causes, and your own timings for how long.
+Tell the audience that a cloud container usually cannot read hardware counters, so the lab does not launch ncu. In the lab, the audience classifies two recorded reports: the scale kernel is memory-bound, and the wait kernel is latency-bound. Those files are examples, and no counter on the lab A100 produced them. The three kernel fixes still use torch.profiler and CUDA events. A live ncu run replays the kernel and locks the clocks, so use the report for ratios and causes, and use your own timings for how long the kernel took.
 
 ### Speed of Light: which ceiling? {#speed-of-light}
 
@@ -207,7 +207,7 @@ Be upfront: the lab does not run ncu, because a cloud container typically fails 
 > More parallelism: more loads in flight per thread, fewer registers, or a grid that fills 108 SMs.
 
 Note:
-This is the first section to read in any report, and the three rows are the three diagnoses. Memory-bound is at the ceiling, so the only fix is fewer bytes. Compute-bound is the mirror image. Latency-bound means neither resource is saturated, and chapter 4's Little's law tells us how much memory must be in flight: about 640 KB across the GPU, 5.9 KB per SM.
+This is the first section to read in any report, and the three rows are the three diagnoses. Memory-bound is at the ceiling, so the only fix is fewer bytes. Compute-bound is the mirror image. Latency-bound means neither resource is saturated, and chapter 4's Little's law tells us how much memory must be in flight: about 640 KB across the GPU, 5.9 KB per SM. In the lab the audience applies this table to two recorded reports. scale sits at 80 percent of the 1935 GB/s DRAM peak, 1548 GB/s, with SM throughput at 8 percent, so it is memory-bound. wait sits at 4 percent of that peak, 77.4 GB/s, with a long-scoreboard stall that dominates, so it is latency-bound.
 
 ### Memory workload: sectors per request {#sectors-per-request}
 
@@ -457,7 +457,7 @@ Four takeaways. The funnel is the habit, because each step rules out a class of 
 | Spills, low occupancy | Register pressure | Cut state; `__launch_bounds__` |
 
 Note:
-This is the table to photograph. Each row is a symptom you can observe, the cause it implies, and the first fix to try. In the lab you meet the first, second, and fourth rows. The third comes back in chapter 17, and the last in chapter 10 when we tile a GEMM.
+This is the table to photograph. Each row is a symptom you can observe, the cause it implies, and the first fix to try. In the lab you meet the first, second, and fourth rows. The audience also classifies two recorded Nsight Compute reports in that lab: scale is memory-bound and wait is latency-bound. The third row comes back in chapter 17, and the last in chapter 10 when we tile a GEMM.
 
 ### Next: patterns that use the machine well {#next-chapter}
 

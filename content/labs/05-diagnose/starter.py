@@ -11,6 +11,8 @@ Work in this order:
 3. `clip_to_max_abs`: slow function 2 stalls the GPU with host round trips.
 4. `fast_branchy`: slow kernel 3 leaves half of every warp idle.
 5. `parse_ptxas_info`, `count_sass`, `max_load_bits`: read what the compiler printed.
+6. `dram_bytes` and `diagnose_ncu`: classify two recorded Nsight Compute reports.
+   The tests pass you the parsed report. You do not open the CSV.
 
 The CUDA kernels below start as copies of the slow ones, so the lab passes its
 correctness checks and fails only its speed checks until you fix them.
@@ -181,5 +183,40 @@ def max_load_bits(sass: str) -> int:
     """The widest per-thread global load in `sass`, in bits.
 
     LDG.E.128 is 128, LDG.E.64 is 64, a plain LDG.E is 32, and no LDG at all is 0.
+    """
+    raise NotImplementedError
+
+
+# ---------------------------------------------------------------------------
+# Part 4: classify a recorded Nsight Compute report
+# ---------------------------------------------------------------------------
+
+
+def dram_bytes(metrics: dict) -> float:
+    """DRAM bytes read plus DRAM bytes written, for one kernel.
+
+    `metrics` is `report["metrics"][kernel]` from the dict `read_ncu_fixture`
+    or `ncu_metrics` returns. Add `dram__bytes_read.sum` and
+    `dram__bytes_write.sum`.
+    """
+    return float(metrics["dram__bytes_read.sum"]) + float(metrics["dram__bytes_write.sum"])
+
+
+def diagnose_ncu(report: dict) -> str:
+    """Classify the one kernel in a parsed Nsight Compute report.
+
+    `report` is the dict `read_ncu_fixture` or `ncu_metrics` returns. The test
+    reads the CSV and passes that dict in. Return `"memory-bound"` or
+    `"latency-bound"`. Read the counters in `report["metrics"]` for the kernel
+    in `report["kernels"]`.
+
+    The DRAM percent is a fraction of the A100 80GB PCIe HBM2e rating, 1935
+    GB/s. Return `"memory-bound"` when
+    `dram__throughput.avg.pct_of_peak_sustained_elapsed` is at least 50 and
+    `sm__throughput.avg.pct_of_peak_sustained_elapsed` is at most 20. Return
+    `"latency-bound"` when the DRAM percent is at most 10, the SM percent is
+    at most 20, and `smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg` is
+    at least four times every other value whose name starts with
+    `smsp__pcsamp_warps_issue_stalled_`.
     """
     raise NotImplementedError

@@ -1,7 +1,8 @@
 import time
+from pathlib import Path
 
 import torch
-from lab_common import A100, Checks, bandwidth_gbs, close, cuda_time, require_cuda
+from lab_common import A100, Checks, bandwidth_gbs, close, cuda_time, read_ncu_fixture, require_cuda
 
 # Thresholds. Each one is a fraction of what the arithmetic in chapter 5 predicts.
 #
@@ -21,6 +22,34 @@ CLIP_MIN_SPEEDUP = 1.5
 # each takes 2x the issue slots of one that runs them with all 32 active. We ask
 # for 1.3x.
 BRANCHY_MIN_SPEEDUP = 1.3
+
+# Recorded-report rule. The DRAM percent is a fraction of the A100 80GB PCIe
+# HBM2e rating, 1935 GB/s (A100.HBM_BW_GBS, docs/FACTS.md).
+# 80 percent of that peak is 1548 GB/s. 4 percent is 77.4 GB/s.
+_DRAM_PCT = "dram__throughput.avg.pct_of_peak_sustained_elapsed"
+_SM_PCT = "sm__throughput.avg.pct_of_peak_sustained_elapsed"
+_LONG_STALL = "smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg"
+_STALL_PREFIX = "smsp__pcsamp_warps_issue_stalled_"
+
+
+def _other_stalls(metrics: dict) -> list:
+    return [
+        value
+        for name, value in metrics.items()
+        if name.startswith(_STALL_PREFIX) and name != _LONG_STALL
+    ]
+
+
+def _label(metrics: dict) -> str:
+    """The classification the recorded-report rule assigns to one kernel."""
+    dram_pct = metrics[_DRAM_PCT]
+    sm_pct = metrics[_SM_PCT]
+    if dram_pct >= 50 and sm_pct <= 20:
+        return "memory-bound"
+    others = _other_stalls(metrics)
+    if others and dram_pct <= 10 and sm_pct <= 20 and metrics[_LONG_STALL] >= 4 * max(others):
+        return "latency-bound"
+    return "unclassified"
 
 
 def _wall_ms(fn, warmup=3, iters=20):
@@ -60,12 +89,13 @@ def run(submission):
         "parse_ptxas_info",
         "count_sass",
         "max_load_bits",
+        "dram_bytes",
+        "diagnose_ncu",
     ]
     if not c.require(submission, *names):
         return c.finish()
 
     import fixture_sass as fs
-    import fixture_slow as slow
 
     # --- Part 3 first: it needs no GPU -------------------------------------
     c.check(
@@ -112,6 +142,73 @@ def run(submission):
             and submission.max_load_bits("        /*0000*/                   EXIT ;\n") == 0
         ),
     )
+
+    # Recorded Nsight Compute reports. The tests read the CSV. The submission
+    # only classifies the dict. These numbers are recorded examples.
+    #
+    # always_memory returns "memory-bound" for every report, including the
+    # latency fixture `wait`, and fails the wait check below.
+    # always_latency returns "latency-bound" for every report, including the
+    # memory fixture `scale`, and fails the scale check below.
+    lab_dir = Path(__file__).resolve().parent
+    memory = read_ncu_fixture(lab_dir, "fixture_ncu_memory.csv")
+    latency = read_ncu_fixture(lab_dir, "fixture_ncu_latency.csv")
+    scale = memory["metrics"]["scale"]
+    wait = latency["metrics"]["wait"]
+    scale_gbs = scale[_DRAM_PCT] * A100.HBM_BW_GBS / 100.0
+    wait_gbs = wait[_DRAM_PCT] * A100.HBM_BW_GBS / 100.0
+    scale_others = _other_stalls(scale)
+    wait_others = _other_stalls(wait)
+    c.add(
+        "recorded scale report: 8192 bytes and 1548 GB/s",
+        scale["dram__bytes_read.sum"] == 4096
+        and scale["dram__bytes_write.sum"] == 4096
+        and scale[_DRAM_PCT] == 80
+        and scale[_SM_PCT] == 8
+        and abs(scale_gbs - 1548.0) < 1e-6
+        and A100.HBM_BW_GBS == 1935.0
+        and scale[_LONG_STALL] == 58
+        and max(scale_others) == 22
+        and _label(scale) == "memory-bound",
+        f"{scale_gbs:.0f} GB/s of {A100.HBM_BW_GBS:.0f}, long scoreboard {scale[_LONG_STALL]} against {max(scale_others)}",
+    )
+    c.add(
+        "recorded wait report: 384 bytes, 77.4 GB/s, long scoreboard dominates",
+        wait["dram__bytes_read.sum"] == 256
+        and wait["dram__bytes_write.sum"] == 128
+        and wait[_DRAM_PCT] == 4
+        and wait[_SM_PCT] == 6
+        and abs(wait_gbs - 77.4) < 1e-6
+        and wait[_LONG_STALL] == 78
+        and max(wait_others) == 6
+        and wait[_LONG_STALL] >= 4 * max(wait_others)
+        and _label(wait) == "latency-bound",
+        f"{wait_gbs:.1f} GB/s of {A100.HBM_BW_GBS:.0f}, long scoreboard {wait[_LONG_STALL]} against {max(wait_others)}",
+    )
+    c.check(
+        "dram_bytes adds DRAM bytes read and written",
+        lambda: (
+            submission.dram_bytes(scale) == 4096 + 4096
+            and submission.dram_bytes(wait) == 256 + 128
+        ),
+        _got(submission.dram_bytes, scale) + "; " + _got(submission.dram_bytes, wait),
+    )
+    c.check(
+        "diagnose_ncu: scale is memory-bound",
+        lambda: submission.diagnose_ncu(memory) == "memory-bound",
+        _got(submission.diagnose_ncu, memory),
+    )
+    c.check(
+        "diagnose_ncu: wait is latency-bound",
+        lambda: submission.diagnose_ncu(latency) == "latency-bound",
+        _got(submission.diagnose_ncu, latency),
+    )
+
+    if not torch.cuda.is_available():
+        print("      No CUDA device is visible, so the kernel checks are skipped.", flush=True)
+        return c.finish()
+
+    import fixture_slow as slow
 
     device = require_cuda()
     print(f"      device = {torch.cuda.get_device_name(0)}", flush=True)

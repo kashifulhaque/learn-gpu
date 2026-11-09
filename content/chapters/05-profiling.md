@@ -30,9 +30,10 @@ lab: 05-diagnose
 > - PTX is the virtual assembly and SASS is what the GPU runs. A handful of
 >   instructions, `LDG.E.128`, `FFMA`, `HMMA`, `BAR.SYNC`, and predicated
 >   `@P0` instructions, tell you most of what you need to know.
-> - Your lab profiles with `torch.profiler` and events. Nsight Compute needs
->   hardware counters that a cloud container usually can't reach, so this
->   chapter teaches it from described reports instead.
+> - Your lab fixes three slow kernels with `torch.profiler` and events, and
+>   classifies two recorded Nsight Compute reports. A cloud container usually
+>   can't read the hardware counters, so those reports are examples shipped
+>   with the lab.
 
 Chapters 1 to 4 gave you a model of the machine and a prediction for how long a
 kernel should take. This chapter is what you do when the prediction is wrong.
@@ -330,13 +331,14 @@ therefore not the duration in your benchmark, and its cache hit rates describe a
 cold start. Use `ncu` for ratios and causes, and use your own timings for how
 long.
 
-> [!NOTE] The lab doesn't run ncu, and here is why
+> [!NOTE] The lab grades a recorded report
 > Collecting counters needs permission to read the GPU's performance counters,
 > and a managed container usually doesn't grant it. If you run `ncu` there you
-> typically see an error that names `ERR_NVGPUCTRPERM`. The lab uses
-> `torch.profiler` and CUDA events, which need no special permission, and this
-> section teaches `ncu` through descriptions. Run it yourself on a machine you
-> control; the same kernels from the lab compile there.
+> typically see an error that names `ERR_NVGPUCTRPERM`. The three kernel fixes
+> use `torch.profiler` and CUDA events, which need no special permission. The
+> classification uses two recorded CSV reports shipped with the lab, in the
+> column layout `ncu --csv` writes. Run `ncu` yourself on a machine you control
+> when you want a live report. The same kernels from the lab compile there.
 
 A report is a stack of sections. The first few, in the order to read them:
 
@@ -428,6 +430,64 @@ parallelism: more independent loads in flight per thread, a smaller register
 footprint, or a grid that fills the machine. [Chapter 4](/c/04-roofline-and-latency)
 derived the amount: roughly 640 KB of memory in flight across the GPU, or 5.9 KB
 per SM, to cover HBM latency.
+
+### Classify a recorded report
+
+This section applies the Speed of Light rule to two recorded reports and shows
+the arithmetic the lab checks.
+
+The lab ships `fixture_ncu_memory.csv` and `fixture_ncu_latency.csv` beside the
+starter. Each file holds one kernel, in the column layout `ncu --csv` writes,
+with numbers small enough to check by hand. These files are recorded examples,
+and no counter on the lab A100 produced them.
+
+The percent of peak uses the A100 80GB PCIe HBM2e rating, 1935 GB/s, from
+[the hardware fact sheet](../../docs/FACTS.md). DRAM throughput of at least 50
+percent of that peak, with SM throughput of at most 20 percent, is memory-bound.
+DRAM throughput of at most 10 percent, SM throughput of at most 20 percent, and
+a long-scoreboard average at least four times each other stall average, is
+latency-bound.
+
+The two reports record the following counters:
+
+| Metric | `scale` | `wait` |
+|---|---|---|
+| `dram__bytes_read.sum` (byte) | 4096 | 256 |
+| `dram__bytes_write.sum` (byte) | 4096 | 128 |
+| `dram__throughput.avg.pct_of_peak_sustained_elapsed` (%) | 80 | 4 |
+| `sm__throughput.avg.pct_of_peak_sustained_elapsed` (%) | 8 | 6 |
+| `smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg` (%) | 58 | 78 |
+
+The stall rows are percents of sampled issue slots, and the six stall averages
+in each file sum to 100. On `scale` the other five are 22, 8, 6, 4, and 2, and
+58 is less than four times 22. On `wait` the other five are 6, 5, 4, 4, and 3,
+and 78 is at least four times 6.
+
+> [!EXAMPLE] Bytes and DRAM rate for the scale kernel
+> The memory-bound kernel reads 4096 bytes and writes 4096 bytes:
+>
+> $$
+> 4096 + 4096 = \boxed{8192}\ \text{bytes}
+> $$
+>
+> Its DRAM throughput is 80 percent of the 1935 GB/s peak. Multiply, then divide by 100:
+>
+> $$
+> \frac{80 \times 1935}{100} = \boxed{1548}\ \text{GB/s}
+> $$
+>
+> 1548 GB/s is 80 percent of the 1935 GB/s peak, and the SM throughput is 8
+> percent. 80 is at least 50, and 8 is at most 20, so `diagnose_ncu` returns
+> `memory-bound`. You classify this report from the DRAM percent and the SM
+> percent.
+
+`wait` reads 256 bytes and writes 128, which is 384 bytes. Its DRAM throughput
+is 4 percent of the same peak, $4 \times 1935 / 100 = 77.4$ GB/s, and its SM
+throughput is 6 percent. 4 is at most 10, 6 is at most 20, and the
+long-scoreboard average of 78 is at least four times each other stall average,
+so `diagnose_ncu` returns `latency-bound`. `dram_bytes` adds
+`dram__bytes_read.sum` and `dram__bytes_write.sum`, and the lab asks you to
+classify both reports.
 
 ## Read the machine code: PTX and SASS
 
@@ -751,7 +811,8 @@ is expensive only when the diverging paths are long, and a one-instruction
 >   gaps in the trace, and the active lanes per instruction are the evidence.
 > - Nsight Compute's Speed of Light separates memory-bound, compute-bound, and
 >   latency-bound kernels. Warp State names the stall, and Occupancy names the
->   limiter.
+>   limiter. The lab classifies two recorded reports, `scale` and `wait`, with
+>   that rule.
 > - PTX is virtual and SASS is real. `ptxas -v` gives registers and spills,
 >   `cuobjdump -sass` gives the instructions, and `LDG.E.128`, `FFMA`, `HMMA`,
 >   `BAR.SYNC`, and `@P0` are the ones to look for.
@@ -810,12 +871,17 @@ is expensive only when the diverging paths are long, and a one-instruction
 > that synchronizes on every tensor, and a divergent compute kernel. Fill in
 > `hot_kernel`, which uses `torch.profiler` to name the dominant kernel. Then
 > write `fast_scale`, `clip_to_max_abs`, and `fast_branchy`, and implement three
-> small parsers that read `ptxas -v` and SASS text. You pass when every fixed
-> version matches the slow one's results, including awkward sizes, and clears a
-> loose speedup threshold: 2x for the scale kernel and 50 percent of the 1275 GB/s
-> copy ceiling, 1.5x for the clip, and 1.3x for the divergent kernel. Your lab
+> small parsers that read `ptxas -v` and SASS text. You also write `dram_bytes`
+> and `diagnose_ncu`, which classify the two recorded reports from Classify a
+> recorded report. You pass the report
+> checks when `scale` comes back `memory-bound` and `wait` comes back
+> `latency-bound`. You pass the kernel checks when every fixed version matches
+> the slow one's results, including awkward sizes, and clears a loose speedup
+> threshold: 2x for the scale kernel and 50 percent of the 1275 GB/s copy
+> ceiling, 1.5x for the clip, and 1.3x for the divergent kernel. Your lab
 > reports each speedup so you can compare it with this chapter's predictions.
 > Two CUDA modules compile on the first run, which takes a minute or two.
+> Without a GPU, the report checks and the parsers still run.
 
 ## Further reading
 

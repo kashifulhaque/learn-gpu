@@ -1,0 +1,11 @@
+ID,Process ID,Process Name,Host Name,Kernel Name,Context,Stream,Block Size,Grid Size,Device,CC,Section Name,Metric Name,Metric Unit,Metric Value
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Memory Workload Analysis,dram__bytes_read.sum,byte,256
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Memory Workload Analysis,dram__bytes_write.sum,byte,128
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Speed Of Light,dram__throughput.avg.pct_of_peak_sustained_elapsed,%,4
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Speed Of Light,sm__throughput.avg.pct_of_peak_sustained_elapsed,%,6
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_long_scoreboard.avg,%,78
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_short_scoreboard.avg,%,6
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_not_selected.avg,%,5
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_barrier.avg,%,4
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_mio_throttle.avg,%,4
+0,1,python,labhost,wait,1,7,"(256, 1, 1)","(1, 1, 1)",A100,8.0,Warp State Statistics,smsp__pcsamp_warps_issue_stalled_math_pipe_throttle.avg,%,3

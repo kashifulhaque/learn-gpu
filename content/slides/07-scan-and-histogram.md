@@ -493,11 +493,16 @@ Section divider. The last section ties the two halves together.
 
 Keys: 3, 1, 2, 1, 0, 3, 2, 1. Digit 2 starts at slot 4.
 
+Sorted keys: 0, 1, 1, 1, 2, 2, 3, 3. The lab grades this CPU scatter.
+
 Note:
 Histogram the keys, scan the counts to get each digit's first output slot, and
-scatter. Radix sort repeats this per digit. The scatter is stable if each key
-takes slots in input order. GPU libraries build their radix sorts from exactly
-these parts.
+scatter in input order. The eight writes use slots 6, 1, 4, 2, 0, 7, 5, and 3,
+so the sorted keys are 0, 1, 1, 1, 2, 2, 3, 3. The lab grades that result on the
+CPU. An inclusive scan of these counts is 1, 4, 6, 8, and that writes the
+first 3 at index 8. The exclusive offsets are that scan shifted right by one,
+with 0 in front. Radix sort repeats the same three steps per digit, and the
+scatter is stable when each key takes slots in input order.
 
 ### Expert offsets in a mixture of experts {#moe-offsets}
 

@@ -11,6 +11,17 @@ BLOCK_SIZES = [1, 2, 31, 255, 256, 257, 1000, 4096, 100_003]
 SCAN_SIZES = [1, 2, 31, 255, 1023, 1024, 1025, 4096, 65_537, 1_000_003, 2**20, 2**20 + 1, 2**21 + 17, 5_000_000]
 HIST_SIZES = [1, 7, 255, 256, 1000, 123_457, 2**20 + 3]
 
+# The chapter's 2-bit digits. Histogram [1, 3, 2, 2], exclusive offsets [0, 1, 4, 6],
+# sorted [0, 1, 1, 1, 2, 2, 3, 3]. Slots in input order: 6, 1, 4, 2, 0, 7, 5, 3.
+CHAPTER_KEYS = [3, 1, 2, 1, 0, 3, 2, 1]
+CHAPTER_SORTED = [0, 1, 1, 1, 2, 2, 3, 3]
+CHAPTER_OFFSETS = [0, 1, 4, 6]
+
+# Wrong implementation this catches: an inclusive scan of the histogram
+# (torch.cumsum of the bin counts) used as each bin's first output slot.
+# On CHAPTER_KEYS those slots are [1, 4, 6, 8], not the exclusive offsets
+# [0, 1, 4, 6], and the first key 3 is written at index 8.
+
 
 def ref_block_scan(x: torch.Tensor):
     """Per-tile exclusive scan and tile sums, in int64, then narrowed to int32."""
@@ -27,8 +38,151 @@ def ref_exclusive(x: torch.Tensor):
     return wide.cumsum(0) - wide
 
 
+def _show(expected, actual) -> str:
+    return f"expected {expected}, actual {actual}"
+
+
+def _expect_sort(sorted_keys, offsets) -> str:
+    return f"sorted {list(sorted_keys)} and offsets {list(offsets)}"
+
+
+def _values(tensor: torch.Tensor) -> list[int]:
+    return [int(v) for v in tensor.detach().cpu().reshape(-1).tolist()]
+
+
+def _pair(got):
+    if not isinstance(got, tuple) or len(got) != 2:
+        raise TypeError(f"got {type(got).__name__}, not a (sorted_keys, offsets) pair")
+    got_keys, got_off = got
+    if not isinstance(got_keys, torch.Tensor) or not isinstance(got_off, torch.Tensor):
+        raise TypeError(
+            f"got {type(got_keys).__name__} and {type(got_off).__name__}, not two tensors"
+        )
+    return got_keys, got_off
+
+
+def ref_counting_sort(keys: torch.Tensor, num_bins: int):
+    """CPU oracle: histogram, then an exclusive scan built by shifting the inclusive totals."""
+    work = keys.detach().to(dtype=torch.int64, device="cpu")
+    counts = torch.bincount(work, minlength=num_bins)
+    offsets = torch.zeros(num_bins, dtype=torch.int64)
+    if num_bins > 1:
+        offsets[1:] = torch.cumsum(counts, 0)[:-1]
+    out = torch.empty(work.numel(), dtype=torch.int64)
+    cursor = offsets.clone()
+    for index in range(int(work.numel())):
+        key = int(work[index])
+        slot = int(cursor[key])
+        out[slot] = work[index]
+        cursor[key] = slot + 1
+    return out, offsets
+
+
+def _grade_counting_sort(c: Checks, submission) -> None:
+    def check_chapter():
+        for dtype in (torch.int64, torch.int32):
+            keys = torch.tensor(CHAPTER_KEYS, dtype=dtype)
+            try:
+                got_keys, got_off = _pair(submission.counting_sort(keys, 4))
+            except Exception as exc:  # noqa: BLE001
+                return False, _show(
+                    _expect_sort(CHAPTER_SORTED, CHAPTER_OFFSETS),
+                    f"{dtype}: {type(exc).__name__}: {exc}",
+                )
+            actual_keys, actual_off = _values(got_keys), _values(got_off)
+            detail = _show(
+                _expect_sort(CHAPTER_SORTED, CHAPTER_OFFSETS) + f" dtype {dtype}",
+                _expect_sort(actual_keys, actual_off) + f" dtype {got_keys.dtype}",
+            )
+            if actual_keys != CHAPTER_SORTED or actual_off != CHAPTER_OFFSETS or got_keys.dtype != dtype:
+                return False, detail
+        return True, _show(
+            _expect_sort(CHAPTER_SORTED, CHAPTER_OFFSETS),
+            _expect_sort(CHAPTER_SORTED, CHAPTER_OFFSETS),
+        )
+
+    c.check("counting_sort matches the chapter's 8 digits", check_chapter)
+
+    def check_empty_bin():
+        # Counts [3, 0, 2, 3]. The empty bin must stay in the histogram, or the
+        # exclusive scan collapses and the later offsets move.
+        keys = torch.tensor([3, 0, 2, 0, 3, 2, 0, 3], dtype=torch.int64)
+        want_keys = [0, 0, 0, 2, 2, 3, 3, 3]
+        want_off = [0, 3, 3, 5]
+        try:
+            got_keys, got_off = _pair(submission.counting_sort(keys, 4))
+        except Exception as exc:  # noqa: BLE001
+            return False, _show(_expect_sort(want_keys, want_off), f"{type(exc).__name__}: {exc}")
+        actual = _expect_sort(_values(got_keys), _values(got_off))
+        ok = _values(got_keys) == want_keys and _values(got_off) == want_off
+        return ok, _show(_expect_sort(want_keys, want_off), actual)
+
+    c.check("counting_sort keeps an empty bin in the exclusive scan", check_empty_bin)
+
+    def check_all_equal():
+        keys = torch.tensor([2, 2, 2, 2], dtype=torch.int64)
+        want_keys = [2, 2, 2, 2]
+        want_off = [0, 0, 0, 4]
+        try:
+            got_keys, got_off = _pair(submission.counting_sort(keys, 4))
+        except Exception as exc:  # noqa: BLE001
+            return False, _show(_expect_sort(want_keys, want_off), f"{type(exc).__name__}: {exc}")
+        actual = _expect_sort(_values(got_keys), _values(got_off))
+        ok = _values(got_keys) == want_keys and _values(got_off) == want_off
+        return ok, _show(_expect_sort(want_keys, want_off), actual)
+
+    c.check("counting_sort puts an all-equal input in one bin", check_all_equal)
+
+    def check_seeded():
+        gen = torch.Generator(device="cpu").manual_seed(7)
+        draws = [(0, 4), (1, 1), (1, 8), (7, 3), (31, 8), (255, 16), (1000, 32), (4096, 64)]
+        sample = None
+        for n, bins in draws:
+            keys = torch.randint(0, bins, (n,), generator=gen, dtype=torch.int64)
+            want_keys, want_off = ref_counting_sort(keys, bins)
+            want = _expect_sort(_values(want_keys), _values(want_off))
+            try:
+                got_keys, got_off = _pair(submission.counting_sort(keys, bins))
+            except Exception as exc:  # noqa: BLE001
+                return False, _show(want, f"n={n}, bins={bins}: {type(exc).__name__}: {exc}")
+            actual = _expect_sort(_values(got_keys), _values(got_off))
+            if _values(got_keys) != _values(want_keys) or _values(got_off) != _values(want_off):
+                return False, _show(want, f"n={n}, bins={bins}: {actual}")
+            if n == 1 and bins == 1:
+                sample = (want, actual)
+        return True, _show(sample[0], sample[1]) + f" on {len(draws)} seeded draws (seed 7)"
+
+    c.check("counting_sort matches a seeded reference", check_seeded)
+
+    def check_unchanged():
+        keys = torch.tensor(CHAPTER_KEYS, dtype=torch.int64)
+        before = keys.clone()
+        try:
+            submission.counting_sort(keys, 4)
+        except Exception as exc:  # noqa: BLE001
+            return False, _show(before.tolist(), f"{type(exc).__name__}: {exc}")
+        if not torch.equal(keys, before):
+            return False, _show(before.tolist(), keys.tolist())
+        return True, _show(before.tolist(), keys.tolist())
+
+    c.check("counting_sort leaves its input unchanged", check_unchanged)
+
+
 def run(submission):
     c = Checks()
+    if not hasattr(submission, "counting_sort"):
+        c.add(
+            "counting_sort is defined",
+            False,
+            _show("counting_sort(keys, num_bins)", "the submission has no counting_sort"),
+        )
+    else:
+        _grade_counting_sort(c, submission)
+
+    if not torch.cuda.is_available():
+        print("      No CUDA device is visible, so the kernel checks are skipped.", flush=True)
+        return c.finish()
+
     needed = ["block_scan_kogge_stone", "block_scan_blelloch", "exclusive_scan", "histogram256", "histogram256_global"]
     if not c.require(submission, *needed):
         return c.finish()

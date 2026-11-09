@@ -11,10 +11,10 @@ Three groups of kernels, all in one CUDA source:
 3. A 256-bin histogram of bytes: global atomics (given), a shared-memory
    privatized version, and, as a stretch goal, a warp-aggregated version.
 
-Fill in every `TODO` inside CUDA_SRC. The host code, the launches, and the
-Python wrappers are written for you. The tests call the six Python functions
-at the bottom of this file. The first call compiles CUDA_SRC with nvcc, which
-takes 30 to 90 seconds.
+Fill in every `TODO` inside CUDA_SRC, and fill in `counting_sort` at the bottom
+of this file. The host code, the launches, and the other Python wrappers are
+written for you. `counting_sort` is pure Python and runs on the CPU. The first
+call to a kernel compiles CUDA_SRC with nvcc, which takes 30 to 90 seconds.
 """
 
 import torch
@@ -341,3 +341,22 @@ def histogram256_aggregated(x: torch.Tensor) -> torch.Tensor:
     function while it raises NotImplementedError.
     """
     raise NotImplementedError("stretch goal")
+
+
+def counting_sort(keys: torch.Tensor, num_bins: int):
+    """Stable counting sort of non-negative integer keys in ``0 .. num_bins - 1``.
+
+    Histogram the keys into ``num_bins`` bins, take the exclusive scan of the
+    counts, and scatter each key into the next free slot of its bin. Return
+    ``(sorted_keys, offsets)``. ``offsets`` has length ``num_bins``, and
+    ``offsets[b]`` is the first output index of bin ``b``. ``sorted_keys``
+    matches ``keys`` in shape and dtype. Leave ``keys`` unchanged.
+
+    This runs on the CPU. ``torch.cumsum`` of the counts is the inclusive scan,
+    which starts one bin's range past the exclusive offsets.
+
+    TODO: replace the body.
+    """
+    raise NotImplementedError(
+        "histogram the keys, exclusive-scan the counts, then scatter"
+    )

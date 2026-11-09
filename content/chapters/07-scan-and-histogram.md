@@ -680,7 +680,16 @@ each element to its key's slot. Take the 2-bit digits $[3, 1, 2, 1, 0, 3, 2, 1]$
 | Exclusive scan | 0 | 1 | 4 | 6 |
 
 Digit 0 starts at slot 0, digit 1 at slot 1, digit 2 at slot 4, and digit 3 at
-slot 6. A radix sort repeats this for each digit of the key, and in a GPU radix
+slot 6. Scatter in input order: write each digit into its current slot, then add
+one to that slot. Those writes use slots 6, 1, 4, 2, 0, 7, 5, and 3, so the
+sorted digits are $[0, 1, 1, 1, 2, 2, 3, 3]$. The lab's `counting_sort` must
+return that array and the exclusive offsets $[0, 1, 4, 6]$.
+
+An inclusive scan of this histogram is $[1, 4, 6, 8]$. The exclusive scan is
+that result shifted right by one, with 0 in front. Using the inclusive scan as
+the first slot writes the first 3 at index 8, past the end of the array.
+
+A radix sort repeats this for each digit of the key, and in a GPU radix
 sort each block computes its own histogram and a scan combines them. GPU
 libraries' radix sorts, such as CUB's, are built from these parts.
 
@@ -696,6 +705,8 @@ GEMM that consumes it.
 - **Mixing up inclusive and exclusive.** An off-by-one in a compaction, or a
   token kept in top-p that shouldn't be, comes from using the inclusive scan
   where a position or a "mass before" is needed. Test both on `[1,1,1,1]`.
+  `counting_sort` has the same trap: the inclusive scan of the histogram
+  $[1, 3, 2, 2]$ is $[1, 4, 6, 8]$, and the first 3 is then written at index 8.
 - **One barrier in Kogge-Stone.** Without the barrier between the read and the
   write, a thread can overwrite a value its neighbor hasn't read, and the result
   is wrong only on some runs. Read into a register, barrier, write, barrier.
@@ -792,11 +803,19 @@ GEMM that consumes it.
 > (`exclusive_scan`, for int32 and float32, any length), and a shared-memory
 > privatized histogram (`histogram256`). The global-atomic baseline is given.
 >
-> The tests check every function against PyTorch on sizes that include 1, 255,
+> You also write `counting_sort` in Python. It runs on the CPU, and it doesn't
+> need a GPU. Histogram the keys, take the exclusive scan of the counts, and
+> scatter each key into the next slot of its bin. On the digits
+> $[3, 1, 2, 1, 0, 3, 2, 1]$ the sorted result is $[0, 1, 1, 1, 2, 2, 3, 3]$
+> and the offsets are $[0, 1, 4, 6]$.
+>
+> The tests check each kernel against PyTorch on sizes that include 1, 255,
 > 257, 1025, and $2^{20} + 1$, and on an unaligned view. You pass when the
 > results are exact (or within the stated float tolerance), the device scan
 > reaches 40% of the 1275 GB/s copy ceiling counting 3n elements, and the
-> privatized histogram reaches 25% counting n bytes.
+> privatized histogram reaches 25% counting n bytes. The kernel checks run only
+> when a CUDA device is visible. With no CUDA device, the lab skips those
+> checks and still runs `counting_sort`.
 >
 > The lab also reports the metrics this chapter predicts: `kogge_stone_gbs` and
 > `blelloch_gbs` for the two block scans, `scan_ms` against `torch_cumsum_ms`,

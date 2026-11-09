@@ -23,7 +23,7 @@ lab: 00-hello-gpu
 > - Every kernel is bound by one of two rates: bytes per second the memory delivers, or FLOP per second the arithmetic units sustain. On the A100 80GB PCIe those are rated at 1935 GB/s and 312 TFLOP/s, so a kernel needs 161 FLOP per byte to leave the memory side behind.
 > - A GPU is a throughput machine. It hides a memory latency of about 330 ns by keeping about 160,000 four-byte loads (640 KB) in flight, which is why a kernel needs many threads.
 > - A launch is asynchronous. Time a kernel with CUDA events, or synchronize before you read a host clock.
-> - The course has six parts and 23 labs, built around one real A100. Each lab predicts a time from the specs and then measures it.
+> - The course has six parts and 24 labs, built around one real A100. Each lab predicts a time from the specs and then measures it.
 
 You write PyTorch, and you know what a transformer is. This course teaches what happens underneath: the machine that runs your tensors, and the kernels that make the difference between a training run that takes a week and one that takes three days.
 
@@ -320,7 +320,7 @@ Every chapter has a book chapter, a lab, and a slide deck. The labs are the poin
 |---|---|---|---|
 | 1. The machine | 0 to 5 | SMs, warps, the memory hierarchy, the roofline, profiling | A device-peak calculator, an occupancy calculator, copy kernels, roofline predictions, a profile-and-fix exercise |
 | 2. CUDA patterns | 6 to 9 | Reductions, scans, shared memory, floating point | Sum and max reductions, scan and histogram, a padded transpose, a numerics study |
-| 3. Matrix multiplication | 10 to 14 | SGEMM, tensor cores, async pipelines, CUTLASS layouts, Triton | An SGEMM ladder, a WMMA GEMM, a cp.async pipeline, CuTe layouts, a Triton matmul |
+| 3. Matrix multiplication | 10 to 14, and 24 | SGEMM, tensor cores, async pipelines, CUTLASS layouts, Triton, a CuTe DSL GEMM | An SGEMM ladder, a WMMA GEMM, a cp.async pipeline, CuTe layouts, a Triton matmul, a CuTe DSL GEMM |
 | 4. Kernels for ML | 15 to 20 | Softmax, FlashAttention, fusion, quantization, training kernels, MoE | Online softmax and LayerNorm, FlashAttention-2, torch.compile and CUDA graphs, a W4A16 GEMM, a fused cross-entropy, a grouped GEMM |
 | 5. Many GPUs | 21, 22 | Collectives, overlap, parallelism | A ring all-reduce, stream overlap |
 | 6. Beyond | 23 | AMD, TPUs, Apple silicon, tile languages | None; the chapter is reading |
@@ -330,9 +330,9 @@ Part 1 is the machine, and it is the part everything else leans on, so chapters 
 > [!NOTE] Hopper and Blackwell
 > The labs run on an Ampere A100 (compute capability 8.0). Hopper (H100) and Blackwell (B200) features, such as TMA, `wgmma`, and `tcgen05`, are taught in prose, figures, and slides, and where a lab can exercise the same idea on Ampere it does. Every hardware table names the part it describes.
 
-### The two languages
+### The kernel languages
 
-The labs use two ways of writing kernels. *CUDA C++*, compiled from Python with `load_inline`, shows you the hardware directly: threads, blocks, shared memory, and registers. *Triton* is a Python-embedded language in which you write the program for one block of data and the compiler handles the thread-level details. Parts 1 and 2 are mostly CUDA, Part 3 starts in CUDA and moves to Triton, and Part 4 is mostly Triton. In practice, you write Triton for most production kernels and drop to CUDA when you need control Triton doesn't expose, and you only know which is which after writing both. The lab environment pins PyTorch 2.14.1, CUDA 13.0, and Triton 3.8.0.
+The labs use two ways of writing kernels, and chapter 24 adds a third. *CUDA C++*, compiled from Python with `load_inline`, shows you the hardware directly: threads, blocks, shared memory, and registers. *Triton* is a Python-embedded language in which you write the program for one block of data and the compiler handles the thread-level details. The *CuTe DSL* (chapter 24) compiles the layouts from chapter 13 into a kernel: you name the copy atom and the MMA atom. Parts 1 and 2 are mostly CUDA, Part 3 starts in CUDA and moves to Triton, and Part 4 is mostly Triton. In practice, you write Triton for most production kernels and drop to CUDA when you need control Triton doesn't expose, and you only know which is which after writing both. The lab environment pins PyTorch 2.14.1, CUDA 13.0, Triton 3.8.0, and `nvidia-cutlass-dsl` 4.8.1.
 
 ## How the labs run
 

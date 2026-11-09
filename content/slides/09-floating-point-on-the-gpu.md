@@ -217,7 +217,9 @@ Note:
 Walk the arithmetic. The exact square is one plus two to the minus eleven plus
 two to the minus twenty-four. The last term is half an ulp, a tie, and ties to
 even drops it. The FMA keeps it. Neither is wrong; they are different programs,
-which is why a CPU reference differs in the last bit.
+which is why a CPU reference differs in the last bit. The lab's
+`fma_versus_separate` returns 0 for the separate multiply and add, and two to
+the minus twenty-four for the fused path.
 
 ### What --use_fast_math bundles {#fast-math}
 

@@ -2,7 +2,8 @@
 
 Four parts:
 
-1. Format round trips, in PyTorch: what each format can and can't hold.
+1. Format round trips, in PyTorch, and one fused multiply-add against a
+   separate multiply and add.
 2. Accumulation order, in PyTorch: the bfloat16 stall and the pairwise cure.
 3. Summation kernels, in CUDA: Kahan, a fixed-order tree, and atomicAdd.
 4. Compiler flags: what --use_fast_math does to expf and to subnormals.
@@ -96,6 +97,22 @@ def measured_roundoff(fmt: str, n: int = 1 << 16) -> float:
     x32 = x.float()
     back = roundtrip(x32, fmt).double()
     return ((back - x32.double()).abs() / x32.double()).max().item()
+
+
+def fma_versus_separate(a: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return (separate, fused) for `a * a + c`, both as float32.
+
+    The separate path stores the float32 product, then adds `c`. The fused
+    path rounds the exact product-plus-`c` once. A product of two float32
+    values is exact in float64, so the float64 sum rounded back to float32
+    is that one rounding for the values the tests use.
+    """
+    a = a.to(dtype=torch.float32)
+    c = c.to(dtype=torch.float32)
+    product = a * a
+    separate = product + c
+    fused = (a.double() * a.double() + c.double()).to(dtype=torch.float32)
+    return separate, fused
 
 
 # ---------------------------------------------------------------------------

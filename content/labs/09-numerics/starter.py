@@ -3,7 +3,8 @@
 Four parts. Each one pairs a number you can compute by hand with a measurement
 the tests make:
 
-1. Format round trips, in PyTorch: what each format can and can't hold.
+1. Format round trips, in PyTorch, and one fused multiply-add against a
+   separate multiply and add.
 2. Accumulation order, in PyTorch: the bfloat16 stall and the pairwise cure.
 3. Summation kernels, in CUDA: Kahan, a fixed-order tree, and atomicAdd.
 4. Compiler flags: what --use_fast_math does to expf and to subnormals.
@@ -88,6 +89,22 @@ def measured_roundoff(fmt: str, n: int = 1 << 16) -> float:
     value in [1, 2) is a normal number in every format here, so the result
     should land just under the unit roundoff 2**-(m + 1), where m is the number
     of mantissa bits.
+    """
+    raise NotImplementedError
+
+
+def fma_versus_separate(a: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return (separate, fused) for `a * a + c`, both as float32 tensors.
+
+    `separate` multiplies in float32, stores that product, then adds `c`, so
+    the product rounds before the addition. `fused` rounds `a * a + c` once.
+
+    The product of two float32 values is exact in float64. Rounding
+    `(a.double() * a.double() + c.double())` back to float32 is that one
+    rounding for the values this lab uses.
+
+    For `a = 1 + 2**-12` and `c = -(1 + 2**-11)`, `separate` is 0 and
+    `fused` is `2**-24`. `a` and `c` are float tensors of the same shape.
     """
     raise NotImplementedError
 

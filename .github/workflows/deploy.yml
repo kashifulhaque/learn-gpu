@@ -55,8 +55,8 @@ jobs:
           VM_DEPLOY_KEY: ${{ secrets.VM_DEPLOY_KEY }}
         run: |
           if [ -z "$VM_DEPLOY_KEY" ]; then
-            echo "::warning::VM_DEPLOY_KEY is not set; skipping deploy."
-            exit 0
+            echo "::error::VM_DEPLOY_KEY is not set. Add the deploy key as a repository secret."
+            exit 1
           fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$VM_DEPLOY_KEY" > ~/.ssh/deploy_key

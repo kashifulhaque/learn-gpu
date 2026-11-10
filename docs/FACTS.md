@@ -1178,3 +1178,46 @@ Source keys for this section:
 
 | BG08 | Bell and Garland, Efficient Sparse Matrix-Vector Multiplication on CUDA, NVIDIA technical report NVR-2008-004 | https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf |
 | BEAMER11 | Beamer, Asanovic, and Patterson, Searching for a Parent Instead of Fighting Over Children, UCB/EECS-2011-117 | https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html |
+
+## 21. Blackwell tcgen05 and tensor memory (chapter 35)
+
+Facts that `35-blackwell-tcgen05` and its lab rely on. The PTX ISA page is one very large document, and the fetch tool returned its text cut off before section 9.7.18 (the `tcgen05` instructions). These rows are therefore confirmed against CUTLASS headers and documentation, the Colfax tutorials, and the FlashAttention-4 paper and blog, and against the earlier section 5.6 rows that a research agent read from the PTX ISA. A row tagged C below names the source actually read for it. Section 5.6 still holds the PTX-sourced shapes and kinds.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| TMEM geometry | 128 lanes by 512 columns of 32-bit cells, 256 KiB per SM | C | [COLFAX-TMEM], [FA4-HTML], section 5.6 |
+| TMEM address | 32 bits; lane in bits 31:16, column in bits 15:0. CUTLASS's lane stride is `1 << 16` in 32-bit addressing | C | [COLFAX-TMEM], [CUTLASS-TMEMALLOC] |
+| Allocation rule | whole columns; the count is a power of two, at least 32; all 128 lanes of each column are allocated; the base address is written to shared memory | C | [COLFAX-TMEM], [CUTLASS-TMEMALLOC] (limits appear in its doc comments) |
+| Maximum allocation | 512 columns | C | section 5.6 (PTX, via research agent); [COLFAX-TMEM] example allocates 512 |
+| Allocation granule | 32 columns = 16 KiB ($128 \times 32 \times 4$) | C; D for the product | [FA4-HTML], arithmetic |
+| Allocator calls | `tcgen05.alloc.cta_group::{1,2}.sync.aligned.shared::cta.b32 [dst], n`; `tcgen05.dealloc.cta_group::{1,2}.sync.aligned.b32 taddr, n`; `tcgen05.relinquish_alloc_permit.cta_group::{1,2}.sync.aligned`. One fully active warp issues them, one warp at a time, the same warp for repeated allocations; for `cta_group::2` both CTAs pass the same `dst` and the same logical warp | C | [CUTLASS-TMEMALLOC] |
+| Newer-part allocation mode | an `exclusive` variant exists; one path allows any multiple of 32 up to 576 columns. Not modelled in the lab | C (comment text only) | [CUTLASS-TMEMALLOC] |
+| Warp-to-lane rule | each warp reaches 32 lanes: warp 0 lanes 0-31, warp 1 lanes 32-63, and so on, by the warp index mod 4. The epilogue therefore needs a warpgroup | S (tutorial); the PTX "access restrictions" section was not read | [COLFAX-TMEM] |
+| `tcgen05.ld` shapes | `16x64b`, `16x128b`, `16x256b`, `32x32b`; repeat counts from x1 up to x128 for the narrow shapes. CUTLASS's header lists `16x64b` and `16x128b` to x64 and `16x256b` to x32. The article's per-instruction size limit has inconsistent units | S, U (limit) | [COLFAX-TMEM], [CUTLASS-COPY100] |
+| `tcgen05.ld` x1 string | `tcgen05.ld.sync.aligned.32x32b.x1.b32 {r}, [taddr];` | C | [CUTLASS-COPY100] |
+| `tcgen05.st`, `tcgen05.wait::ld`, `tcgen05.wait::st`, `tcgen05.fence::{before,after}_thread_sync` strings used in the lab kernel | Written from knowledge of the PTX; the CUTLASS header sections that define them were not read. The kernel is untested on a B200 | U | none |
+| Accumulator layout | M maps to lanes and N to columns; a 128 by 256 fp32 accumulator uses half of TMEM; `make_fragment_C` with 2 stages gives ping-pong buffers; A in TMEM sits after the accumulator's columns and must be K-major | C | [COLFAX-TMEM], [TCGEN05-GUIDE] |
+| 1-CTA shapes | M of 64 or 128; N up to 256; 64 by N needs N a multiple of 8. Step of N for M = 128: 16 per Colfax, 8 per the section 5.6 PTX row. The lab accepts any multiple of 8 | C, U (the step of N) | [COLFAX-TMEM], section 5.6 |
+| 2-CTA behaviour | M of 128 or 256; accumulator split along M between the CTAs' TMEM; each CTA loads half of each operand tile (A split along M, B split along N); the leader is the even CTA; the commit multicasts to both CTAs' barriers; the pair sits in one cluster, adjacent CTA ids; CUTLASS requires the first cluster dimension to be a multiple of 2 | C | [COLFAX-CLUSTER], [CUTLASS-BW], [TCGEN05-GUIDE] |
+| Pair operand traffic, 256 by 256 by 64, bf16 | per CTA: A $128 \times 64 \times 2 = 16{,}384$, B $128 \times 64 \times 2 = 16{,}384$; one CTA of 128 by 256: A 16,384, B 32,768. Total 32,768 against 49,152 is 2/3; B alone is 1/2. The Colfax text says the pair "transfers half the operand data", which does not match its own tile sizes | D | arithmetic; [COLFAX-CLUSTER] |
+| Stage counts in 227 KiB | $227 \times 1024 / 49{,}152 = 4.7$, so 4 stages (192 KiB); $/ 32{,}768 = 7.1$, so 7 stages (224 KiB). Epilogue buffers and barriers excluded | D | section 2 (227 KiB per block), arithmetic |
+| Pair instruction time | $2 \times 256 \times 256 \times 16 = 2{,}097{,}152$ FLOP over $2 \times 8{,}192$ per clock = 128 clocks; the 1-CTA $128 \times 256 \times 16$ is $1{,}048{,}576 / 8{,}192 = 128$ clocks | D | [FA4-HTML] (8,192 per SM per clock) |
+| Shared-memory read model | 128 bytes per clock per SM (stated by FA4). Reads of 12,288 bytes per 1-CTA instruction = 96 clocks; 8,192 per SM in a pair = 64 clocks. Assumes each operand byte is read once | C (128 B/clk); D (the rest, a model) | [FA4-HTML], arithmetic |
+| Instruction descriptor, dense `kind::f16` | sparse id and flag bits 0-2, saturate 3, C format 4-5 (f16 0, f32 1, s32 2), A format 7-9 and B format 10-12 (f16 0, bf16 1, tf32 2), negate 13 and 14, A major 15 and B major 16 (K 0, MN 1), N >> 3 at 17-22, M >> 4 at 24-28, K-size bit 29, max-shift 30-31. M = 128, N = 256, bf16 to fp32, K-major: `0x8400490` | C (field layout); D (the word) | [CUTLASS-DESC] |
+| Shared-memory descriptor | start, leading, stride: `(value & 0x3FFFF) >> 4` at bits 0-13, 16-29, 32-45; version 1 at bits 46-47; base offset bits 49-51; leading-byte-offset mode bit 52; layout type 3 bits at 61-63: none 0, 128B_BASE32B 1, 128B 2, 64B 4, 32B 6. One path widens start and leading to 15 bits. Start 0, leading 16, stride 1024, 128B: `0x4000404000010000` | C; D (the word) | [CUTLASS-DESC] |
+| Hopper descriptor, for comparison | layout type 2 bits at 62-63: none 0, 128B 1, 64B 2, 32B 3; no version field | C | chapter 26, [CUTLASS-DESC-HOPPER] |
+| Block-scaled kinds | `mxf8f6f4`, `mxf4`: 32 elements per scale, `ue8m0`; `nvf4`: 16 elements per scale, `ue4m3`; scale factors staged in TMEM with `tcgen05.cp` before the MMA; accumulator fp32. Instruction K: 32 for `mxf8f6f4`, 64 for `mxf4` and `nvf4` | C | [CUTLASS-BW], [TCGEN05-GUIDE], section 5.6 |
+| FlashAttention-4 | up to 1,613 TFLOP/s bf16, 71% of peak, 1.3x cuDNN 9.13, 2.7x Triton; S and P share TMEM; 2-CTA backward with half of B staged per CTA and half the dQ atomics; backward shared-memory cycles 3,328 to 2,688 for a $128^3$ tile. The paper text says B200 and Appendix A.1 says "B100 180GB SXM6" | C; U (which part) | [FA4-HTML] |
+| Why `sm_100a` only | the `a` suffix enables architecture-specific features; the kernel is guarded by `__CUDA_ARCH_FEAT_SM100_ALL`. Whether an `sm_100a` binary runs on other compute capability 10.x parts was not confirmed, so the lab gates on exactly 10.0 | U | none |
+| The kernel stub on hardware | not run. The lab reports `tmem_values_roundtripped` only on a B200 | U | lab 35 |
+
+| Key | Source | URL |
+|---|---|---|
+| COLFAX-TMEM | Colfax, CUTLASS tutorial: writing GEMM kernels using tensor memory | https://research.colfax-intl.com/cutlass-tutorial-writing-gemm-kernels-using-tensor-memory-for-nvidia-blackwell-gpus/ |
+| COLFAX-CLUSTER | Colfax, CUTLASS tutorial: GEMM with thread block clusters on Blackwell | https://research.colfax-intl.com/cutlass-tutorial-gemm-with-thread-block-clusters-on-nvidia-blackwell-gpus/ |
+| CUTLASS-DESC | CUTLASS, `include/cute/arch/mma_sm100_desc.hpp` | https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/mma_sm100_desc.hpp |
+| CUTLASS-DESC-HOPPER | CUTLASS 3.9.2, `mma_sm90_desc.hpp` | https://github.com/NVIDIA/cutlass/blob/v3.9.2/include/cute/arch/mma_sm90_desc.hpp |
+| CUTLASS-TMEMALLOC | CUTLASS, `include/cute/arch/tmem_allocator_sm100.hpp` | https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/tmem_allocator_sm100.hpp |
+| CUTLASS-COPY100 | CUTLASS, `include/cute/arch/copy_sm100.hpp` | https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/copy_sm100.hpp |
+| CUTLASS-BW | CUTLASS, Blackwell functionality | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/blackwell_functionality.md |
+| FA4-HTML | FlashAttention-4 (arXiv 2603.05451, HTML version) | https://arxiv.org/html/2603.05451v1 |

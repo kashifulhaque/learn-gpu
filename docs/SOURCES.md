@@ -805,3 +805,29 @@ Part 3 — Matrix multiplication. Numbered 34 because chapters 00 through 27 are
     Take: The lecture index titles this session CUTLASS and FlashAttention-3. Not re-fetched for this chapter, and the slides were not read, so the chapter does not cite them for clusters.
 11. **CUTLASS pipeline documentation.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/pipeline.md>  
     Take: It lists thread block cluster synchronization and query APIs among the CUTLASS abstractions. It does not mention multicast.
+
+## 35-blackwell-tcgen05: Blackwell tcgen05 and tensor memory
+
+Part 3 — Matrix multiplication. Numbered 35 because chapters 00 through 29 are not renumbered and other work numbers chapters 30 to 34. Prerequisites are chapters 12, 24, and 26. The PTX ISA page was truncated by the fetch tool before its tcgen05 section, so the bit layouts come from CUTLASS headers.
+
+1. **CUTLASS `mma_sm100_desc.hpp`.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/mma_sm100_desc.hpp>  
+   Take: The shared-memory descriptor fields (version at 46-47, layout type at 61-63 with values 0, 1, 2, 4, 6), the instruction descriptor fields, and the format enums.
+2. **CUTLASS `tmem_allocator_sm100.hpp`.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/tmem_allocator_sm100.hpp>  
+   Take: The `tcgen05.alloc`, `dealloc`, and `relinquish_alloc_permit` strings, the 32-column slice, and the single-warp rule.
+3. **CUTLASS `copy_sm100.hpp`.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/copy_sm100.hpp>  
+   Take: The `tcgen05.ld` shapes and the `32x32b.x1` string. The store and wait strings were not read.
+4. **CUTLASS Blackwell functionality.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/blackwell_functionality.md>  
+   Take: Tile shapes per data type, the block-scaled kinds, scale-vector sizes and types, and the 2SM cluster rule.
+5. **tcgen05 MMA programming guide, CUTLASS 4.6.0 CuTe DSL.** NVIDIA. <https://docs.nvidia.com/cutlass/4.6.0/media/docs/pythonDSL/mma_docs/tcgen05_programming.html>  
+   Take: The allocator calls, `CtaGroup`, the operand source, two-stage accumulator, and epilogue copy atoms.
+6. **CUTLASS tutorial: writing GEMM kernels using tensor memory.** Colfax Research. <https://research.colfax-intl.com/cutlass-tutorial-writing-gemm-kernels-using-tensor-memory-for-nvidia-blackwell-gpus/>  
+   Take: TMEM geometry and addressing, the allocation rule, the lane rule, and `tcgen05.ld` shapes. The per-instruction size limit has inconsistent units.
+7. **CUTLASS tutorial: GEMM with thread block clusters on Blackwell.** Colfax Research. <https://research.colfax-intl.com/cutlass-tutorial-gemm-with-thread-block-clusters-on-nvidia-blackwell-gpus/>  
+   Take: The pair UMMA, the leader CTA, the multicast commit, and the per-CTA loads. Its "half the operand data" claim does not match its tile sizes, and the chapter states two thirds.
+8. **FlashAttention-4 (arXiv 2603.05451) and Tri Dao's blog.** <https://arxiv.org/abs/2603.05451>, <https://tridao.me/blog/2026/flash4/>  
+   Take: TMEM-resident S and P, ping-pong, the 2-CTA backward pass, the B200 per-SM ratios, and the reported TFLOP/s. The appendix names the benchmark part differently from the text.
+9. **CUDA Blackwell tuning guide.** NVIDIA. <https://docs.nvidia.com/cuda/blackwell-tuning-guide/index.html>  
+   Take: 227 KB per block, cluster limits, and the register file. It has no tcgen05 or TMEM text.
+10. **PTX ISA.** NVIDIA. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html>  
+    Take: The table of contents places the tcgen05 sections at 9.7.18. The body text was not read here, so the chapter names the PTX as the normative source and doesn't quote it.
+11. **Chapters 12, 18, 24, and 26 of this course.** The ring, the quantized formats, the CuTe DSL, and the Hopper descriptor that this chapter compares against.

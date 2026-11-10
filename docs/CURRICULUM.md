@@ -15,6 +15,11 @@ endpoint, the same as learn-inference. Chapters 26 and 34 are Hopper labs, gated
 H100: the CPU checks run on any machine, and the TMA, `wgmma`, and cluster kernels run
 only when an H100 endpoint is configured. Blackwell (B200, sm_100) stays in
 prose, figures, and slides.
+endpoint, the same as learn-inference. Chapter 26 is a Hopper lab, gated on an
+H100: the CPU checks run on any machine, and the TMA and `wgmma` kernels run
+only when an H100 endpoint is configured. Chapter 35 is a Blackwell lab, gated on a
+B200 (sm_100a) the same way: the CPU checks run anywhere and the tcgen05 kernel
+runs only when a B200 endpoint is configured.
 
 Labs write CUDA C++ compiled from Python with
 `torch.utils.cpp_extension.load_inline`, or Triton. Chapter 24 writes the
@@ -62,6 +67,7 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 32 | 32-sparse-and-irregular-work | Sparse and irregular work | Part 2 — CUDA patterns | 32-spmv-bfs | COO, CSR, ELL, and hybrid byte costs, CSR SpMV as thread-per-row, warp-per-row, and merge path, frontier and direction-optimizing BFS, and an atomic work queue. The CPU checks run anywhere. |
 | 33 | 33-fp8-and-fp4 | FP8, MXFP4, and NVFP4 | Part 4 — Kernels for ML | 33-fp8-fp4 | Bit-exact E4M3, E5M2, and E2M1 encoders against torch, MXFP4 and NVFP4 quantizers, stochastic rounding, and an emulated block-scaled GEMM, plus a Triton check on the A100. The CPU checks run anywhere. |
 | 34 | 34-clusters-and-distributed-shared-memory | Clusters and distributed shared memory | Part 3 — Matrix multiplication | 34-clusters-dsmem | Cluster rank and map_shared_rank addressing, a DSMEM histogram checked against torch.bincount, a cluster reduction, cluster-fit and TMA-multicast byte models, and sm_90 kernels gated on an H100. The CPU checks run anywhere. |
+| 35 | 35-blackwell-tcgen05 | Blackwell tcgen05 and tensor memory | Part 3 — Matrix multiplication | 35-blackwell-tmem | A TMEM allocator, address, and descriptor model, per-CTA operand traffic for a CTA pair, and a tcgen05 kernel gated on a B200. |
 
 Chapter 24 is part of Part 3, with the GEMM chapters. Its file number is 24, after chapter 23, because chapters 00 through 23 are not renumbered.
 
@@ -81,3 +87,5 @@ Chapter 32 is part of Part 2, with chapters 6 to 9. Its file number is 32, becau
 Chapter 33 belongs to Part 4, with chapters 15 to 20. It is numbered 33, after chapter 27, because chapters 00 through 27 stay where they are. Filename order places 33 after 27. Prerequisites are chapters 9 and 18.
 
 Chapter 34 is part of Part 3, with chapters 10 to 14, 24, and 26. Its file number is 34, because other chapters were added after chapter 27 and chapters 00 through 27 are not renumbered. Filename order places 34 after them. Prerequisites are chapters 7, 12, and 26.
+
+Chapter 35 belongs to Part 3, with chapters 10 to 14, 24, 26, and 29. Its file number is 35 because chapters 00 through 29 are not renumbered, and chapters 30 to 34 and 36 onward are numbered by other work. Prerequisites are chapters 12, 24, and 26. It goes beyond chapter 12's Blackwell section: the TMEM allocation rule, the lane and column address, the warp-to-lane rule, both tcgen05 descriptors, and per-CTA operand traffic for a CTA pair. Clusters and distributed shared memory stay in chapter 34. Its lab is `device_agnostic` and gated on a B200 (`sm_100a`) through `meta.json`.

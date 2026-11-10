@@ -1,0 +1,22 @@
+{
+  "id": "29-gemm-scheduling",
+  "title": "GEMM scheduling",
+  "brief": "Count waves, partition K for split-K and stream-K, order tiles for a persistent kernel, fuse an epilogue, and choose a schedule from a cost model. Then write Triton split-K, persistent, and fused-epilogue kernels and compare them with torch.matmul on tall-skinny shapes.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 1200,
+  "metrics": ["plain_ms_m64", "splitk_speedup_m64", "splitk_best_splits", "persistent_speedup_m64"],
+  "hints": [
+    "Start with wave_stats. It needs no other function. Round each dimension up to whole tiles first: ceil(m / tile_m) * ceil(n / tile_n). Waves are tiles divided by ctas_per_sm * sm_count, rounded up.",
+    "split_k_ranges deals k_iters like cards: base = k_iters // splits, and the first k_iters % splits ranges take one more. The last K-iteration of split_k_matmul can be shorter than block_k, so clip the column range to K.",
+    "split_k_matmul converts each slice to float32 before the matmul and keeps every partial in float32. Rounding a partial to the input dtype loses about 2^-11 of its value.",
+    "reduce_partials must add one float32 at a time. Python floats are float64, which hides the order dependence: use torch.tensor(x, dtype=torch.float32) for the accumulator.",
+    "stream_k_plan: CTA c starts at c * base + min(c, rem) in the global iteration order. Cut its range at every multiple of iters_per_tile to get segments with tile-local k.",
+    "persistent_tile_order uses the same grouped arithmetic as lab 14, applied to the tile ids cta, cta + ctas, and so on. group_size_m is min(tiles_m - first_pid_m, group_m).",
+    "epilogue_bytes counts C-sized traffic only. A fused epilogue writes C once. An unfused one writes C, then every stage reads m * n elements and writes m * n elements.",
+    "schedule_cost_us is max(compute, memory) plus extra. Scale the memory time by sm_count / active, where active is the number of CTAs that run at once, capped at sm_count.",
+    "The Triton kernels run only on a GPU. A work item of the persistent kernel is one (tile, split) pair, and splits above 1 add partials with tl.atomic_add into a zeroed float32 buffer.",
+    "Compiling the first Triton kernel takes several seconds, and the tests call each kernel for many shapes, so allow a few minutes of run time."
+  ]
+}

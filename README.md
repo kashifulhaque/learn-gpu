@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 28 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 28 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 29 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 29 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -62,6 +62,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 25 | [Data parallel and ZeRO-1](content/chapters/25-ddp-and-zero.md) | Part 5 — Many GPUs | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 | 26 | [Hopper GEMM](content/chapters/26-hopper-gemm.md) | Part 3 — Matrix multiplication | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |
 | 27 | [Debugging GPU kernels](content/chapters/27-debugging-gpu-kernels.md) | Part 1 — The machine | Fix five buggy CUDA kernels under compute-sanitizer, parse recorded sanitizer reports, and find racing reads and out-of-bounds threads in plain Python. |
+| 29 | [GEMM scheduling](content/chapters/29-gemm-scheduling.md) | Part 3 — Matrix multiplication | Wave counts, split-K, stream-K ranges, persistent tile order, fused epilogues, a schedule chooser, and Triton kernels on tall-skinny shapes. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
@@ -70,6 +71,7 @@ Chapter 25 belongs to Part 5, with chapters 21 and 22. It is numbered 25, after 
 Chapter 26 belongs to Part 3, with chapters 10 to 14 and chapter 24. It is numbered 26, after chapter 25, because chapters 00 through 25 stay where they are. Filename order places 26 after 25. Prerequisites are chapter 12 and chapter 24.
 
 Chapter 27 belongs to Part 1, with chapters 0 to 5. It is numbered 27, after chapter 26, because chapters 00 through 26 stay where they are. Filename order places 27 after 26. Prerequisites are chapters 2, 5, 6, 8, and 14.
+Chapter 29 belongs to Part 3, with chapters 10 to 14, 24, and 26. Its file number is 29 because chapters 00 through 26 stay where they are. Prerequisites are chapters 04, 10, and 14.
 
 ## Run it locally
 

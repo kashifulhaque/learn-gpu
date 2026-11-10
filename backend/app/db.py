@@ -102,6 +102,17 @@ def get_progress(user: str) -> dict[str, str]:
     return {r["chapter"]: r["status"] for r in rows}
 
 
+def get_progress_rows(user: str) -> list[dict[str, Any]]:
+    """Every progress row for a user, newest `updated_at` first."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT chapter, status, updated_at FROM progress WHERE user=? "
+            "ORDER BY updated_at DESC",
+            (user,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 # --- drafts -----------------------------------------------------------------
 
 

@@ -697,3 +697,28 @@ Part 1 — The machine. Numbered 28, after chapter 26, because chapters 00 throu
 6. **GPU MODE, lecture 16: On Hands profiling.** Taylor Robbie. <https://github.com/gpu-mode/lectures>  
    Take: The lecture index lists the title. This chapter did not read the lecture itself.
 7. **Chapter 4 and chapter 5 of this course.** Roofline, wave efficiency, bank model, and the profiling funnel that this chapter reads from counters.
+## 30-sort-top-k-and-sampling: Radix sort, top-k, and sampling
+
+Part 2 — CUDA patterns. Numbered 30, because chapters 00 through 26 are not renumbered. Prerequisites are chapter 6 and chapter 7. Sampling inside an inference engine belongs to learn-inference.
+
+1. **CUB `DeviceRadixSort`.** NVIDIA. <https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceRadixSort.html>  
+   Take: Stable. Sign-bit flip for positive floats and full inversion for negative floats. `begin_bit` and `end_bit`. Zeros are equivalent, and NaNs sort by bit pattern.
+2. **CUB `DeviceTopK`.** NVIDIA. <https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceTopK.html>  
+   Take: Based on AIR TopK. The tie contract depends on the requested mode. Only the first 100,000 characters of the page were read.
+3. **Onesweep: A Faster Least Significant Digit Radix Sort for GPUs.** Adinets and Merrill. <https://arxiv.org/abs/2206.01784>  
+   Take: Single-pass prefix sum lowers memory traffic per digit. 29.4 giga-keys per second on an A100 for 256M 32-bit keys.
+4. **Sorting-free GPU kernels for LLM sampling.** FlashInfer, 10 March 2025. <https://flashinfer.ai/2025/03/10/sampling.html>  
+   Take: Rejection sampling with a pivot, a dual-pivot variant, and the monotonicity caveat for float prefix sums. More than 50% less sampling time on one H100 under vLLM.
+5. **cuRAND device API overview.** NVIDIA. <https://docs.nvidia.com/cuda/curand/device-api-overview.html>  
+   Take: `Philox_4x32_10`, seed, subsequence, offset, and the period.
+6. **`triton.language.rand`.** Triton. <https://triton-lang.org/main/python-api/generated/triton.language.rand.html>  
+   Take: A scalar seed and a block of offsets give uniform float32 values.
+7. **`torch.sort` and `torch.topk`.** PyTorch 2.14. <https://docs.pytorch.org/docs/2.14/generated/torch.sort.html>, <https://docs.pytorch.org/docs/2.14/generated/torch.topk.html>  
+   Take: `stable=True` preserves the order of equal elements. `topk` tie indices are not guaranteed.
+8. **Reproducibility.** PyTorch 2.14. <https://docs.pytorch.org/docs/2.14/notes/randomness.html>  
+   Take: A seed does not guarantee identical CPU and GPU results.
+9. **Parallel Random Numbers: As Easy as 1, 2, 3.** Salmon, Moraes, Dror, and Shaw, SC'11. <https://www.thesalmons.org/john/random123/papers/random123sc11.pdf>  
+   Take: Cited as the origin of Philox and Threefry. The PDF could not be read, so the chapter takes no claim from it.
+10. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
+    Take: Lecture 19 is Data Processing on GPUs (Devavret Makkar). Lectures 20 and 21 are Scan Algorithm and Scan Algorithm Part 2 (Izzat El Haj). Lecture 24 is Scan at the Speed of Light (Jake Hemstad and Georgii Evtushenko). Titles only; the slides were not read.
+11. **Programming Massively Parallel Processors**, fourth edition. Hwu, Kirk, and Hajj. Take: The merge and sorting chapters. The table of contents could not be fetched, so no chapter numbers are cited.

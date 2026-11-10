@@ -994,3 +994,31 @@ Facts that `28-reading-profiler-reports` and its lab rely on. The recorded `ncu`
 | NCU-CLI | Nsight Compute CLI | https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html |
 | NSYS-GUIDE | Nsight Systems User Guide | https://docs.nvidia.com/nsight-systems/UserGuide/index.html |
 | GPUMODE-INDEX | GPU MODE lecture index | https://github.com/gpu-mode/lectures |
+
+## 16. Sort, select, and sample (chapter 30)
+
+Fetched 2026-11-10. Inputs already in this file: the 1,275 GB/s measured copy ceiling (section 10) and the 164 KiB shared memory per A100 SM. Chapter 30 adds no measured value. Every time below is a byte count divided by 1,275 GB/s, which is a prediction, not a lab result.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| `torch.sort(stable=True)` keeps equal elements in their input order | The unstable default scrambles the indices of equal elements | C | [PT-SORT] |
+| `torch.topk` ties | The indices of tied elements are not guaranteed to be stable and may differ between calls | C | [PT-TOPK] |
+| CUB radix sort stability | `DeviceRadixSort` is stable. +0.0 and -0.0 are equivalent and keep their input order. NaNs get no special handling and sort by their bit patterns after the key transformations | C | [CUB-RADIX] |
+| CUB key transformations | A positive float has its sign bit flipped. A negative float has all bits inverted. `begin_bit` and `end_bit` truncate after the transformation | C | [CUB-RADIX] |
+| CUB `DeviceTopK` | Based on AIR TopK. The contract for ties and ordering depends on the mode requested. The released mode returns an unordered subset that may differ between runs when the K-th value is tied | C | [CUB-TOPK] |
+| Onesweep | 29.4 giga-keys per second for 256M random 32-bit keys on an NVIDIA A100, about 1.5 times CUB's earlier sort. The paper's A100 variant is not stated in the fetched abstract | C | [ONESWEEP] |
+| FlashInfer sort-free sampling | Rejection sampling with a pivot, and a dual-pivot variant. Overall sampling time cut by more than 50% on one H100 under vLLM, across three models. Float prefix sums may not be monotonic | C | [FLASHINFER-SAMPLING] |
+| cuRAND Philox | `Philox_4x32_10` with a seed, a subsequence, and an offset. Period $2^{128}$, subsequence length $2^{64}$ | C | [CURAND-DEVICE] |
+| Triton `tl.rand` | Takes a scalar seed and a block of offsets, and returns uniform float32 values. The page does not mention Philox | C | [TRITON-RAND] |
+| PyTorch randomness | A seed does not guarantee identical results between CPU and GPU runs | C | [PT-RANDOMNESS] |
+| Philox-4x32-10 constants and known answers | Multipliers `0xD2511F53` and `0xCD9E8D57`. Key increments `0x9E3779B9` and `0xBB67AE85`. Counter 0 and key 0 give `6627e8d5 e169c58d bc57ac4c 9b00dbd8`. The Random123 paper PDF could not be read, so these come from the Random123 library as recalled, and the lab's known-answer check reproduces them | U | [RANDOM123] |
+| Float32 key map | Sign bit clear: key = bits XOR `0x80000000`. Sign bit set: key = bits XOR `0xFFFFFFFF`. -inf is `0x007FFFFF`, -1.0 is `0x407FFFFF`, +0.0 is `0x80000000`, 1.0 is `0xBF800000`, +inf is `0xFF800000` | D | `scripts/figures/30-sort-top-k-and-sampling.py` |
+| Radix sort bytes, 32-bit keys, four 8-bit passes | One read per pass plus one up-front histogram read: $4n + 4 \times 8n = 36n$. Three phases per pass: $4 \times 12n = 48n$. With 4-byte indices: $4n + 4 \times 16n = 68n$ | D | Section 10 |
+| Floors for $n = 2^{26}$ at 1,275 GB/s | 36n: 2.416 GB, 1.895 ms. 48n: 3.221 GB, 2.526 ms. 68n: 4.563 GB, 3.579 ms | D | Section 10 |
+| Radix select bytes, four passes that each read every key | $16n$. At $n = 2^{26}$: 1.074 GB, 0.842 ms at 1,275 GB/s | D | Section 10 |
+| Bitonic network on $n = 2^m$ | $m(m+1)/2$ stages, $(n/2) \cdot m(m+1)/2$ compare-exchanges. $n = 8$: 6 and 24. $n = 1024$: 55 and 27,648. $n = 2^{20}$: 210 and 110,100,480 | D | `scripts/figures/30-sort-top-k-and-sampling.py` |
+| Radix histogram shared memory | 8-bit digit: 1 KiB. 11-bit: 8 KiB. 16-bit: 256 KiB, more than the 164 KiB per SM | D | Section 3 |
+| Philox uniform | $u = (\text{word} \gg 8) / 2^{24}$. For `0x6627E8D5`: 0.399046 | D | `scripts/figures/30-sort-top-k-and-sampling.py` |
+| Chi-square critical value, 3 degrees of freedom, p = 0.001 | 16.27 | S | Standard statistical table, not fetched |
+
+Source keys: [PT-SORT] https://docs.pytorch.org/docs/2.14/generated/torch.sort.html. [PT-TOPK] https://docs.pytorch.org/docs/2.14/generated/torch.topk.html. [CUB-RADIX] https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceRadixSort.html. [CUB-TOPK] https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceTopK.html. [ONESWEEP] https://arxiv.org/abs/2206.01784. [FLASHINFER-SAMPLING] https://flashinfer.ai/2025/03/10/sampling.html. [CURAND-DEVICE] https://docs.nvidia.com/cuda/curand/device-api-overview.html. [TRITON-RAND] https://triton-lang.org/main/python-api/generated/triton.language.rand.html. [PT-RANDOMNESS] https://docs.pytorch.org/docs/2.14/notes/randomness.html. [RANDOM123] https://www.thesalmons.org/john/random123/papers/random123sc11.pdf.

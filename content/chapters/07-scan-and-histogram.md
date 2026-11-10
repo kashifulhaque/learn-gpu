@@ -700,6 +700,12 @@ tokens starts in the permuted buffer, and the total, 8, is the buffer's length.
 [Chapter 20](/c/20-moe-and-sparse-kernels) builds the permutation and the grouped
 GEMM that consumes it.
 
+## Where the counting sort goes next
+
+This section answers what changes when the keys have more bits than a histogram can hold.
+
+A histogram of 32-bit keys needs $2^{32}$ bins, so a real sort splits the key into digits and runs your counting sort once per digit, lowest digit first. Each pass must be stable, which is why `counting_sort` scatters in input order. [Chapter 30](/c/30-sort-top-k-and-sampling) builds that radix sort, maps signed integers and floats to sortable keys, and uses the same histogram to select the top-k and the top-p nucleus without sorting the vocabulary.
+
 ## What goes wrong
 
 - **Mixing up inclusive and exclusive.** An off-by-one in a compaction, or a

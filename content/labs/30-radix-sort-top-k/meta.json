@@ -1,0 +1,24 @@
+{
+  "id": "30-radix-sort-top-k",
+  "title": "Radix sort, top-k, and sampling",
+  "brief": "Build the order-preserving key transform for signed integers and floats, one stable radix pass, a full LSD radix sort, a merge-path diagonal search, radix-select top-k, a top-p mask that needs no full sort, and a Philox counter-based sampler, all checked on the CPU against torch. Then write a CUDA kernel that histograms one radix digit and compare it with torch.bincount.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": ["hist_gbs", "hist_gkeys_per_s"],
+  "hints": [
+    "Check 1 needs only int32_to_key: flip the sign bit of the 32-bit pattern. Convert to int64 and mask with 0xFFFFFFFF first, so that -1 becomes 0xFFFFFFFF before the flip.",
+    "A float with the sign bit clear sorts as its bits once you set the sign bit. A float with the sign bit set sorts in reverse, so invert every bit. 1.0 is 0x3F800000 and its key is 0xBF800000. -1.0 is 0xBF800000 and its key is 0x407FFFFF.",
+    "float32_sort_key starts from float32_to_key, then gives -0.0 the key of +0.0 (0x80000000) and every NaN the key 0xFFFFFFFF. A NaN with the sign bit set would otherwise sort below -inf.",
+    "radix_pass: count the digits, take the exclusive scan of the counts, then walk the input from the first element to the last and write each one at offsets[digit], adding one afterward. Filling a bin from its end while walking forward reverses equal digits.",
+    "radix_sort runs 32 // bits passes, starting at shift 0. Pass the indices through every pass and return x[indices] at the end, so the result also equals torch.sort(stable=True).indices.",
+    "merge_path_partition searches i between max(0, diag - len(b)) and min(diag, len(a)). Move lo up when a[mid] <= b[diag - 1 - mid]. The less-than-or-equal sends ties to a.",
+    "radix_select_topk: at each digit, scan the histogram from the largest digit downward. If the bin holds fewer than `remaining` candidates, subtract its count and move down. Otherwise the k-th largest is in this bin. After the last digit the leftover `remaining` is how many tied elements you still need, taken in index order.",
+    "top_p_mask binary-searches the integer bit pattern of the threshold. For non-negative floats, a larger bit pattern is a larger value. Find the largest pattern whose at-or-above mass is at least p, keep everything above it, then add tied elements in index order while the kept mass is below p.",
+    "Philox-4x32-10 has ten rounds. Each round multiplies c0 by 0xD2511F53 and c2 by 0xCD9E8D57, and the high and low halves of the products feed the next counter. Between rounds the key adds 0x9E3779B9 and 0xBB67AE85. The first output word of counter (0, 0, 0, 0) and key (0, 0) is 0x6627E8D5.",
+    "To keep a sample independent of the batch layout, build the counter from the row id and the step, not from the loop position.",
+    "The first run of the kernel compiles with nvcc, which takes 30 to 90 seconds. The kernel check and the throughput metric run only on a GPU. On a machine without CUDA the nine CPU checks run and the kernel check is skipped.",
+    "In radix_hist_kernel, zero the shared bins and call __syncthreads() before the first atomicAdd. Cast the key to uint32_t before the shift, because a shift on a signed int copies the sign bit."
+  ]
+}

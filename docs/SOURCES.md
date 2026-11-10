@@ -759,3 +759,22 @@ Part 2 — CUDA patterns. Numbered 32 because other chapters fill 28 to 31. Prer
    Take: Lecture 11 is Sparsity by Jesse Cai. The index lists no SpMV or graph session.
 5. **Programming Massively Parallel Processors, 4th edition, chapters 14 and 15.** Not fetched. Cited by chapter title.
 6. **CMU 15-418 and Stanford CS149.** The research report named them for work distribution. The syllabus pages returned errors, so the chapter cites no lecture number from either.
+
+
+## 33-fp8-and-fp4: FP8, MXFP4, and NVFP4
+
+Part 4 — Kernels for ML. Numbered 33, after chapter 27, because chapters 00 through 27 are not renumbered. Prerequisites are chapters 9 and 18.
+
+1. **Microscaling Data Formats for Deep Learning.** Rouhani and others, 2023. <https://arxiv.org/abs/2310.10537> (key OCP-MX-PAPER)  
+   Take: Algorithm 1, the shared-exponent conversion, block size 32, clamping of overflow, and the rounding used in the experiments. Read through the arXiv HTML version. The page doesn't give the E8M0 bias or the `emax` values.
+2. **Introducing NVFP4 for Efficient and Accurate Low-Precision Inference.** NVIDIA. <https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/> (key NVFP4-BLOG)  
+   Take: 16-element blocks, E4M3 scales, the fp32 per-tensor scale, the E2M1 value set, 4.5 bits per value, and the E8M0 against E4M3 MSE example. The post prints no scale formulas.
+3. **DeepSeek-V3 Technical Report.** DeepSeek-AI, 2024. <https://arxiv.org/abs/2412.19437> (key DSV3)  
+   Take: section 3.3, 1x128 and 128x128 scaling, E4M3 on all tensors, online amax, the 14-bit accumulation limit, and N_C = 128. Only the first 100,000 characters of the HTML version were read, which cover section 3.3.
+4. **FP8 Formats for Deep Learning.** Micikevicius and others, 2022. <https://arxiv.org/abs/2209.05433>  
+   Take: the recommendation of E4M3 for forward values and E5M2 for gradients. Chapter 9 already cites it, and it was not re-fetched for chapter 33.
+5. **OCP 8-bit Floating Point Specification and OCP Microscaling Formats specification.** Open Compute Project. Cited in the further reading and not fetched for this chapter. The format facts were checked against torch 2.11 instead.
+6. **learn-inference, quantization chapter.** <https://qwen.ifkash.dev/c/18-quantization>  
+   Take: owns weight quantization for serving (GPTQ, AWQ, KV-cache quantization). Linked, not read again.
+7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
+   Take: the research report named lectures 84, 30, and 69 for numerics and quantization. The index was not fetched for this chapter, so the chapter cites no lecture number.

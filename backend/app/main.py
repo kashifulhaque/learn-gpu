@@ -23,6 +23,27 @@ from .providers import OutOfCredits, ProviderError, get_provider, provider_statu
 app = FastAPI(title="learn-gpu", docs_url=None, redoc_url=None)
 
 
+# The hub at this origin reads the progress summary from the browser.
+HUB_ORIGIN = "https://courses.ifkash.dev"
+SUMMARY_PATH = "/api/progress/summary"
+
+
+@app.middleware("http")
+async def hub_cors(request: Request, call_next: Any) -> Any:
+    """Let the hub read `/api/progress/summary`, and no other path.
+
+    This is middleware rather than `CORSMiddleware` so that it applies to one
+    path only, and so that the 401 from `current_user` carries the headers too.
+    """
+    response = await call_next(request)
+    if request.url.path == SUMMARY_PATH:
+        response.headers.append("Vary", "Origin")
+        if request.headers.get("origin") == HUB_ORIGIN:
+            response.headers["Access-Control-Allow-Origin"] = HUB_ORIGIN
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+
 @app.on_event("startup")
 def _startup() -> None:
     db.init_db()
@@ -211,6 +232,19 @@ def book_file(
 def set_progress(body: ProgressBody, user: str = Depends(current_user)) -> dict[str, bool]:
     db.set_progress(user, body.chapter, body.status)
     return {"ok": True}
+
+
+@app.get("/api/progress/summary")
+def progress_summary(user: str = Depends(current_user)) -> dict[str, Any]:
+    """How far the user is through the course, for the hub."""
+    titles = {c["slug"]: c["title"] for c in curriculum.chapter_list()}
+    rows = [r for r in db.get_progress_rows(user) if r["chapter"] in titles]
+    last = rows[0] if rows else None  # Rows arrive newest first.
+    return {
+        "done": sum(1 for r in rows if r["status"] == "done"),
+        "total": len(titles),
+        "last": {"slug": last["chapter"], "title": titles[last["chapter"]]} if last else None,
+    }
 
 
 @app.post("/api/drafts")

@@ -1,0 +1,27 @@
+{
+  "id": "39-memory-model",
+  "title": "Memory model, litmus tests, and a grid barrier",
+  "brief": "Compute Amdahl and Brent bounds, enumerate the outcomes of message-passing, store-buffering, and load-buffering litmus tests under sequential consistency and a weak model, and build a generation-counter grid barrier that a seeded scheduler cannot break. A CUDA message-passing kernel and a cooperative-groups comparison run on a GPU.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "mp_relaxed_weak",
+    "mp_ordered_forbidden",
+    "barrier_atomic_violations",
+    "barrier_coop_violations",
+    "coresident_blocks",
+    "cooperative_too_large_rejected"
+  ],
+  "hints": [
+    "amdahl_speedup is 1 / ((1 - f) + f / p). With f = 0.95 and p = 8 it is 5.926, and no p gets past 20.",
+    "brent_bounds returns (max(work / p, span), work / p + span). A tree reduction of n values does n - 1 additions in ceil(log2 n) steps. Kogge-Stone does n - 2**k additions at step k, and 256 values cost 1793. Blelloch does 2 * (n - 1) additions in 2 * log2(n) steps.",
+    "must_stay_ordered: under sc, always True. Under weak, True for a fence on either side, for the same address, when the earlier instruction is an acquire load, and when the later one is a release store. Everything else may swap.",
+    "allowed_outcomes keeps, for each thread, a bitmask of the instructions already run. An instruction is ready when every instruction it must stay behind is in the mask. Explore every ready instruction of every thread, and record the registers when all threads are done.",
+    "A release store alone does not fix message passing. The consumer's two loads can still swap. Both sides need an order.",
+    "generation_barrier reads gen before it adds to count. The last block stores 0 to count and then adds 1 to gen. If a waiter spun on count instead, a fast block that re-arrives would keep the counter from ever reading 0.",
+    "With 8 blocks and room for 4, the barrier cannot finish, because the 4 resident blocks wait for blocks that never start. The simulator reports that as a deadlock. grid.sync has the same rule, so a cooperative launch refuses a grid that is too big.",
+    "The CUDA checks compile on the first run, which takes 30 to 60 seconds. They run only on a GPU. The relaxed run's weak count is a metric, and it can be zero on this card."
+  ]
+}

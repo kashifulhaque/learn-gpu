@@ -1350,3 +1350,56 @@ Facts that `38-tile-languages` and its lab rely on. Read on 2026-11-10 from each
 | CUTILE-DOCS | cuTile Python documentation | https://docs.nvidia.com/cuda/cutile-python/ |
 | CUTILE-OPS | cuTile Python operations | https://docs.nvidia.com/cuda/cutile-python/operations.html |
 | CUTILE-DATA | cuTile Python data model, padding modes | https://docs.nvidia.com/cuda/cutile-python/data.html |
+
+## 25. Memory consistency and atomics (chapter 39)
+
+Facts that `39-memory-consistency-and-atomics` and its lab rely on. Nothing here is a measurement: no GPU was run. The lab's litmus enumerator is a simplified operational model, and not the PTX axiomatic model.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| PTX scopes | `.cta`, `.cluster`, `.gpu`, `.sys`. The warp is not a scope. `.sys` covers host threads and all devices | C | [PTX-MCM] |
+| PTX strong and weak operations | Strong: fences and memory operations with `.relaxed`, `.acquire`, `.release`, `.acq_rel`, `.volatile`, or `.mmio`. Weak: `ld` or `st` with `.weak` | C | [PTX-MCM] |
+| `.sc` | Appears as `fence.sc`. The text read defines no `.sc` qualifier on other operations | C | [PTX-MCM] |
+| `.volatile` | Behaves like a relaxed system-scope operation with extra constraints | C | [PTX-MCM] |
+| Morally strong | Each operation is strong or they are in program order, each scope includes the other's thread, the same proxy, and a complete overlap of bytes | C | [PTX-MCM] |
+| Release and acquire patterns | A release pattern is a release operation, or a release or acq_rel fence followed by a strong write. An acquire pattern is an acquire operation, or a strong read followed by an acquire fence | C | [PTX-MCM] |
+| MP in PTX | T1 `st data`, `fence.sys`, relaxed `.sys` write of `flag`. T2 relaxed `.sys` read of `flag`, `fence.sys`, read of `data`. If T2 reads 1 from `flag`, it reads 1 from `data` | C | [PTX-MCM] |
+| SB in PTX | With `fence.sc` on each side the both-zero outcome is forbidden. Replacing `fence.sc` by `fence.acq_rel` does not guarantee that | C | [PTX-MCM] |
+| LB in PTX | Without dependencies the both-one outcome is deliberately permitted. With true dependencies it is forbidden | C | [PTX-MCM] |
+| Instruction forms and minimum compute capability for `ld.acquire`, `st.release`, `fence.acq_rel`, `fence.sc` | Not read. The chapter says only that the A100 accepts the C++ spelling | U | [PTX-MCM] |
+| libcu++ thread scopes | `thread_scope_system`, `_device`, `_cluster`, `_block`, `_thread`. `cluster` is widened to device before SM90 | C | [CCCL-MM] |
+| Release and acquire need scope inclusion | A block-scoped release store read by a device-scoped acquire load in another block is a data race, which is undefined behavior | C | [CCCL-MM] |
+| `cuda::atomic_ref<T, Scope>` | Header `<cuda/atomic>`. Scope defaults to system. `sizeof(T)` at most 16, aligned to its size, no padding bits. Pascal or later. Adds `fetch_min` and `fetch_max`. Types under 4 bytes are emulated and slow. Up to 8 bytes lock-free at any scope. No two `atomic_ref`s of different scope at once | C | [CCCL-ATOMIC-REF] |
+| `cuda::memory_order_*` spelling | The memory model page names `memory_order_release` and `memory_order_acquire` in its examples. The lab's CUDA source writes `cuda::std::memory_order_*` and was not compiled | U | [CCCL-MM] |
+| `__threadfence_block`, `__threadfence`, `__threadfence_system` | Block, device, and system scope. The guide describes write ordering and recommends `cuda::atomic_thread_fence` with the matching scope. It does not state which PTX fence each becomes | C, U | [CUDA-LANG-EXT] |
+| Fence and `volatile` | A fence affects the order of memory operations, not their visibility. The guide says visibility is ensured by `volatile` | C | [CUDA-LANG-EXT] |
+| Grid synchronization | Cooperative groups can synchronize the whole grid. `this_grid()` returns the grid handle. Synchronizing the entire grid requires `cudaLaunchCooperativeKernel`. The launch is atomic: if the call succeeds, the requested blocks launch | C | [CUDA-CG] |
+| `grid_group::sync()` by name, `cudaErrorCooperativeLaunchTooLarge`, and whether `-rdc` is needed | Not on the pages read. The chapter says only that a grid that can't be placed whole fails the launch call | U | [CUDA-CG] |
+| `cudaDevAttrCooperativeLaunch` | Query with `cudaDeviceGetAttribute`. Compute capability 6.0 or higher. Linux without MPS, Linux with MPS on 7.0 or higher, and Windows | C | [CUDA-CG] |
+| Co-residency as the reason | Inferred: resident blocks are never preempted ([chapter 2](../content/chapters/02-the-execution-model.md)), so a barrier over more blocks than fit can't open. The guide does not use the word | D | arithmetic, chapter 2 |
+| Amdahl, $f = 0.95$ | 5.926 at $p = 8$. 17.01 at $p = 108$. 19.998 at $p = 221{,}184$. Limit 20 | D | `1 / ((1 - f) + f / p)` |
+| Amdahl, other fractions at $p = 108$ | $f = 0.9$: 9.231 against a limit of 10. $f = 0.99$: 52.17 against 100. $f = 0.5$ at $p = 10^6$: 2.0 | D | formula |
+| Work and span, $n = 2^{20}$ | Reduction 1,048,575 and 20. Kogge-Stone 19,922,945 and 20. Blelloch 2,097,150 and 40 | D | formulas in chapters 6 and 7 |
+| Work and span, 256 values | Kogge-Stone 1793 and 8. Blelloch 510 and 16. Serial 255 and 255 | D | chapter 7 |
+| Brent upper bound at $p = 1024$, $n = 2^{20}$ | 1044.0, 19,476.0, and 2088.0 steps for the reduction, Kogge-Stone, and Blelloch | D | `W / p + S` |
+| Brent upper bound at $p = 221{,}184$ | 24.74, 110.07, and 49.48 steps | D | `W / p + S` |
+| Kogge-Stone against Blelloch crossover | The upper bounds are equal at $p = (19{,}922{,}945 - 2{,}097{,}150) / 20 = 891{,}289.75$ | D | arithmetic |
+| Co-resident grid, chapter 2's kernel | 8 blocks per SM times 108 SMs is 864. The lab checks that 864 fit and 865 don't | D | chapter 2 |
+| Lab MP kernel | 131,072 pairs per launch, 100 launches, 13.1 million trials per variant. The relaxed weak count is a metric and is not predicted | D | lab design |
+| Behavior of the lab's CUDA kernels on the A100 | Not run. The kernels were not compiled on any machine | U | lab 39 |
+| Lab litmus model | One shared memory. Reordering only. A pair stays ordered for a fence, the same address, an earlier acquire load, a later release store, or under `sc`. No scopes, dependencies, proxies, or multi-copy-atomicity | D | `solution.py` |
+| CMU 15-418 lectures | 16 "Fine-Grained Synchronization, Lock-Free Programming". 20 and 21, both "Memory Consistency". Numbers and titles from the schedule page | S | [CMU-418] |
+| Stanford CS149 schedule titles | "Lock Implementations, Fine-Grained Synchronization and Lock-Free Programming". "Relaxed Consistency + Domain-Specific Programming Systems". The page has no lecture numbers | S | [CS149] |
+| Alglave and others, ASPLOS 2015 | Title and venue cited from memory. The page was not fetched | U | none |
+
+New source keys:
+
+| Key | Source | URL |
+|---|---|---|
+| PTX-MCM | PTX ISA, Memory Consistency Model | https://docs.nvidia.com/cuda/parallel-thread-execution/index.html |
+| CCCL-MM | libcu++ memory model | https://github.com/NVIDIA/cccl/blob/main/docs/libcudacxx/extended_api/memory_model.rst |
+| CCCL-ATOMIC-REF | libcu++ `cuda::atomic_ref` | https://github.com/NVIDIA/cccl/blob/main/docs/libcudacxx/extended_api/synchronization_primitives/atomic_ref.rst |
+| CUDA-LANG-EXT | CUDA Programming Guide, C++ language extensions | https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html |
+| CUDA-CG | CUDA Programming Guide, Cooperative Groups | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cooperative-groups.html |
+| CMU-418 | CMU 15-418 schedule | https://www.cs.cmu.edu/~418/schedule.html |
+| CS149 | Stanford CS149 schedule | https://gfxcourses.stanford.edu/cs149/fall24 |

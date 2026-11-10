@@ -644,3 +644,23 @@ Part 3 — Matrix multiplication. Numbered 26, after chapter 25, because chapter
    Take: The lecture index titles this session Tensor Cores. It is the series' tensor-core lecture. This chapter does not use it as a TMA source.
 8. **`mma_traits_sm90_gmma.hpp`.** NVIDIA, CUTLASS 3.9.2. <https://github.com/NVIDIA/cutlass/blob/v3.9.2/include/cute/atom/mma_traits_sm90_gmma.hpp>  
    Take: `CLayout_64xN` strides `(128,1,16)` and `(64,8,512)`. The 64 by 8 fragment map in the lab is the column-major reading of those strides. The HTML fetch of this file dropped template arguments, so the thread shape `(4,8,4)` is the shape that makes the strides a bijection, not a line copied verbatim.
+
+## 27-debugging-gpu-kernels: Debugging GPU kernels
+
+Part 1 — The machine. Numbered 27, after chapter 26, because chapters 00 through 26 are not renumbered. Prerequisites are chapters 2, 5, 6, 8, and 14.
+
+1. **Compute Sanitizer documentation.** NVIDIA. <https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html> (key CS-DOCS)  
+   Take: The four tools and what each detects, the report headers, the ERROR SUMMARY line, and `--tool`, `--error-exitcode`, `--racecheck-report`, `--initcheck-address-space`, and `--show-backtrace`. The page did not state the CUDA version that added shared-memory initcheck.
+2. **CUDA-GDB documentation.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-gdb/index.html> (key CUDA-GDB-DOCS)  
+   Take: `-g -G`, device breakpoints, the `cuda` focus commands, `set cuda break_on_launch`, `CUDA_DEVICE_WAITS_ON_EXCEPTION`, no device watchpoints, and the removal of cuda-memcheck in CUDA 12.0. Only the first 100,000 characters of the page were read.
+3. **CUDA programming guide, C++ language extensions.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html> (key CUDA-PG-EXT)  
+   Take: `__syncthreads` in conditional code, `__syncwarp`, and `assert`. The page's printf section was not read, so the chapter gives no printf buffer size.
+4. **CUDA programming guide, environment variables.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html> (key CUDA-PG-ENV)  
+   Take: `CUDA_LAUNCH_BLOCKING`.
+5. **Triton debugging guide.** Triton project. <https://triton-lang.org/main/programming-guide/chapter-3/debugging.html> (key TRITON-DEBUG)  
+   Take: `TRITON_INTERPRET`, `device_print`, `static_print`, `device_assert` with `TRITON_DEBUG`, and the limits on `bfloat16` and indirect loads.
+6. **Using CUDA warp-level primitives.** Yuan Lin and Vinod Grover, NVIDIA, 2018. <https://developer.nvidia.com/blog/using-cuda-warp-level-primitives/>  
+   Take: Chapter 2 already cites it for independent thread scheduling. Chapter 27 links it for why lockstep code needs `__syncwarp`. Not re-fetched for this chapter.
+7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures> (key GPUMODE-IDX)  
+   Take: Lecture 1 is Profiling and Integrating CUDA kernels in PyTorch, and lecture 16 is On Hands profiling. The index lists no debugging session, so the chapter does not cite a lecture for the sanitizer. The research report also named CS149 assignment 3 for this topic, and that page was not fetched.
+

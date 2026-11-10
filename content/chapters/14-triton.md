@@ -520,6 +520,8 @@ parallelism, so it can't reproduce a performance problem, a register spill, or a
 interpreter and wrong on the GPU points to something device-specific, such as a dtype that the hardware rounds
 differently or a value that overflows a 32-bit offset.
 
+[Chapter 27](/c/27-debugging-gpu-kernels) goes further: it covers `tl.device_print` and `tl.device_assert`, what the interpreter can't catch, and how `compute-sanitizer` watches a compiled Triton kernel.
+
 For a wrong answer on the GPU, compare against a float32 PyTorch reference over several shapes first. The failing
 shapes tell you where to look: wrong only when $K$ isn't a multiple of `BLOCK_K` means the K mask, and wrong only when
 $M$ is small means an M mask or a tile below 16.

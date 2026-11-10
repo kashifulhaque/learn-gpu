@@ -892,3 +892,43 @@ Primary and secondary sources used above. Each URL was fetched on 2026-10-22 unl
 | APPLE-METAL | Metal Feature Set Tables | https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf |
 | APPLE-MSL | Metal Shading Language Specification | https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf |
 | MLX | MLX repository | https://github.com/ml-explore/mlx |
+
+---
+
+## 13. Debugging and correctness tooling (chapter 27)
+
+Every row is arithmetic on the chapter's examples, or a statement from NVIDIA's or Triton's documentation, read on the date the chapter was written. Nothing here was measured. The recorded sanitizer reports in the lab's `fixture_reports.py` follow the documented formats and were not captured from a run on the lab A100.
+
+| Fact | Value | Source | Notes |
+|---|---|---|---|
+| The four Compute Sanitizer tools | `memcheck` (out-of-bounds and misaligned accesses, API errors), `racecheck` (shared-memory WAW, WAR, RAW hazards), `initcheck` (reads of uninitialized global memory, and shared memory with `--initcheck-address-space shared`), `synccheck` (invalid `__syncthreads` and `__syncwarp` use) | CS-DOCS | `racecheck` covers shared memory only |
+| Useful options | `--tool`, `--error-exitcode N`, `--racecheck-report {hazard,analysis,all}` (default analysis), `--show-backtrace`, `--report-api-errors` | CS-DOCS | The exit-code option is meant for automated test suites |
+| Warp-level hazards | `racecheck` reports races between threads of one warp, usually at warning level | CS-DOCS | A warning is not counted in the ERROR SUMMARY line (the chapter's reading, D) |
+| `cuda-memcheck` | Removed in CUDA 12.0, replaced by Compute Sanitizer | CUDA-GDB-DOCS | |
+| `-g -G` for cuda-gdb | `-G` adds device debug information and turns off device optimizations | CUDA-GDB-DOCS | Can hide a race |
+| Device watchpoints | Not supported in cuda-gdb | CUDA-GDB-DOCS | |
+| `CUDA_DEVICE_WAITS_ON_EXCEPTION=1` | Runs normally until a device exception, then waits for cuda-gdb to attach | CUDA-GDB-DOCS | Not supported on WSL |
+| `__syncthreads` in conditional code | Allowed only if the condition is uniform across the block; otherwise execution may hang or have unintended side effects | CUDA-PG-EXT | |
+| `assert` in a kernel | Stops the kernel, each failing thread prints a message, the context is corrupted and later calls fail with `cudaErrorAssert`; `NDEBUG` removes it | CUDA-PG-EXT | |
+| `CUDA_LAUNCH_BLOCKING=1` | Forces GPU work to run synchronously from the CPU's perspective | CUDA-PG-ENV | Default 0 |
+| `TRITON_INTERPRET=1` | Runs kernels on the CPU with NumPy equivalents; no `bfloat16` operations, no indirect memory access | TRITON-DEBUG | |
+| `tl.device_assert` | Runs only when `TRITON_DEBUG` is 1; `tl.device_print` works regardless | TRITON-DEBUG | |
+| Grid for 1000 elements, 256 threads | ceil(1000 / 256) = 4 blocks, 1024 threads, 24 past the end, 96 bytes past each 4000-byte tensor | D | The memcheck example |
+| Thread (232,0,0) of block (3,0,0), block size 256 | 3 x 256 + 232 = element 1000 | D | |
+| Tail block, 1000 elements, 128 threads | 8 blocks; block 7 holds 1000 - 896 = 104 elements; warp 3 has 8 of 32 lanes reach the barrier | D | The synccheck example |
+| Racing reads in a B-thread tree reduction with no barrier | sum of B / 2^k for k = 1 .. log2 B = B - 1 (7 for B = 8, 63 for B = 64) | D, scripts/figures/27-debugging-gpu-kernels.py | RAW pairs of (address, writer, reader) |
+| Same, lockstep model, B = 64 | 32 (the pairs between warp 0 and warp 1) | D | Lockstep is the pre-Volta assumption |
+| 3-point stencil, 8 blocks of 128 | 2 halo cells per block, 16 uninitialized reads | D | The initcheck example |
+| GPU MODE lecture index | Lecture 1 is Profiling and Integrating CUDA kernels in PyTorch (Mark Saroufim); lecture 16 is On Hands profiling (Taylor Robbie); no session on debugging or compute-sanitizer | GPUMODE-IDX | |
+
+
+Source keys for this section:
+
+| Key | Source | URL |
+|---|---|---|
+| CS-DOCS | NVIDIA Compute Sanitizer documentation | https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html |
+| CUDA-GDB-DOCS | NVIDIA CUDA-GDB documentation | https://docs.nvidia.com/cuda/cuda-gdb/index.html |
+| CUDA-PG-EXT | CUDA programming guide, C++ language extensions | https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html |
+| CUDA-PG-ENV | CUDA programming guide, environment variables | https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html |
+| TRITON-DEBUG | Triton debugging guide | https://triton-lang.org/main/programming-guide/chapter-3/debugging.html |
+| GPUMODE-IDX | GPU MODE lecture index | https://github.com/gpu-mode/lectures |

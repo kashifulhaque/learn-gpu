@@ -1055,6 +1055,36 @@ Every row is arithmetic on the chapter's examples, or a statement from NVIDIA's 
 | GPU MODE lecture index | No lecture title mentions convolution, stencils, im2col, or implicit GEMM | GPUMODE-IDX | |
 | Programming Massively Parallel Processors, 4th edition | Chapters 7, 8, and 16 cover convolution, stencils, and the deep learning chapter, per the research plan | Research report | Not re-checked against the book (U) |
 
+## 18. Sparse and irregular work (chapter 32)
+
+Every row is arithmetic on the lab's seeded inputs (`content/labs/32-spmv-bfs/fixture_irregular.py`, seed 32, produced by `scripts/figures/32-sparse-and-irregular-work.py`), arithmetic on the A100 constants in section 1, or a statement from a source read on the date the chapter was written. Nothing here was measured on a GPU. The imbalance counts are a lockstep model, and the edge counts come from a Python loop.
+
+| Fact | Value | Source | Notes |
+|---|---|---|---|
+| COO, CSR, ELL bytes (float32, 4-byte indices) | 12 z, 4 (m + 1) + 8 z, 8 m w | D | m rows, z nonzeros, w longest row |
+| Six-row example, row lengths 3, 0, 1, 5, 0, 1 | row_ptr [0, 3, 3, 4, 9, 9, 10]; COO 120, CSR 108, ELL 240 bytes; hybrid K = 3, 168 bytes | D | |
+| Hybrid ELL width rule | Add a K-th ELL column while at least one third of the rows have K or more entries | BG08 | Bell and Garland assume a full ELL row is about 3 times faster than COO |
+| CPU matrix | 4096 by 4096, 32,838 nonzeros, mean row 8.017, longest row 1,153, 5% empty rows, 97.1% of rows have 32 or fewer entries | D, fixture_irregular.py | Row length int(2 * Pareto(1.2)), seed 32 |
+| Bytes on the CPU matrix | COO 394,056; CSR 279,092; ELL 37,781,504 (135.4 x CSR); hybrid width 4, 383,288 | D | Dense float32 is 67,108,864 |
+| GPU matrix | 524,288 by 524,288, rows capped at 65,536, 5,183,261 nonzeros, mean row 9.886, longest row 65,536 | D | Same generator, `cap=1 << 16` |
+| SpMV bytes on the GPU matrix | 4 (m + 1) + 8 z + 4 n + 4 m = 47,757,548 (9.21 bytes per nonzero) | D | x read once; assumes x stays in the 40 MiB L2 |
+| SpMV arithmetic intensity | 2 z / B = 0.217 FLOP per byte; fp32 ridge 19.5 / 1.935 = 10.1; ratio about 46 | D, section 1 | |
+| SpMV floor on the GPU matrix | 47,757,548 / 1275 GB/s = 0.0375 ms; at the 1935 GB/s rating, 0.0247 ms | D, section 10 | A prediction, not a measurement |
+| Work per warp, 4096 rows, 128 warps, lockstep model | Thread-per-row max 1,153, mean 104.72, max/mean 11.01; warp-per-row max 69, mean 35.15, 1.96; merge path max 10, mean 9.98, 1.0016 | D | `warp_work` in the lab solution |
+| Lane use | Thread-per-row 0.077; warp-per-row 0.228 | D | Nonzeros over 32 times the summed iterations |
+| Merge-path cuts, six-row example, 4 workers | Diagonals 0, 4, 8, 12, 16 at (0,0), (1,3), (3,5), (3,9), (6,10) | D | Rows-only split gives 3, 6, 1, 0 nonzeros, max/mean 2.4 |
+| Merge-path binary search length | About log2(524,288) = 19 steps per diagonal | D | |
+| BFS graph | Preferential attachment, 1,520 vertices (20 detached), 9,020 directed edges, deepest level 4 | D | m = 3 attachments per vertex, seed 32 |
+| Edges per level, top-down and bottom-up | Level 0: 85 and 8,028; 1: 992 and 4,659; 2: 4,282 and 1,094; 3: 3,479 and 81; 4: 144 and 38 | D | Both computed from the same state at each level |
+| Edges examined, alpha 1 to 8, beta 18 | 2,396 (top-down, top-down, bottom-up, bottom-up, top-down); all top-down 8,982; per-level minimum 2,290 | D | 3.75 x fewer than top-down |
+| Edges examined, alpha 15 and 30, beta 18 | 6,063 | D | Switches one level early |
+| Work-queue task set | 64 tasks, every eighth costs 100 and the rest 1, 8 workers: static makespan 800, dynamic 119, bound 194.5 | D | Bound is sum / W + c_max (1 - 1 / W) = 856 / 8 + 87.5 |
+| Bottom-up needs no atomics | Each unvisited vertex writes only itself; the frontier is a bitmap | BEAMER11 | The report also converts queue to bitmap at the switch |
+| Direction cost model | Top-down cost follows the frontier size; bottom-up cost follows unvisited vertices over frontier size | BEAMER11 | |
+| Bell and Garland measurements | 36 GFLOP/s single precision on structured matrices, GeForce GTX 280 | BG08 | Not an A100 figure; the chapter does not quote it |
+| CSR scalar and vector kernels | Scalar: one thread per row. Vector: one warp per row | BG08 | |
+| GPU MODE lecture 11 | Sparsity, Jesse Cai | GPUMODE-IDX | Not an SpMV or graph lecture |
+
 Source keys for this section:
 
 | Key | Source | URL |
@@ -1064,3 +1094,6 @@ Source keys for this section:
 | CUDNN-CONV | NVIDIA Deep Learning Performance, convolutional layers | https://docs.nvidia.com/deeplearning/performance/dl-performance-convolutional/index.html |
 | CUTLASS-IGEMM | CUTLASS 3.9.2, implicit GEMM convolution | https://github.com/NVIDIA/cutlass/blob/v3.9.2/media/docs/cpp/implicit_gemm_convolution.md |
 | CS149-F24 | Stanford CS149 Fall 2024 | https://gfxcourses.stanford.edu/cs149/fall24 |
+
+| BG08 | Bell and Garland, Efficient Sparse Matrix-Vector Multiplication on CUDA, NVIDIA technical report NVR-2008-004 | https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf |
+| BEAMER11 | Beamer, Asanovic, and Patterson, Searching for a Parent Instead of Fighting Over Children, UCB/EECS-2011-117 | https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html |

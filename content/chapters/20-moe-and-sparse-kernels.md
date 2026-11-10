@@ -373,6 +373,12 @@ Pruning a trained dense model to 2:4 loses accuracy unless you fine-tune. The re
 > [!NOTE] Sparsity and MoE are different axes
 > MoE is *activation* sparsity chosen per token: which experts run. 2:4 is *weight* sparsity chosen once: which entries exist. They compose in principle, since an expert's weights can be 2:4 and run on sparse tensor cores, but a grouped GEMM with sparse operands is a separate kernel that this lab doesn't build.
 
+## Sparse data that isn't a pruned weight
+
+This section answers one question: where do CSR, ELL, and load balancing belong, if 2:4 is the only sparsity the tensor cores use?
+
+They belong to data that is sparse by nature, such as a graph's adjacency, a ragged lookup, or a block-sparse attention mask, and not to weights pruned on purpose. Those problems run on the CUDA cores, they are bandwidth bound, and their cost depends on how evenly the rows split across warps. [Chapter 32](/c/32-sparse-and-irregular-work) covers the storage formats and what each costs in bytes, three SpMV kernels and where each loses on a power-law matrix, merge path, breadth-first search, and an atomic work queue. The 2:4 format stays here.
+
 ## What goes wrong
 
 - **A loop-carried type error in the scheduler.** Writing `expert = -1` before the loop makes a Python constant, and Triton rejects a loop that reassigns it with a tensor. Start from `pid_m * 0 - 1`, an int32 tensor.

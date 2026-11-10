@@ -344,7 +344,7 @@ The ridge point depends on which units run. The same matmul in fp32 has a floor 
 
 # The course and the labs
 
-Six parts, 32 labs, one GPU.
+Six parts, 33 labs, one GPU.
 
 Note:
 Section divider. We close with the map and with how a lab runs.
@@ -354,7 +354,7 @@ Section divider. We close with the map and with how a lab runs.
 | Part | Chapters | Labs build |
 |---|---|---|
 | 1. The machine | 0 to 5, 27, 28 | Roofline, profiling, sanitizer |
-| 2. CUDA patterns | 6 to 9, 30, 31 | Reduce, scan, transpose, sort, conv |
+| 2. CUDA patterns | 6 to 9, 30, 31, 32 | Reduce, scan, transpose, sort, conv, SpMV |
 | 3. Matrix multiplication | 10 to 14, 24, 26, 29 | SGEMM, Triton, CuTe, Hopper |
 | 4. Kernels for ML | 15 to 20 | Softmax, FlashAttention, MoE |
 | 5. Many GPUs | 21, 22, 25 | All-reduce, overlap, DDP |

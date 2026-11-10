@@ -745,3 +745,17 @@ Part 2 — CUDA patterns. Numbered 31, after chapter 27. Prerequisites are chapt
    Take: Chapters 7, 8, and 16, from the research plan. Not re-fetched or re-checked against the book. ECE 408 was named in the plan, and its site could not be reached.
 9. **The ml course.** <https://ml.ifkash.dev/lessons/038-convolution-and-receptive-field> and <https://ml.ifkash.dev/lessons/039-im2col-and-convolution-backward>  
    Take: The layer arithmetic, im2col in NumPy, and the backward pass, which this chapter links to and does not repeat. The lesson slugs come from the ml repository's content directory.
+
+## 32-sparse-and-irregular-work: Sparse and irregular work
+
+Part 2 — CUDA patterns. Numbered 32 because other chapters fill 28 to 31. Prerequisites are chapters 3, 6, and 7.
+
+1. **Efficient Sparse Matrix-Vector Multiplication on CUDA.** Nathan Bell and Michael Garland, NVIDIA technical report NVR-2008-004. <https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf> (key BG08)  
+   Take: The COO, CSR, ELL, and hybrid formats, the scalar and vector CSR kernels, and the hybrid's one-third rule. The PDF was read as extracted text. The report's measurements are on a GeForce GTX 280, and the chapter quotes none of them.
+2. **Searching for a Parent Instead of Fighting Over Children: A Fast Breadth-First Search Implementation for Graph500.** Scott Beamer, Krste Asanovic, and David Patterson, UC Berkeley EECS-2011-117. <https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html> (key BEAMER11)  
+   Take: The bottom-up step, no atomics in it, the queue-to-bitmap conversion, and cutoffs on the current and predicted frontier size. The report was read as extracted text and its figure with the cutoff constants was not recovered, so the chapter's alpha and beta are the lab's own forms and values. The SC12 paper on the same method was not fetched.
+3. **Merge-based parallel sparse matrix-vector multiplication.** Duane Merrill and Michael Garland, SC16. Not fetched: the NVIDIA research page and the other candidate URLs returned errors. The chapter derives the merge-path split itself and cites the paper by title only.
+4. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures> (key GPUMODE-IDX)  
+   Take: Lecture 11 is Sparsity by Jesse Cai. The index lists no SpMV or graph session.
+5. **Programming Massively Parallel Processors, 4th edition, chapters 14 and 15.** Not fetched. Cited by chapter title.
+6. **CMU 15-418 and Stanford CS149.** The research report named them for work distribution. The syllabus pages returned errors, so the chapter cites no lecture number from either.

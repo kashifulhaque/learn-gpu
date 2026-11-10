@@ -1,0 +1,31 @@
+{
+  "id": "32-spmv-bfs",
+  "title": "SpMV, load balance, and BFS",
+  "brief": "Build CSR from COO, price COO, CSR, ELL, and hybrid storage, split SpMV by merge path, measure the load imbalance of three SpMV schemes, and run frontier and direction-optimizing BFS in plain Python. Three CUDA SpMV kernels run on a GPU and are checked against torch.sparse.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "imbalance_thread_per_row",
+    "imbalance_warp_per_row",
+    "imbalance_merge_path",
+    "bfs_edges_top_down",
+    "bfs_edges_direction_optimizing",
+    "tpr_gbs",
+    "wpr_gbs",
+    "merge_gbs",
+    "torch_gbs",
+    "tpr_over_wpr_ms"
+  ],
+  "hints": [
+    "Start with coo_to_csr. Sum duplicate (row, column) pairs, sort by row and then column, count the entries of each row, and take a running sum. row_ptr has n_rows + 1 entries, and row i owns the half-open range row_ptr[i] to row_ptr[i + 1].",
+    "In spmv_csr the loop is range(row_ptr[i], row_ptr[i + 1]). Stopping at row_ptr[i + 1] - 1 drops the last entry of every row, and a row with one entry returns 0.",
+    "ELL stores n_rows * width entries, and width is the longest row. The Bell and Garland hybrid rule adds a column to the ELL part while at least one third of the rows reach that column. The entries past that width go to COO.",
+    "Merge path merges two lists: the row end offsets row_ptr[1:] and the nonzero indices 0, 1, 2, and so on. A worker's share is an equal number of steps, rows plus nonzeros. Binary search the row count on a diagonal: row mid is behind the diagonal when row_ptr[mid + 1] <= diagonal - 1 - mid.",
+    "Splitting by rows alone, or by nonzeros alone, leaves one worker with the longest row. The merge-path partition has to equal a brute-force walk of the path at every boundary.",
+    "warp_work counts iterations in a lockstep model. A warp of 32 lanes on 32 rows runs as long as its longest row. A warp on one row runs ceil(length / 32) iterations. A merge-path warp runs ceil(share / 32).",
+    "bottom_up_step accepts a parent only when its level equals the current depth, and it labels the new vertices after the scan. Labeling a vertex at once and accepting any labeled neighbor lets a chain of vertices join one round, and the levels come out too small.",
+    "The CUDA part compiles with nvcc on the first run, which takes 30 to 60 seconds. On a machine without a GPU it is skipped, and the CPU checks still run."
+  ]
+}

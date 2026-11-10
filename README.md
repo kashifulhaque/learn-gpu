@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 38 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 38 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 39 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 39 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -72,6 +72,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 35 | [Blackwell tcgen05 and tensor memory](content/chapters/35-blackwell-tcgen05.md) | Part 3 — Matrix multiplication | A TMEM allocator, address, and descriptor model in Python, per-CTA traffic for a CTA pair, and a tcgen05 kernel gated on a B200. |
 | 36 | [Symmetric memory, NVSHMEM, and fused communication](content/chapters/36-symmetric-memory-and-nvshmem.md) | Part 5 — Many GPUs | A simulated symmetric heap with put, signal, fence, and quiet, a signalled all-gather plus GEMM schedule, an alpha-beta overlap model, and a gated two-GPU overlap timing. |
 | 37 | [Chunked scans for linear attention](content/chapters/37-chunked-scans.md) | Part 4 — Kernels for ML | The associative operator of a linear recurrence, a parallel scan over it, chunked decayed linear attention with a log-space decay, a cost model, and a Triton chunked forward. The CPU checks run in torch float64. |
+| 38 | [Tile languages in practice](content/chapters/38-tile-languages.md) | Part 6 — Beyond | A block index map, a masked tile-loop GEMM, an online softmax, a Gluon-style layout, and a pipeline schedule against a tiny tile API. The checks run without a GPU, and an optional Triton softmax runs on the A100. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 

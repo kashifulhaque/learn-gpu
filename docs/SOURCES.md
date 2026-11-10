@@ -869,3 +869,29 @@ Part 4 — Kernels for ML. Numbered 37 because chapters 00 through 30 are number
 7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
    Take: Lectures 20 and 21 are Scan Algorithm and Scan Algorithm Part 2 (Izzat El Haj). Lecture 24 is Scan at the Speed of Light (Jake Hemstad and Georgii Evtushenko). The index lists no lecture on Mamba. Titles only; the slides were not read.
 8. **Prefix sums and their applications.** Blelloch. The PDF at <https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf> was fetched but its text could not be read, so the chapter takes no claim from it.
+
+## 38-tile-languages: Tile languages in practice
+
+Part 6 — Beyond. Numbered 38, because chapters 00 through 29 are not renumbered. Prerequisites are chapters 14, 15, 23, and 24. Every page was fetched on 2026-11-10, except where a source says otherwise. Details that could not be read are tagged U in `FACTS.md` section 16.
+
+1. **Pallas: grids and BlockSpecs.** JAX documentation. <https://docs.jax.dev/en/latest/pallas/grid_blockspec.html>  
+   Take: The index map returns block indices, each multiplied by the block shape. Edge blocks are padded on input and discarded on output, with unspecified padding values.
+2. **Pallas TPU matrix multiplication.** JAX documentation. <https://docs.jax.dev/en/latest/pallas/tpu/matmul.html>  
+   Take: The three-axis grid as the K loop, the zeroed scratch accumulator, and the `dimension_semantics` of the three axes.
+3. **Pallas GPU quickstart.** JAX documentation. <https://docs.jax.dev/en/latest/pallas/gpu/quickstart.html>  
+   Take: `plgpu.emit_pipeline`, `plgpu.BlockSpec(..., delay_release=1)`, and `plgpu.wgmma` on Hopper. The page covers Mosaic GPU only.
+4. **Gluon tutorials.** Triton repository. <https://github.com/triton-lang/triton/tree/main/python/tutorials/gluon>  
+   Take: Files 01, 02, 03, and 08. `gl.BlockedLayout`, the cp.async prologue, steady state, and drain, and `gl.warp_specialize` with mbarriers. The reduction names were not in these files.
+5. **Triton fused softmax tutorial.** Triton repository. <https://github.com/triton-lang/triton/blob/main/python/tutorials/02-fused-softmax.py>  
+   Take: The masked softmax kernel with `other=-float('inf')`, and `tl.range(..., num_stages=)`.
+6. **Triton README.** Triton repository. <https://github.com/triton-lang/triton>  
+   Take: `TRITON_KERNEL_DUMP`, `TRITON_DUMP_DIR`, `MLIR_ENABLE_DUMP`, `TRITON_ALWAYS_COMPILE`, and `TRITON_INTERPRET`.
+7. **TileLang README.** tile-ai. <https://github.com/tile-ai/tilelang>  
+   Take: The GEMM example with `T.Pipelined`, the backend list, and the TVM base. No version, no layout annotations, and no way to print generated source were confirmed.
+8. **ThunderKittens README.** HazyResearch. <https://github.com/HazyResearch/ThunderKittens>  
+   Take: Tile types, the Hopper matmul with producer and consumer warps, and the statement that Ampere is no longer actively supported.
+9. **cuTile Python quickstart and operations.** NVIDIA. <https://docs.nvidia.com/cuda/cutile-python/quickstart.html>  
+   Take: The vector-add kernel, the requirements (compute capability 8.x to 12.x, driver r580, CUDA 13.1), and the padding modes. Signatures of the matrix and reduction operations were not on the pages read.
+10. **NVIDIA CUDA Tile.** NVIDIA. <https://developer.nvidia.com/cuda/tile>  
+    Take: The names CUDA Tile, CUDA Tile IR, cuTile, and cuTile Python. The page gives no release status.
+11. **Chapters 11, 12, 14, 15, 23, 24, and 26 of this course.** The fragment layout, the cp.async pipeline, the Triton model, online softmax, the tile-language survey, the CuTe DSL GEMM, and the Hopper TMA and wgmma details that this chapter builds on.

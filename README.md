@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 34 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 34 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 35 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 35 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -28,8 +28,8 @@ that one touches.
 ## The curriculum
 
 Every chapter has a book chapter, a lab, and a slide deck. The lab hardware is
-one A100 80GB PCIe (Ampere, sm_80). Chapter 26 is a Hopper lab, gated on an
-H100: the CPU checks run anywhere, and the TMA and wgmma kernels run only when
+one A100 80GB PCIe (Ampere, sm_80). Chapters 26 and 34 are Hopper labs, gated on an
+H100: the CPU checks run anywhere, and the TMA, wgmma, and cluster kernels run only when
 that endpoint is configured. Blackwell stays in prose, figures, and slides.
 
 | # | Chapter | Part | Lab |
@@ -68,6 +68,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 31 | [Convolution and stencils](content/chapters/31-convolution-and-stencils.md) | Part 2 — CUDA patterns | Tiled conv2d with halo cells and a constant-memory filter, a z-coarsened 3D stencil, im2col, implicit GEMM, and a fused conv, ReLU, and maxpool. The CPU checks run anywhere. |
 | 32 | [Sparse and irregular work](content/chapters/32-sparse-and-irregular-work.md) | Part 2 — CUDA patterns | COO, CSR, ELL, and hybrid byte costs, three CSR SpMV kernels and merge path, frontier and direction-optimizing BFS, and an atomic work queue. The CPU checks run anywhere. |
 | 33 | [FP8, MXFP4, and NVFP4](content/chapters/33-fp8-and-fp4.md) | Part 4 — Kernels for ML | Bit-exact E4M3, E5M2, and E2M1 encoders against torch, MXFP4 and NVFP4 quantizers, stochastic rounding, and an emulated block-scaled GEMM, plus a Triton check on the A100. The CPU checks run anywhere. |
+| 34 | [Clusters and distributed shared memory](content/chapters/34-clusters-and-distributed-shared-memory.md) | Part 3 — Matrix multiplication | Cluster launch and `map_shared_rank` addressing, a DSMEM histogram and reduction, cluster-fit and TMA-multicast byte models, and sm_90 kernels gated on an H100. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
@@ -85,6 +86,8 @@ Chapter 31 belongs to Part 2, with chapters 6 to 9. It is numbered 31, after cha
 Chapter 32 belongs to Part 2, with chapters 6 to 9. It is numbered 32 because other chapters fill the numbers 28 to 31. Prerequisites are chapters 3, 6, and 7.
 
 Chapter 33 belongs to Part 4, with chapters 15 to 20. It is numbered 33, after chapter 27, because chapters 00 through 27 stay where they are. Filename order places 33 after 27. Prerequisites are chapters 9 and 18.
+
+Chapter 34 belongs to Part 3, with chapters 10 to 14, 24, and 26. It is numbered 34 because chapters 00 through 27 stay where they are. Filename order places 34 after them. Prerequisites are chapters 7, 12, and 26.
 
 ## Run it locally
 

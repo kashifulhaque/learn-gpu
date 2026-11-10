@@ -620,6 +620,10 @@ is itself a tiled transpose. Colfax measured it at 860 GB/s on an H100 PCIe for 
 `torch.compile`, against a 1783 GB/s copy. That is the gap you can close with a better kernel. Look at which kernel
 your model actually launches ([chapter 5](/c/05-profiling)) before you write one.
 
+## Where else the tile and the barrier appear
+
+[Chapter 31](/c/31-convolution-and-stencils) uses the same staged tile for a convolution, where the tile needs a border of halo cells that neighboring blocks also load, and for a 3D stencil, where one thread walks a column and keeps its z neighbors in registers. The barrier rule is the same: `__syncthreads()` sits outside every branch.
+
 ## What goes wrong
 
 - **The barrier inside a guard.** A `__syncthreads()` that sits inside `if (m < M && n < N)` deadlocks on edge

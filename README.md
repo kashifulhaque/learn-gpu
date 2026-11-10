@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 31 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 31 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 32 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 32 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -65,6 +65,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 28 | [Reading profiler reports](content/chapters/28-reading-profiler-reports.md) | Part 1 — The machine | Parse a recorded ncu CSV and nsys stats export, place kernels on the roofline from raw counters, and classify them: memory-bound, compute-bound, latency-bound, uncoalesced, bank-conflicted, tail-limited, launch-bound. The checks run without a GPU. |
 | 29 | [GEMM scheduling](content/chapters/29-gemm-scheduling.md) | Part 3 — Matrix multiplication | Wave counts, split-K, stream-K ranges, persistent tile order, fused epilogues, a schedule chooser, and Triton kernels on tall-skinny shapes. |
 | 30 | [Radix sort, top-k, and sampling](content/chapters/30-sort-top-k-and-sampling.md) | Part 2 — CUDA patterns | Order-preserving float keys, a stable LSD radix sort, merge path, top-k by radix select, top-p without a sort, and Philox seeded sampling, with a CUDA digit histogram. |
+| 31 | [Convolution and stencils](content/chapters/31-convolution-and-stencils.md) | Part 2 — CUDA patterns | Tiled conv2d with halo cells and a constant-memory filter, a z-coarsened 3D stencil, im2col, implicit GEMM, and a fused conv, ReLU, and maxpool. The CPU checks run anywhere. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
@@ -76,6 +77,8 @@ Chapter 27 belongs to Part 1, with chapters 0 to 5. It is numbered 27, after cha
 Chapter 29 belongs to Part 3, with chapters 10 to 14, 24, and 26. Its file number is 29 because chapters 00 through 26 stay where they are. Prerequisites are chapters 04, 10, and 14.
 Chapter 28 belongs to Part 1, with chapters 0 to 5. It is numbered 28, after chapter 26, because chapters 00 through 26 stay where they are. Filename order places 28 after 26. Prerequisites are chapter 4 and chapter 5. Its lab runs without a GPU.
 Chapter 30 belongs to Part 2, with chapters 6 to 9. It is numbered 30 because chapters 00 through 26 stay where they are. Prerequisites are chapter 6 and chapter 7.
+
+Chapter 31 belongs to Part 2, with chapters 6 to 9. It is numbered 31, after chapter 27, because chapters 00 through 27 stay where they are. Prerequisites are chapters 3, 8, 10, and 14.
 
 ## Run it locally
 

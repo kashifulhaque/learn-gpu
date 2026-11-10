@@ -1,0 +1,28 @@
+{
+  "id": "31-conv-stencil",
+  "title": "Convolution, stencils, and implicit GEMM",
+  "brief": "Compute conv output shapes and halo overhead, lower a convolution to im2col and to an implicit-GEMM index map, and fuse conv, ReLU, and maxpool, all on the CPU. Then write a tiled CUDA conv2d with a constant-memory filter and a z-coarsened 3D stencil. The CUDA checks skip on a machine without a GPU.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "conv_ms",
+    "torch_conv_ms",
+    "stencil_naive_gbs",
+    "stencil_coarse_gbs",
+    "stencil_fraction_of_ceiling",
+    "triton_max_err"
+  ],
+  "hints": [
+    "conv_out_size is (size + 2 * padding - dilation * (kernel - 1) - 1) // stride + 1. PyTorch floors the division.",
+    "The input-tile strategy loads block x block elements and writes only the (block - k + 1) squared threads that have a full neighbourhood. The output-tile strategy loads (tile + k - 1) squared elements and writes tile squared.",
+    "halo_tile must give zeros for any coordinate outside the tensor, including negative ones. A negative index in torch or Python wraps to the far edge instead of failing, which is the bug the check looks for.",
+    "F.unfold orders the rows of the lowered matrix as channel, then filter row, then filter column: row = c * kh * kw + i * kw + j. Take strided slices of the padded input, one per filter tap, and stack them.",
+    "PyTorch convolution does not flip the filter. It computes cross-correlation, so the lowered GEMM is w.reshape(K, C * kh * kw) @ cols with no flip.",
+    "In the implicit-GEMM map, m splits into (n, p, q) and k into (c, r, s). The input row is h = p * stride - padding + r * dilation. Return None when h or w is outside the image, because that entry is a padding zero.",
+    "A stencil built from torch.roll wraps the boundary around the grid. The reference leaves every boundary cell unchanged.",
+    "Bias and ReLU commute with max over a pool window, so the fused version takes the running max of one GEMM per window offset and adds the bias and applies ReLU once. max_pool2d drops a partial window at an odd edge.",
+    "The CUDA checks compile with nvcc the first time, which takes 30 to 60 seconds. They skip on a machine without a GPU."
+  ]
+}

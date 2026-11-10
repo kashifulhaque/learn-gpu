@@ -664,3 +664,19 @@ Part 1 — The machine. Numbered 27, after chapter 26, because chapters 00 throu
 7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures> (key GPUMODE-IDX)  
    Take: Lecture 1 is Profiling and Integrating CUDA kernels in PyTorch, and lecture 16 is On Hands profiling. The index lists no debugging session, so the chapter does not cite a lecture for the sanitizer. The research report also named CS149 assignment 3 for this topic, and that page was not fetched.
 
+## 29-gemm-scheduling: GEMM scheduling
+
+Part 3 — Matrix multiplication. Numbered 29 because chapters 00 through 26 are not renumbered, and chapters 27 and 28 are numbered by other work. Prerequisites are chapters 04, 10, and 14.
+
+1. **Stream-K: Work-centric Parallel Decomposition for Dense Matrix-Matrix Multiplication on the GPU.** Osama, Merrill, Cecka, Garland, and Owens. <https://arxiv.org/abs/2301.03598>  
+   Take: The even division of inner-loop iterations among processing elements, the `ceil(total / g)` range, the owner of a tile as the CTA with its k = 0 iteration, the flag-and-workspace fix-up, the two hybrids, and a grid size of at most the SM count. The abstract's speedups of up to 14x and 6.7x name no GPU model in the abstract, so the chapter does not quote them.
+2. **Triton persistent matmul tutorial.** <https://triton-lang.org/main/getting-started/tutorials/09-persistent-matmul.html>  
+   Take: A grid of about one program per SM, a tile loop in steps of the SM count, grouped ordering, epilogue subtiling, TMA, and warp specialization.
+3. **Triton matrix multiplication tutorial.** <https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html>  
+   Take: The grouped-ordering lines, `pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m)`.
+4. **CUTLASS, Efficient GEMM in CUDA.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md>  
+   Take: Split-K as a partitioned-K GEMM plus a batched reduction with a caller-allocated workspace, sliced-K, and the persistent cooperative and ping-pong kernels. The page has no stream-K or wave-quantization text.
+5. **CUTLASS, GEMM API 3.x.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/gemm_api_3x.md>  
+   Take: The tile scheduler parameter of a kernel, the work-tile loop of a persistent kernel, and the collective epilogue as the element-wise operations on the output. The page has no stream-K or split-K decomposition text.
+6. **Matrix multiplication background.** NVIDIA Deep Learning Performance guide. <https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html>  
+   Take: The 108-tile and 117-tile example, tile quantization, and wave quantization. Chapter 4 already cites it.

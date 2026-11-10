@@ -468,6 +468,11 @@ The following table puts the three counts on the 117-tile grid:
 [Chapters 10 to 14](/c/10-gemm-from-scratch) build the tiled kernels these choices apply to. The lab grades these
 counts with `partial_wave`, `split_k_blocks`, and `stream_k_bounds`.
 
+> [!NOTE] What to do with these counts
+> This chapter counts the grids and stops. [Chapter 29](/c/29-gemm-scheduling) builds each schedule: the split-K
+> partition and its reduction, the stream-K ranges and their fix-ups, a persistent kernel, and a chooser that prices
+> them against the shape.
+
 > [!WARNING] A grid smaller than the machine breaks Little's law as well
 > A kernel launched with 32 blocks keeps at most 32 SMs busy. Bytes in flight are a whole-GPU requirement, 639.9 KB at
 > the rating, so each of the 32 active SMs must now hold $639.9 / 32 = 20.0$ KB, nearly 3.4 times the per-SM figure

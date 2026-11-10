@@ -932,3 +932,40 @@ Source keys for this section:
 | CUDA-PG-ENV | CUDA programming guide, environment variables | https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html |
 | TRITON-DEBUG | Triton debugging guide | https://triton-lang.org/main/programming-guide/chapter-3/debugging.html |
 | GPUMODE-IDX | GPU MODE lecture index | https://github.com/gpu-mode/lectures |
+
+## 14. GEMM scheduling (chapter 29)
+
+Inputs already in this file: 108 SMs, 312 TFLOP/s dense bf16 (section 3), the 1275 GB/s measured copy ceiling and the 5 microsecond launch (sections 4.5 and 10), and NVIDIA's 108-tile and 117-tile example (section 4.4). Chapter 29 prices schedules with a cost model on those inputs. Every time in the chapter is a model prediction, not a measurement.
+
+| Quantity | Value | Tag | Source |
+|---|---|---|---|
+| Stream-K idea | Divide the aggregate inner-loop iterations evenly among the processing elements, independent of how well the output tiles fit the processors. | C | [STREAMK] |
+| Stream-K range size in the paper | `iters_per_cta = ceil(total_iters / g)`, a contiguous range in m, n, k order that can cross tile boundaries. The lab uses the balanced form, sizes `floor` or `ceil` of `total / g`, to agree with chapter 4's `stream_k_bounds`. | C for the paper, D for the lab form | [STREAMK] |
+| Stream-K fix-up | The CTA that performed a tile's k = 0 iteration accumulates the other CTAs' partials, which they write to global temporary storage and signal with a flag, and then stores the tile. | C | [STREAMK] |
+| Stream-K hybrids | Data-parallel plus one-tile stream-K balances only the remaining partial wave. Two-tile stream-K plus data-parallel gives each stream-K CTA between one and two tiles of work. | C | [STREAMK] |
+| Stream-K grid size | At most the SM count; chosen per problem by an analytical model. The paper's examples on the A100 use 8, 64, and 108. | C | [STREAMK] |
+| Stream-K experiments | An A100 with 108 SMs, power locked at 400 W and SM clocks at 1005 MHz. | C | [STREAMK] |
+| CUTLASS split-K | A partitioned-K GEMM followed by a batched reduction, with caller-allocated workspace. | C | [CUTLASS-EFF] |
+| CUTLASS persistent kernels | Cooperative and ping-pong designs on Hopper. In ping-pong, each consumer warp group works on a different tile, so one group's epilogue overlaps the other's math. | C | [CUTLASS-EFF] |
+| Triton persistent matmul | A grid of about one program per SM, taken from the multiprocessor count, and a loop over tiles in steps of that count, with grouped ordering. | C | [TRITON-PERSIST] |
+| Triton grouped ordering | `pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m)` and `pid_n = (pid % num_pid_in_group) // group_size_m`. Chapter 14's kernel writes `pid % group_size_m`, which numbers rows differently on a short last group. | C | [TRITON-MM] |
+| Per-SM peak, bf16 | $312 \times 10^{12} / 108 = 2.889$ TFLOP/s | D | section 3 |
+| One 256 x 128 x 64 MAC-iteration | $2 \times 256 \times 128 \times 64 = 4{,}194{,}304$ FLOP, so 1.452 microseconds at the per-SM peak | D | above |
+| 117-tile shape, K = 4096, $B_K = 64$ | 117 x 64 = 7488 iterations. Even share 69.33. Data-parallel 128. Stream-K 36 CTAs of 70 and 72 of 69, critical path 70. 105 of 117 tiles need a fix-up. Hybrid: 108 tiles data-parallel, last 9 tiles over 108 CTAs at 5 to 6 iterations, 9 fix-ups, critical path 70. | D | section 4.4 |
+| Decode shape, 64 x 4096 x 4096, 64 x 128 tiles | 32 tiles x 64 iterations = 2048. 29.6% of SMs busy. Even share 18.96. Stream-K 104 CTAs of 19 and 4 of 18. Compulsory bytes 34.6 MB = 27.1 microseconds at 1275 GB/s. Arithmetic 2.15 GFLOP = 6.9 microseconds at 312 TFLOP/s. Intensity 62 FLOP/byte, below the 244.7 ridge. | D | sections 3 and 10 |
+| Cost model | $T = \max(c \cdot t_{it}, (\text{bytes}/\beta)(108/a)) + T_{extra}$. Split-K extra: 5 microseconds plus $2 s M N \cdot 4 / \beta$. Stream-K extra: fp32 tile written and read per fix-up tile. The 108/a scale is a modelling assumption. A margin of 5% over data-parallel is a modelling choice. | D | this section |
+| Model times, decode shape | Data-parallel 91.6 us. Split-K 3: 40.5 us. Split-K 4: 38.7 us. Stream-K 28.8 us. | D | cost model |
+| Model times, 117-tile shape | Data-parallel 185.8 us. Split-K 2: 189.0 us. Split-K 4: 210.4 us. Stream-K 123.2 us. | D | cost model |
+| Split-K workspace, 117-tile shape, 2 splits | 28.5 MB of fp32 partials, which is below the 40 MiB L2. Traffic written then read: 56.9 MB = 44.6 microseconds at 1275 GB/s. | D | cost model |
+| fp32 spacing at $10^8$ | 8. The partials $10^8, 1, -10^8, 1$ sum to 1.0, 2.0, or 0.0 in fp32 by order. | D | IEEE 754 binary32, 24-bit significand |
+| Epilogue bytes, 4096 x 4096 bf16 | C is 33,554,432 bytes. Fused bias plus GELU: 33,562,624. Unfused, 2 stages: 167,780,352. Saved 134,217,728 = 105.3 microseconds at 1275 GB/s, 23.9% of the 4096-cube compute floor of 440.4 microseconds. | D | sections 3 and 10 |
+| Launch cost of an unfused stage | About 5 microseconds each, so two stages are 10 microseconds against a 28.8 microsecond model GEMM on the decode shape. | D | section 4.5 |
+| Kernel behaviour on the lab A100 | Not measured. Lab 29 reports `splitk_speedup_m64` and `persistent_speedup_m64`. Whether Triton split-K at M = 64 reaches the model's 2 to 3 times is unconfirmed. | U | lab 29 |
+
+New source keys:
+
+| Key | Source | URL |
+|---|---|---|
+| STREAMK | Osama, Merrill, Cecka, Garland, Owens, Stream-K (arXiv 2301.03598), abstract and HTML text | https://arxiv.org/abs/2301.03598 |
+| CUTLASS-EFF | CUTLASS, Efficient GEMM in CUDA (split-K, sliced-K, persistent kernels) | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md |
+| CUTLASS-GEMM3X | CUTLASS, GEMM API 3.x (tile scheduler, collective epilogue) | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/gemm_api_3x.md |

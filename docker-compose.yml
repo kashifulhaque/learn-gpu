@@ -3,25 +3,18 @@
 # Caddy on this host terminates TLS and proxies to learn-gpu:8000 over the
 # shared `edge` network, the same way the other services here are reached.
 #
-#   docker compose up -d --build
+#   docker compose pull && docker compose up -d
 #
-# This directory is a clone of the repository. A deploy is `git fetch` to the
-# commit being released, then the line above; scripts/deploy.sh does both from a
-# workstation. The PDF book in ./book is built on that workstation too, copied
-# here, and mounted read-only; without it the app runs as before, with no
-# download link.
+# The image is built by GitHub Actions on every merge to main and pushed to
+# GitHub Container Registry. It carries the PDF book and the slides PDF, built
+# from the same chapters as the image, so this host builds nothing and mounts
+# no book folder.
 
 name: learn-gpu
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # scripts/deploy.sh sets this to the commit being deployed.
-        GIT_SHA: ${GIT_SHA:-unknown}
-    image: learn-gpu:local
+    image: ghcr.io/kashifulhaque/learn-gpu:latest
     container_name: learn-gpu
     restart: unless-stopped
     expose:
@@ -38,7 +31,6 @@ services:
       DATA_DIR: /data
     volumes:
       - learn-gpu-data:/data
-      - ./book:/app/book:ro
     networks:
       - edge
     # This service only proxies lab runs to RunPod, so the container stays small.

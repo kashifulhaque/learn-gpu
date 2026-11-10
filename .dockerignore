@@ -18,5 +18,5 @@ frontend/tsconfig.tsbuildinfo
 .ruff_cache
 .DS_Store
 frontend/dist-book
-# Mounted into the container instead, see docker-compose.yml.
+# Local PDF build output. The image builds its own PDFs, see the Dockerfile.
 book

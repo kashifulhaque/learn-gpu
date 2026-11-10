@@ -277,7 +277,7 @@ def _gpu_section(c: Checks, reader) -> None:
     reason = _skip_reason()
     if reason is not None:
         print(reason, flush=True)
-        for key in ("mp_relaxed_weak", "mp_ordered_forbidden", "barrier_atomic_violations", "coresident_blocks"):
+        for key in ("mp_relaxed_weak", "mp_ordered_forbidden", "barrier_atomic_violations", "barrier_coop_violations", "coresident_blocks", "cooperative_too_large_rejected"):
             c.metric(key, "skipped (no GPU)")
         return
 

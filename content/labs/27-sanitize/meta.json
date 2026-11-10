@@ -1,0 +1,22 @@
+{
+  "id": "27-sanitize",
+  "title": "Sanitize five buggy kernels",
+  "brief": "Fix five CUDA kernels that each hide one bug, then read what compute-sanitizer prints. The kernels are an out-of-bounds write, a shared-memory race, a missed __syncwarp, a divergent __syncthreads, and an uninitialized shared read. You also write a parser that turns recorded sanitizer reports into findings, and two pure-Python functions that find the racing reads and the out-of-bounds threads.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 1800,
+  "metrics": [],
+  "hints": [
+    "Start with error_count. The report ends with 'ERROR SUMMARY: N errors', or '1 error' when N is 1. N counts every failing access, and the tool prints only the first few, so the number of findings is not N.",
+    "The report never names its tool. Infer it from the header line: Invalid ... is memcheck, Uninitialized ... is initcheck, Barrier error ... is synccheck, and a Potential RAW, WAR, or WAW hazard is racecheck.",
+    "Split the report into findings at the blank '=========' lines. A finding's 'at' line (memcheck, initcheck, synccheck) reads 'at <kernel>+0x<offset> in <file>:<line>'. A racecheck access line reads '<Write|Read> Thread (x,y,z) at 0x.. in <file>:<line>:<kernel>'. Skip the 'Host Frame' lines.",
+    "The kernel name stops at the first '(' or '<'. Remove a leading 'void ' first.",
+    "A racecheck header that says Warning is not an error in ERROR SUMMARY. is_clean counts it anyway, because the kernel is still racy.",
+    "shared_hazards: in phase k, thread t < d reads s[t + d], and that address was written in phase k - 1 by thread t + d. A barrier between the two phases ends the hazard. Count one hazard per (address, writer, reader).",
+    "barrier_arrivals: with an early return, the threads that arrive are those whose global index is below n. The count is clamped between 0 and block_dim.",
+    "Kernel 1: guard the read and the write with i < n. Kernel 2: add __syncthreads() inside the loop. Kernel 3: read into a register, __syncwarp(), write the register to shared memory, __syncwarp(). Kernel 4: remove the early return, load zero for a thread past the end, and guard only the store. Kernel 5: thread 0 loads tile[0] and thread B - 1 loads tile[B + 1], each with a bounds check.",
+    "The CUDA checks compile five modules with -lineinfo, which takes a few minutes the first time. Each module then runs under compute-sanitizer in a process of its own, with PYTORCH_NO_CUDA_MEMORY_CACHING=1 so that memcheck sees every allocation exactly.",
+    "On a machine without a GPU or without compute-sanitizer the two CUDA checks are skipped. The seven checks that run anywhere still grade your parser and your reasoning."
+  ]
+}

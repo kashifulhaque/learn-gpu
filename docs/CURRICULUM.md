@@ -54,9 +54,12 @@ and a slide deck (`content/slides/<slug>.md`). Lectures (videos) come later.
 | 24 | 24-cute-dsl-gemm | A CuTe DSL GEMM | Part 3 — Matrix multiplication | 24-cute-dsl-gemm | CuTe DSL Ampere GEMM: layouts, a TiledCopy, a TiledMMA, and a fused bias-plus-GELU epilogue. |
 | 25 | 25-ddp-and-zero | Data parallel and ZeRO-1 | Part 5 — Many GPUs | 25-ddp-and-zero | Bucketed overlap DDP on gloo, ZeRO-1 optimizer-state sharding, and a gated two-GPU NCCL sweep. |
 | 26 | 26-hopper-gemm | Hopper GEMM | Part 3 — Matrix multiplication | 26-hopper-gemm | TMA box address, the 128-byte swizzle, a wgmma descriptor, and sm_90a kernels gated on an H100. |
+| 27 | 27-debugging-gpu-kernels | Debugging GPU kernels | Part 1 — The machine | 27-sanitize | Five buggy CUDA kernels fixed under compute-sanitizer, a parser for recorded sanitizer reports, and pure-Python race and bounds reasoning. The CPU checks run anywhere. |
 
 Chapter 24 is part of Part 3, with the GEMM chapters. Its file number is 24, after chapter 23, because chapters 00 through 23 are not renumbered.
 
 Chapter 25 is part of Part 5, with chapters 21 and 22. Its file number is 25, after chapter 24, because chapters 00 through 24 are not renumbered. Filename order places 25 after 24.
 
 Chapter 26 is part of Part 3, with chapters 10 to 14 and chapter 24. Its file number is 26, after chapter 25, because chapters 00 through 25 are not renumbered. Filename order places 26 after 25. Prerequisites are chapter 12 and chapter 24.
+
+Chapter 27 is part of Part 1, with chapters 0 to 5. Its file number is 27, after chapter 26, because chapters 00 through 26 are not renumbered. Filename order places 27 after 26. Prerequisites are chapters 2, 5, 6, 8, and 14.

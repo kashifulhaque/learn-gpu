@@ -489,6 +489,8 @@ so `diagnose_ncu` returns `latency-bound`. `dram_bytes` adds
 `dram__bytes_read.sum` and `dram__bytes_write.sum`, and the lab asks you to
 classify both reports.
 
+The two-report rule is a start. [Chapter 28](/c/28-reading-profiler-reports) goes further with recorded `ncu` and `nsys` exports: it places a kernel on the roofline from raw counters, reads stall reasons, occupancy, sector, bank-conflict, and wave counters, and measures stream gaps and launch overhead.
+
 ## Read the machine code: PTX and SASS
 
 The section answers one question: when the report says a kernel is wrong, how

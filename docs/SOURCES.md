@@ -680,3 +680,20 @@ Part 3 — Matrix multiplication. Numbered 29 because chapters 00 through 26 are
    Take: The tile scheduler parameter of a kernel, the work-tile loop of a persistent kernel, and the collective epilogue as the element-wise operations on the output. The page has no stream-K or split-K decomposition text.
 6. **Matrix multiplication background.** NVIDIA Deep Learning Performance guide. <https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html>  
    Take: The 108-tile and 117-tile example, tile quantization, and wave quantization. Chapter 4 already cites it.
+## 28-reading-profiler-reports: Reading profiler reports
+
+Part 1 — The machine. Numbered 28, after chapter 26, because chapters 00 through 26 are not renumbered. Prerequisites are chapter 4 and chapter 5. The lab's recorded reports are synthesized.
+
+1. **Nsight Compute Profiling Guide.** NVIDIA. <https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html>  
+   Take: The stall-reason metric family `smsp__pcsamp_warps_issue_stalled_<reason>` and its reasons, theoretical occupancy `sm__maximum_warps_per_active_cycle_pct`, `launch__occupancy_limit_<resource>`, `launch__waves_per_multiprocessor`, and the memory-table quantities for sectors, wavefronts, and bank conflicts. The exact sector, FLOP, and bank-conflict counter strings in the lab were not confirmed on the page.
+2. **Nsight Compute CLI.** NVIDIA. <https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html>  
+   Take: `--csv` implies `--print-units base`, `--metrics`, `-k`, `-s`, `-c`, and the auto-scaling factors of 1000.
+3. **Nsight Systems User Guide.** NVIDIA. <https://docs.nvidia.com/nsight-systems/UserGuide/index.html>  
+   Take: `nsys profile`, `nsys stats`, the default reports `cuda_api_sum` and `cuda_gpu_kern_sum`, and the `--format` list. The `cuda_gpu_trace` column headers were not on the pages read.
+4. **GPU MODE, lecture 1: Profiling and Integrating CUDA kernels in PyTorch.** Mark Saroufim. <https://github.com/gpu-mode/lectures>  
+   Take: The lecture index lists the title. This chapter did not read the lecture itself.
+5. **GPU MODE, lecture 8: CUDA Performance Checklist.** Mark Saroufim. <https://github.com/gpu-mode/lectures>  
+   Take: The lecture index lists the title. This chapter did not read the lecture itself.
+6. **GPU MODE, lecture 16: On Hands profiling.** Taylor Robbie. <https://github.com/gpu-mode/lectures>  
+   Take: The lecture index lists the title. This chapter did not read the lecture itself.
+7. **Chapter 4 and chapter 5 of this course.** Roofline, wave efficiency, bank model, and the profiling funnel that this chapter reads from counters.

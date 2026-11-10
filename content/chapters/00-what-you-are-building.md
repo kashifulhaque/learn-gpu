@@ -23,7 +23,7 @@ lab: 00-hello-gpu
 > - Every kernel is bound by one of two rates: bytes per second the memory delivers, or FLOP per second the arithmetic units sustain. On the A100 80GB PCIe those are rated at 1935 GB/s and 312 TFLOP/s, so a kernel needs 161 FLOP per byte to leave the memory side behind.
 > - A GPU is a throughput machine. It hides a memory latency of about 330 ns by keeping about 160,000 four-byte loads (640 KB) in flight, which is why a kernel needs many threads.
 > - A launch is asynchronous. Time a kernel with CUDA events, or synchronize before you read a host clock.
-> - The course has six parts and 29 labs, built around one real A100. Chapter 26's kernels run only on an H100. Each lab predicts a time from the specs and then measures it.
+> - The course has six parts and 30 labs, built around one real A100. Chapter 26's kernels run only on an H100. Each lab predicts a time from the specs and then measures it.
 
 You write PyTorch, and you know what a transformer is. This course teaches what happens underneath: the machine that runs your tensors, and the kernels that make the difference between a training run that takes a week and one that takes three days.
 
@@ -318,7 +318,7 @@ Every chapter has a book chapter, a lab, and a slide deck. The labs are the poin
 
 | Part | Chapters | What you learn | Labs build |
 |---|---|---|---|
-| 1. The machine | 0 to 5 and 27 | SMs, warps, the memory hierarchy, the roofline, profiling, debugging | A device-peak calculator, an occupancy calculator, copy kernels, roofline predictions, a profile-and-fix exercise, five kernels fixed under compute-sanitizer |
+| 1. The machine | 0 to 5, 27, and 28 | SMs, warps, the memory hierarchy, the roofline, profiling, debugging, reading profiler reports | A device-peak calculator, an occupancy calculator, copy kernels, roofline predictions, a profile-and-fix exercise, five kernels fixed under compute-sanitizer, a profiler-report classifier |
 | 2. CUDA patterns | 6 to 9 | Reductions, scans, shared memory, floating point | Sum and max reductions, scan and histogram, a padded transpose, a numerics study |
 | 3. Matrix multiplication | 10 to 14, 24, 26, and 29 | SGEMM, tensor cores, async pipelines, CUTLASS layouts, Triton, a CuTe DSL GEMM, a Hopper box and one wgmma, GEMM scheduling | An SGEMM ladder, a WMMA GEMM, a cp.async pipeline, CuTe layouts, a Triton matmul, a CuTe DSL GEMM, a gated Hopper lab, a split-K and stream-K scheduling lab |
 | 4. Kernels for ML | 15 to 20 | Softmax, FlashAttention, fusion, quantization, training kernels, MoE | Online softmax and LayerNorm, FlashAttention-2, torch.compile and CUDA graphs, a W4A16 GEMM, a fused cross-entropy, a grouped GEMM |

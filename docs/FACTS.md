@@ -969,3 +969,28 @@ New source keys:
 | STREAMK | Osama, Merrill, Cecka, Garland, Owens, Stream-K (arXiv 2301.03598), abstract and HTML text | https://arxiv.org/abs/2301.03598 |
 | CUTLASS-EFF | CUTLASS, Efficient GEMM in CUDA (split-K, sliced-K, persistent kernels) | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md |
 | CUTLASS-GEMM3X | CUTLASS, GEMM API 3.x (tile scheduler, collective epilogue) | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/gemm_api_3x.md |
+
+## 15. Reading profiler reports (chapter 28)
+
+Facts that `28-reading-profiler-reports` and its lab rely on. The recorded `ncu` and `nsys` reports in lab 28 are **synthesized**: no GPU produced them, and they are not measurements. Their counters were chosen to agree on an A100 80GB PCIe, using the ratings in section 2.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| `ncu --csv` units | `--csv` implies `--print-units base`; the default `auto` scales by 1000 with K, M, G for bytes and n, u, m for time | C | [NCU-CLI] |
+| `ncu` metric selection | `--metrics` lists metrics (supports `regex:`, `group:`); `-k` filters kernels by name; `-s` skips launches; `-c` limits launches | C | [NCU-CLI] |
+| Stall-reason metrics | `smsp__pcsamp_warps_issue_stalled_<reason>`; reasons include barrier, long_scoreboard, short_scoreboard, mio_throttle, math_pipe_throttle, lg_throttle, not_selected, selected, wait | C | [NCU-GUIDE] |
+| Occupancy metrics | `sm__maximum_warps_per_active_cycle_pct` is theoretical occupancy; `launch__occupancy_limit_{barriers,blocks,registers,shared_mem,warps}`; `launch__waves_per_multiprocessor` | C | [NCU-GUIDE] |
+| Sector, FLOP, and bank-conflict counter names used by the lab | `l1tex__t_{requests,sectors}_pipe_lsu_mem_global_op_{ld,st}.sum`, `smsp__sass_data_bytes_mem_global_op_{ld,st}.sum`, `smsp__sass_thread_inst_executed_op_{fadd,fmul,ffma}_pred_on.sum`, `l1tex__data_pipe_lsu_wavefronts_mem_shared_op_{ld,st}.sum`, `l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_{ld,st}.sum`. The guide page names bank-conflict and wavefront quantities but not these exact strings. Run `ncu --query-metrics` | U | [NCU-GUIDE] |
+| FP32 ridge, A100 80GB PCIe | 19.5 TFLOP/s over 1,935 GB/s is 10.08 FLOP per byte | D | section 2 |
+| FLOPs from SASS counters | FADD and FMUL count 1 each, FFMA counts 2 | D | arithmetic |
+| Sector efficiency | useful bytes over 32 times sectors; 1.0 for coalesced fp32 (128 B over 4 sectors) and for coalesced `float4` (512 B over 16 sectors); 0.125 for a stride of 32 floats | D | arithmetic, section 3 |
+| Wave efficiency | `waves / ceil(waves)`, with `waves = grid / (108 x resident blocks per SM)` | D | arithmetic |
+| `nsys stats` reports | `cuda_api_sum` and `cuda_gpu_kern_sum` are default reports; `--format` accepts column, table, csv, tsv, json; column headers of `cuda_gpu_trace` were not on the pages read, so the lab's layout is synthesized | C, U | [NSYS-GUIDE] |
+| Host launch cost, lab A100 | about 5 microseconds per kernel launch call | measured | learn-inference chapter 12, section 4.5 |
+| GPU MODE lecture titles | Lecture 1, Profiling and Integrating CUDA kernels in PyTorch (Mark Saroufim); lecture 8, CUDA Performance Checklist (Mark Saroufim); lecture 16, On Hands profiling (Taylor Robbie). Titles from the lecture index only | S | [GPUMODE-INDEX] |
+
+| Key | Source | URL |
+|---|---|---|
+| NCU-CLI | Nsight Compute CLI | https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html |
+| NSYS-GUIDE | Nsight Systems User Guide | https://docs.nvidia.com/nsight-systems/UserGuide/index.html |
+| GPUMODE-INDEX | GPU MODE lecture index | https://github.com/gpu-mode/lectures |

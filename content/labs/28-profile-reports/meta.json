@@ -1,0 +1,29 @@
+{
+  "id": "28-profile-reports",
+  "title": "Read profiler reports",
+  "brief": "Parse a recorded ncu CSV and nsys stats export, place a kernel on the roofline from raw counters, and write a classifier that names a kernel memory-bound, compute-bound, latency-bound, uncoalesced, bank-conflicted, or tail-limited, and a timeline launch-bound or sync-bound. The checks are pure Python and run without a GPU.",
+  "gpu": "A100-80GB",
+  "needs_gpu": false,
+  "device_agnostic": true,
+  "timeout": 300,
+  "metrics": [
+    "sgemm_achieved_gflops",
+    "sgemm_pct_of_roof",
+    "kernels_diagnosed",
+    "overlap_duty",
+    "launch_bound_duty",
+    "live_ncu"
+  ],
+  "hints": [
+    "parse_ncu_csv: find the line that starts with \"ID\", pass the lines from there to csv.DictReader, and strip commas from Metric Value before float(). The ==PROF== lines before and after the table are not rows. Key each value by Kernel Name, then Metric Name.",
+    "An FFMA is two FLOPs: a multiply and an add. sgemm_tiled counts 68,719,476,736 FFMA, which is 4096 cubed, so its work is 2 x 4096 cubed plus the 4096 squared alpha multiplies. The ridge point is peak FLOP/s over bytes/s: 19.5e12 / 1935e9 is 10.08 FLOP per byte.",
+    "Occupancy: the smallest of the four launch__occupancy_limit_* values is the resident blocks per SM. Multiply by warps per block, ceil(block / 32), and divide by 64. reduce_tail holds one block of 8 warps, which is 12.5 percent.",
+    "Sector efficiency is useful bytes over 32 x sectors. A strided load that uses 4 bytes of every 32-byte sector scores 0.125. A coalesced float4 load fetches 16 sectors per request and scores 1.0, so a rule on sectors per request alone is wrong.",
+    "Bank conflicts: divide the conflict counters by the wavefront counters, and add ld and st before you divide. A 32-way conflict on loads is 31 conflict wavefronts for each 32 wavefronts, a fraction of 0.97.",
+    "Waves: grid / (108 x blocks per SM). reduce_tail has 120 blocks and one resident per SM, 1.111 waves, so the second wave runs 12 blocks on 108 SMs. wave_efficiency is 1.111 / 2 = 0.556. A kernel with 303.4 waves loses 0.2 percent.",
+    "diagnose runs the structural rules first. transpose_naive_smem sits at 30 percent DRAM and 21 percent SM: a classifier that reads only those two numbers calls it latency-bound. copy_strided is at 62 percent DRAM and looks memory-bound until you count sectors.",
+    "busy_and_gaps: sort the (start, start + duration) intervals, merge those that overlap, then sum the merged lengths. Adding the durations makes two overlapped streams look 189 percent busy.",
+    "diagnose_timeline: pass only the kernel events to busy_and_gaps. SYNC_BOUND has 12 kernels of 350 microseconds and pauses near 900 microseconds. LAUNCH_BOUND has 3 microsecond kernels 7.5 microseconds apart, against a 5.1 microsecond launch call.",
+    "The live check profiles one PyTorch add with ncu. It skips, with a message, when there is no GPU, no ncu, or no permission to read performance counters. The container error for that is ERR_NVGPUCTRPERM."
+  ]
+}

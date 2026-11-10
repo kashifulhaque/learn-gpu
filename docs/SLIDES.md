@@ -256,7 +256,7 @@ A click on the slide moves on, and a click on its left quarter goes back.
 `node frontend/scripts/build-slides.mjs` prints every deck into one PDF,
 `book/gpu-programming-for-ml-slides.pdf`: one 16:9 page per slide, with a
 bookmark for each deck and each of its sections. It uses headless Chrome, as the
-book does, and `scripts/deploy.sh` builds and ships it beside the book. The
+book does. The Docker image builds it in its `slides` stage, beside the book. The
 build fails on mathematics that KaTeX can't render, on a figure that fails to
 draw, and when the page count doesn't equal the slide count. To print one deck
 instead, open `/slides/<slug>/print` and use the browser's print dialog.

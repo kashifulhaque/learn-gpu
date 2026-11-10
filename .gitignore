@@ -28,7 +28,7 @@ data/
 # Build metadata
 frontend/tsconfig.tsbuildinfo
 
-# The PDF book, built by frontend/scripts/build-book.mjs at deploy time.
+# A local build of the PDF book and slides. The Docker image builds its own.
 /book/
 frontend/dist-book/
 

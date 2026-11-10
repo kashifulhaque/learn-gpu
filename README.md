@@ -158,14 +158,25 @@ node frontend/scripts/build-slides.mjs --force
 ```
 
 Without `--force`, each build skips itself when nothing it reads has changed.
-Both builds fail on maths that KaTeX can't render. `scripts/deploy.sh` builds
-both on your workstation and copies them to the server; set `LG_SKIP_BOOK=1` to
-skip that.
+Both builds fail on maths that KaTeX can't render.
 
-## Deploy with Docker Compose
+You don't need to run these builds to deploy. The Docker build prints both PDFs
+inside the image, so each image carries the PDFs that match its own chapters.
+
+## Deploy
+
+A deploy is a merge to `main`. The GitHub Actions workflow
+[build-and-deploy](.github/workflows/deploy.yml) builds the image, including both
+PDFs, pushes it to GitHub Container Registry as
+`ghcr.io/kashifulhaque/learn-gpu`, and runs `deploy learn-gpu` on the server. That
+command pulls the new image and restarts the container. The server never builds
+from source.
+
+To run the image yourself, use the example [docker-compose.yml](docker-compose.yml):
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 The container joins the external `edge` network and answers on port 8000, which
@@ -174,10 +185,12 @@ is where a reverse proxy should send traffic. See
 events unbuffered, which the lab output stream needs. The compose file also
 publishes `127.0.0.1:8091`, so the app stays reachable through an SSH tunnel.
 
-The repository isn't deployed yet. When it is, `scripts/deploy.sh` pushes a
-commit to the server's clone, rebuilds, and waits for the health check. It reads
-`LG_HOST`, `LG_REMOTE_PATH` (default `~/docs/learn-gpu`), `LG_SSH_KEY`,
-`LG_BRANCH`, `LG_REPO_URL`, and `LG_SKIP_BOOK`.
+To build the image locally, run `docker build -t learn-gpu:local .`. The build
+prints the two PDFs in parallel, so it takes several minutes the first time.
+After that, Docker reuses each PDF until a file that PDF reads changes. The
+`commit` in each PDF manifest is `unknown`, because the commit hash isn't passed
+into the PDF stages, where a value that changes on every commit would force a
+rebuild.
 
 ## Access
 

@@ -159,10 +159,10 @@ def book_info(settings: Settings, manifest: str = "manifest.json") -> dict[str, 
     """A PDF on disk, as its build's manifest describes it.
 
     Two PDFs can sit in `book/`: the course book (`manifest.json`) and the
-    slide decks (`slides-manifest.json`). They are built on the deploying
-    machine and copied beside the app, so a fresh checkout has neither. Then
-    this is None and the sidebar shows no download link, rather than one that
-    leads to a 404.
+    slide decks (`slides-manifest.json`). The Docker build prints both and
+    copies them into the image, so a fresh checkout that hasn't run the build
+    scripts has neither. Then this is None and the sidebar shows no download
+    link, rather than one that leads to a 404.
     """
     try:
         data = json.loads((settings.book_dir / manifest).read_text(encoding="utf-8"))

@@ -831,3 +831,22 @@ Part 3 — Matrix multiplication. Numbered 35 because chapters 00 through 29 are
 10. **PTX ISA.** NVIDIA. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html>  
     Take: The table of contents places the tcgen05 sections at 9.7.18. The body text was not read here, so the chapter names the PTX as the normative source and doesn't quote it.
 11. **Chapters 12, 18, 24, and 26 of this course.** The ring, the quantized formats, the CuTe DSL, and the Hopper descriptor that this chapter compares against.
+## 36-symmetric-memory-and-nvshmem: Symmetric memory, NVSHMEM, and fused communication
+
+Part 5 — Many GPUs. Numbered 36 because chapters 30 to 35 are numbered by other work. Prerequisites are chapters 21, 22, and 25. Ring attention and context parallelism are owned by learn-inference.
+
+1. **NVSHMEM API: memory management.** NVIDIA. <https://docs.nvidia.com/nvshmem/api/latest/gen/api/memory.html>  
+   Take: `nvshmem_malloc` is collective with identical arguments, returns a symmetric heap block, and runs a barrier on exit. `nvshmem_ptr` was not on the page.
+2. **NVSHMEM API: remote memory access.** NVIDIA. <https://docs.nvidia.com/nvshmem/api/latest/gen/api/rma.html>  
+   Take: `nvshmem_putmem` and `nvshmem_getmem`, the nonblocking and `_block`, `_warp`, and `_on_stream` variants, that blocking put returns when the source is read, and that delivery order is not guaranteed.
+3. **NVSHMEM API: memory ordering and signaling.** NVIDIA. <https://docs.nvidia.com/nvshmem/api/latest/gen/api/ordering.html> and <https://docs.nvidia.com/nvshmem/api/latest/gen/api/signal.html>  
+   Take: the exact guarantees of `nvshmem_fence` and `nvshmem_quiet`, `nvshmem_put_signal`, `NVSHMEM_SIGNAL_SET` and `NVSHMEM_SIGNAL_ADD`. The signal-wait routine's full specification was not on the page.
+4. **PyTorch symmetric memory.** PyTorch. <https://docs.pytorch.org/docs/2.14/symmetric_memory.html>  
+   Take: the alpha warning, `empty`, `rendezvous`, `get`, signal pads, the `torch.ops.symm_mem` operators, and that no fused all-gather plus matmul operator is documented. The last 3,955 characters of the page were not read.
+5. **Flux: fast software-based communication overlap on GPUs through kernel fusion.** <https://arxiv.org/abs/2406.06858>  
+   Take: tile-level fusion of GEMM and communication, as summarized in chapter 22. Not re-read for this chapter.
+6. **DeepEP.** DeepSeek. <https://github.com/deepseek-ai/DeepEP>  
+   Take: expert-parallel dispatch and combine kernels, the hardware requirements, and that NVSHMEM is no longer a dependency. No benchmark hardware was named.
+7. **GPU MODE, lectures 67, 78, and 79.** <https://github.com/gpu-mode/lectures>  
+   Take: the lecture index lists the titles NCCL and NVSHMEM, Iris: Multi-GPU Programming in Triton, and Mirage (MPK): Compiling LLMs into Mega Kernels. This chapter did not read the lectures.
+8. **Chapters 21, 22, and 25 of this course.** The alpha-beta model, the "Overlap inside a kernel" section this chapter expands, and the gated two-GPU pattern the lab copies.

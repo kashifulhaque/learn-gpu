@@ -1,0 +1,28 @@
+{
+  "id": "36-symmetric-memory",
+  "title": "A symmetric heap and a fused all-gather plus GEMM",
+  "brief": "Build a simulated NVSHMEM-style symmetric heap with puts, signals, fence, and quiet. Write an all-gather from puts, a chunked all-gather plus GEMM schedule that never reads an unsignaled chunk, and an alpha-beta model that picks serial, overlapped, or fused. A two-GPU NCCL overlap timing runs only when the machine has two GPUs.",
+  "gpu": "A100-80GB",
+  "gpus": 2,
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 600,
+  "metrics": [
+    "model_fused_us",
+    "model_overlapped_us",
+    "model_serial_us",
+    "gpu_serial_ms",
+    "gpu_overlap_ms",
+    "gpu_overlap_speedup"
+  ],
+  "hints": [
+    "Start with address. PE p's heap begins at HEAP_BASE + p * PE_STRIDE, and an element is ELEM bytes. The same offset on two PEs differs only by PE_STRIDE.",
+    "translate keeps the byte offset into the heap and swaps the base. malloc is a bump allocator that returns one offset, valid on every PE.",
+    "put and signal only append to pending. Nothing arrives until step, quiet, or wait_until delivers it. quiet delivers one PE's operations. fence delivers nothing: it raises the epoch, and the network holds a later operation back until every earlier-epoch operation to the same PE has arrived.",
+    "The data must arrive before the signal that announces it. Put the data, call fence, then signal. Under the signals_first policy, a missing fence lets the signal arrive first, and the consumer reads stale data.",
+    "wait_until spins on step. When step returns False and the word still differs, raise SignalNotReady, because no operation is left to change it.",
+    "ag_gemm waits on a chunk's signal before it reads the chunk, and logs ('wait', pe, chunk) then ('compute', pe, chunk). A PE's own chunk needs no wait, and tile_order puts it first.",
+    "overlap_model is the formulas in the docstring. Check a case by hand: with chunks = 1 and no launch cost, overlapped and serial differ only by the SM share.",
+    "The two-GPU check runs only when this machine has two GPUs. A missing two-GPU endpoint does not send it to the single A100."
+  ]
+}

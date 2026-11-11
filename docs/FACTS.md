@@ -1221,3 +1221,38 @@ Facts that `35-blackwell-tcgen05` and its lab rely on. The PTX ISA page is one v
 | CUTLASS-COPY100 | CUTLASS, `include/cute/arch/copy_sm100.hpp` | https://github.com/NVIDIA/cutlass/blob/main/include/cute/arch/copy_sm100.hpp |
 | CUTLASS-BW | CUTLASS, Blackwell functionality | https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/blackwell_functionality.md |
 | FA4-HTML | FlashAttention-4 (arXiv 2603.05451, HTML version) | https://arxiv.org/html/2603.05451v1 |
+
+## 22. Symmetric memory, NVSHMEM, and fused communication (chapter 36)
+
+Facts that `36-symmetric-memory-and-nvshmem` and its lab rely on. Tags: C is confirmed on a fetched page, D is derived by arithmetic, A is an assumed value for the model, and U is unconfirmed. The lab's simulator models the documented rules, and its times are model predictions, not measurements. Inputs from earlier sections: NVLink 3 at 300 GB/s per direction (section 7.1), 312 TFLOP/s dense bf16 (section 2), $\alpha = 5$ µs (section 7.2), and about 5 µs per kernel launch (section 10).
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| `nvshmem_malloc` | Collective: every PE calls it with identical arguments, or behavior is undefined. It returns a block of the symmetric heap, and an implied barrier runs on exit. | C | [NVSHMEM-MEM] |
+| `nvshmem_putmem` | Blocking: returns once the source data has been read on the local PE. Delivery into `dest` can come later. Variants `_nbi`, `_block`, `_warp`, and `_on_stream` exist. | C | [NVSHMEM-RMA] |
+| `nvshmem_getmem` | Blocking: returns after the data is in the local `dest`. | C | [NVSHMEM-RMA] |
+| Delivery order | Not guaranteed. Successive puts can arrive out of order unless `nvshmem_fence` is called between them. | C | [NVSHMEM-RMA] |
+| `nvshmem_fence` | Orders operations to a PE issued before the call ahead of later operations to the same PE. Does not guarantee completion. | C | [NVSHMEM-ORDER] |
+| `nvshmem_quiet` | Guarantees that all symmetric-data operations the calling PE issued are complete and visible. Local, non-collective, and it does not notify other PEs. | C | [NVSHMEM-ORDER] |
+| `nvshmem_put_signal` | A put, then an atomic update of a `uint64_t` signal word. Operators `NVSHMEM_SIGNAL_SET` and `NVSHMEM_SIGNAL_ADD`. The signal indicates delivery of its own data. Without a memory-ordering operation, a plain put followed by a put with signal does not guarantee the plain put's data is delivered. | C | [NVSHMEM-SIGNAL] |
+| NVLink peer path | The tile interface names `PEER_PUSH_NBI` for NVLink P2P destinations and `REMOTE_PUSH_NBI` for remote ones. The pages do not say whether a put is a load and store or a proxy. | C, U | [NVSHMEM-RMA] |
+| PyTorch symmetric memory | `torch.distributed._symmetric_memory` is in alpha, with possible API changes. Names on the page: `empty`, `rendezvous`, `get`, `is_nvshmem_available`, `set_backend` (`"NVSHMEM"`, `"CUDA"`, `"NCCL"`), `set_signal_pad_size`, handle attributes `buffer_ptrs`, `multicast_ptr`, `signal_pad_ptrs`. | C | [PT-SYMM] |
+| `torch.ops.symm_mem` | `one_shot_all_reduce`, `two_shot_all_reduce_`, `multimem_all_reduce_`, `multimem_all_gather_out`, `all_to_all_vdev`, `all_to_all_vdev_2d`, `all_to_all_vdev_2d_offset`, `tile_reduce`, and others. The multimem operators need NVLink SHARP on NVIDIA GPUs. No fused all-gather plus matmul operator is on the page. | C | [PT-SYMM] |
+| DeepEP | Expert-parallel all-to-all kernels for dispatch and combine. Requires Hopper or newer and NVLink in a node. The README says NVSHMEM is no longer a dependency since the release that removed the earlier backend. No benchmark hardware is named on the page. | C | [DEEPEP] |
+| GPU MODE lecture titles | Lecture 67, NCCL and NVSHMEM (Jeff Hammond). Lecture 78, Iris: Multi-GPU Programming in Triton (Muhammad Awad, Muhammad Osama, and Brandon Potter). Lecture 79, Mirage (MPK): Compiling LLMs into Mega Kernels (Mengdi Wu and Xinhao Cheng). Titles from the lecture index only. | C | [GPUMODE-INDEX] |
+| Model parameters | $\alpha = 5$ µs per ring message, launch 5 µs, signal 2 µs, SM share 0.10. Only the launch figure is a measurement (learn-inference). The others are assumed. | A | section 7.2, section 10 |
+| Case A, 8 GPUs, 128 MiB gathered | $n = 134{,}217{,}728$ B, $F = 2 \times 8192 \times 8192 \times 1024 = 1.374 \times 10^{11}$. All-gather $35 + 391.468 = 426.468$ µs. GEMM 440.509 µs. Serial 866.978 µs. | D | section 7.1, section 2 |
+| Case A, 8 chunks | Overlapped (separate collectives) 737.038 µs. Fused 535.494 µs. Best overlapped over powers of two: 657.608 µs at 4 chunks. Best fused: 498.794 µs at 32 chunks. Fused floor $440.509 \times 1.1 = 484.560$ µs. | D, A | `scripts/figures/36-symmetric-memory.py` |
+| Case B, 8 GPUs, 4 MiB gathered | All-gather 47.233 µs, GEMM 13.766 µs, serial 60.999 µs. At 4 chunks: overlapped 161.019 µs, fused 24.019 µs. At 64 chunks: fused 140.47 µs, which is slower than serial. | D, A | `scripts/figures/36-symmetric-memory.py` |
+| All-gather by puts, 4 PEs, 5 floats each | 12 puts, 12 signals, 20 bytes per put, 60 bytes received per PE, which is $(p-1)/p$ of 80 bytes. | D | arithmetic |
+| NVLS speedup | No primary-source figure was read. The chapter quotes none. | U | |
+| Two-GPU lab endpoint bridge | Unconfirmed whether the two-GPU endpoint has an NVLink bridge (see section 11). The check reports a measured time and quotes no ceiling. | U | section 11 |
+
+| Key | Source | URL |
+|---|---|---|
+| NVSHMEM-MEM | NVSHMEM API, memory management | https://docs.nvidia.com/nvshmem/api/latest/gen/api/memory.html |
+| NVSHMEM-RMA | NVSHMEM API, remote memory access | https://docs.nvidia.com/nvshmem/api/latest/gen/api/rma.html |
+| NVSHMEM-ORDER | NVSHMEM API, memory ordering (fence and quiet) | https://docs.nvidia.com/nvshmem/api/latest/gen/api/ordering.html |
+| NVSHMEM-SIGNAL | NVSHMEM API, signaling operations | https://docs.nvidia.com/nvshmem/api/latest/gen/api/signal.html |
+| PT-SYMM | PyTorch symmetric memory (2.14 docs) | https://docs.pytorch.org/docs/2.14/symmetric_memory.html |
+| DEEPEP | DeepEP README | https://github.com/deepseek-ai/DeepEP |

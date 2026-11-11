@@ -344,7 +344,7 @@ The ridge point depends on which units run. The same matmul in fp32 has a floor 
 
 # The course and the labs
 
-Six parts, 36 labs, one GPU.
+Six parts, 37 labs, one GPU.
 
 Note:
 Section divider. We close with the map and with how a lab runs.
@@ -357,7 +357,7 @@ Section divider. We close with the map and with how a lab runs.
 | 2. CUDA patterns | 6 to 9, 30, 31, 32 |
 | 3. Matrix multiplication | 10 to 14, 24, 26, 29, 34, 35 |
 | 4. Kernels for ML | 15 to 20, 33 |
-| 5. Many GPUs | 21, 22, 25 |
+| 5. Many GPUs | 21, 22, 25, 36 |
 | 6. Beyond | 23 |
 
 Note:

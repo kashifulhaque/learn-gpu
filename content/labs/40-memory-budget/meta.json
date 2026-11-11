@@ -1,0 +1,24 @@
+{
+  "id": "40-memory-budget",
+  "title": "Memory budget, allocator, and snapshots",
+  "brief": "Build a training-memory calculator, a small caching-allocator simulator that reproduces allocated and reserved memory on a recorded trace, a parser for a memory snapshot that finds the largest free block and the allocation behind the peak, and a chooser that picks which layers to checkpoint to fit a byte budget. On a GPU, measure the peak with and without checkpointing.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 600,
+  "metrics": ["peak_plain_mib", "peak_ckpt_mib", "peak_reduction_mib"],
+  "hints": [
+    "state_bytes: fp32 training holds 4 bytes of weight, 4 of gradient, and two 4-byte Adam states, so 16 bytes per parameter. Mixed precision holds 2, 2, a 4-byte fp32 master copy, and the same two Adam states, which is also 16.",
+    "activation_layer_bytes is 34 * s * b * h plus 5 * a * s^2 * b. FlashAttention drops the second term.",
+    "peak_activation_bytes: a checkpointed layer stores only its boundary. During the backward pass, when it reaches a checkpointed layer i, the memory is the stored bytes of layers 0 through i plus that layer's full bytes. The peak is the larger of that and the stored total after the forward pass.",
+    "mlp_stack_saved_bytes: each Linear saves its input and each GELU saves its input, so a layer saves 2 * tokens * hidden * elem_bytes.",
+    "round_size rounds up to a multiple of 512 and never below 512. segment_size is 2 MiB for a rounded size up to 1 MiB, 20 MiB for a size under 10 MiB, and a multiple of 2 MiB from 10 MiB up.",
+    "The allocator keeps a small pool for rounded sizes up to 1 MiB and a large pool for the rest. malloc picks the smallest free block that fits, lowest address on a tie. If none fits, it creates a segment. A block splits when the remainder is at least 512 bytes in the small pool, or more than 1 MiB in the large pool.",
+    "free marks the block free and merges it with a free neighbor on each side, inside the same segment. It never returns the segment, so reserved doesn't shrink.",
+    "When a new segment would pass the capacity, release every segment that is one free block, then check again. If it still doesn't fit, raise OutOfMemory.",
+    "fragmentation_ratio is 1 - largest_free / total_free over the inactive blocks, and 0 when nothing is free. classify_oom compares the last oom entry's size with the total free bytes and with the largest free block.",
+    "peak_allocation adds the size on every alloc entry and subtracts it on every free_requested entry. Ignore free_completed: the bytes were already released from the tensor's point of view.",
+    "choose_checkpoints: walk the layers in order and keep a dict from stored bytes so far to the cheapest set. Keeping a layer whole adds its full bytes. Checkpointing adds its boundary bytes and requires stored + full to fit the budget.",
+    "The GPU check runs a 16-layer MLP stack twice and compares the drop in max_memory_allocated with the calculator. Warm up each mode first: the first backward allocates a cuBLAS workspace."
+  ]
+}

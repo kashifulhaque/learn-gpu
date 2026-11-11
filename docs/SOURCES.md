@@ -917,3 +917,23 @@ Part 2 — CUDA patterns. Numbered 39 because chapters 00 through 29 are not ren
 8. **Stanford CS149 schedule.** <https://gfxcourses.stanford.edu/cs149/fall24>  
    Take: The titles "Lock Implementations, Fine-Grained Synchronization and Lock-Free Programming" and "Relaxed Consistency + Domain-Specific Programming Systems". The page has no lecture numbers.
 9. **Chapters 2, 6, and 7 of this course.** Resident blocks, the last-block reduction, work and depth, and decoupled look-back.
+## 40-memory-management-and-oom: GPU memory management and OOM debugging
+
+Part 4 — Kernels for ML. Numbered 40 because other chapters fill 33 to 39 and 41. Prerequisites are chapters 17, 19, and 22.
+
+1. **PyTorch CUDA semantics, memory management.** <https://docs.pytorch.org/docs/2.15/notes/cuda.html> (key PT-CUDA-NOTES)  
+   Take: `memory_allocated`, `memory_reserved`, `empty_cache`, and the `PYTORCH_ALLOC_CONF` options. The first 100,000 characters of the page were read; the rest wasn't.
+2. **Understanding CUDA memory usage.** <https://docs.pytorch.org/docs/2.15/torch_cuda_memory.html> (key PT-MEM-VIZ)  
+   Take: the history and snapshot API, the snapshot fields, and the viewer.
+3. **`c10/cuda/CUDACachingAllocator.cpp` and `c10/core/AllocatorConfig.h`.** <https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp> (key PT-ALLOC-SRC)  
+   Take: the allocator constants, `should_split`, `get_allocation_size`, `round_size`, and the release helpers. The first 200,000 of 225,719 characters of the .cpp were read, so the malloc retry order and the block ordering comparator weren't confirmed.
+4. **CUDA programming guide: stream-ordered memory allocation and unified memory.** <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/stream-ordered-memory-allocation.html> (key CUDA-SOA), <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/unified-memory.html> (key CUDA-UM)  
+   Take: pools, release threshold, reuse policies, migration, prefetch, and advice.
+5. **NVIDIA MPS and MIG.** <https://docs.nvidia.com/deploy/mps/when-to-use-mps.html> (key MPS-WHEN), <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-mig-profiles.html> (key MIG-PROFILES)  
+   Take: MPS address-space isolation, memory limits, and fault behavior; the A100 MIG profiles. The MIG page lists 40 GB profile names and maps them to 80 GB names.
+6. **Training Deep Nets with Sublinear Memory Cost** (Chen et al.) and **Reducing Activation Recomputation in Large Transformer Models** (Korthikanti et al.). Cited through chapter 19, not re-read for this chapter.
+7. **ZeRO** (Rajbhandari et al.). Cited through chapters 19 and 25 for 16 bytes per parameter, not re-read.
+8. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
+   Take: lecture 32 is Unsloth, by Daniel Han. The index lists titles only, so the chapter says nothing about what it covers.
+9. **Stanford CS336 assignment 2.** <https://github.com/stanford-cs336/assignment2-systems>  
+   Take: the repository page doesn't mention memory profiling, and the handout PDF wasn't read. The chapter cites the assignment without a section.

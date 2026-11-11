@@ -1403,3 +1403,60 @@ New source keys:
 | CUDA-CG | CUDA Programming Guide, Cooperative Groups | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cooperative-groups.html |
 | CMU-418 | CMU 15-418 schedule | https://www.cs.cmu.edu/~418/schedule.html |
 | CS149 | Stanford CS149 schedule | https://gfxcourses.stanford.edu/cs149/fall24 |
+
+
+## 26. GPU memory management and OOM debugging (chapter 40)
+
+Every row is arithmetic on a formula in the chapter, arithmetic on `content/labs/40-memory-budget/fixture_snapshot.py` (synthesized, not captured on a GPU), or a statement from a source below. The figure script `scripts/figures/40-memory-management-and-oom.py` prints the derived numbers.
+
+| Fact | Value | Tag | Notes |
+|---|---|---|---|
+| Training state, Adam, fp32 | 4 + 4 + 8 = 16 bytes per parameter | D | Weights, gradients, and two fp32 moments |
+| Training state, Adam, mixed precision | 2 + 2 + 4 + 8 = 16 bytes per parameter | D | bf16 weights and gradients, fp32 master copy, two fp32 moments. Matches the ZeRO paper's 16 and chapter 19 |
+| Training state, bf16 with fp32 moments, no master copy | 2 + 2 + 8 = 12 bytes per parameter | D | |
+| Example model | 12 h^2 x 24 layers at h = 2048 = 1,207,959,552 parameters; state 19,327,352,832 bytes = 18.00 GiB | D | The embedding table is left out |
+| Per-layer saved bytes with fused attention | 34 s b h; at s = 4096, b = 12, h = 2048: 3,422,552,064 bytes = 3264 MiB | D | Formula from chapter 19 (Korthikanti et al.) |
+| Boundary kept by a checkpointed layer | 2 s b h; 192 MiB at b = 12 | D | |
+| Checkpoint peak | max(sum of stored, max over checkpointed i of (stored prefix through i + F_i)) | D | The chapter's model, implemented as `peak_activation_bytes` in the lab |
+| Fewest layers checkpointed to fit 58 GiB (80 - 18 - 4 headroom), b = 12 | 7 of 24: peak 55.50 GiB; 6 gives 58.50 GiB | D | The 4 GiB headroom is an assumption of the chapter. Extra arithmetic is about 7/24 of a forward pass, 9.7% of a step |
+| Allocator minimum block | 512 bytes; every size rounds up to a multiple, minimum 512 | C | `c10/cuda/CUDACachingAllocator.cpp` and the allocator configuration header; the CUDA notes say 512-byte multiples for small sizes [PT-CUDA-NOTES] |
+| Small and large pool boundary | A rounded size of at most 1 MiB is small | C | `kSmallSize = 1048576` [PT-ALLOC-SRC] |
+| Small segment | 2 MiB | C | `kSmallBuffer = 2097152` [PT-ALLOC-SRC] |
+| Large segment for a request under 10 MiB | 20 MiB | C | `kMinLargeAlloc = 10485760`, large segment size default 20 MB; documented as `large_segment_size_mb` [PT-ALLOC-SRC], [PT-CUDA-NOTES] |
+| Segment for a request of 10 MiB or more | Request rounded up to a multiple of 2 MiB | C | `kRoundLarge = 2097152` [PT-ALLOC-SRC] |
+| Split rule | Small pool, or expandable segments: remainder at least 512 bytes. Large pool: request below `max_split_size` and remainder above 1 MiB | C | `should_split` in the source [PT-ALLOC-SRC] |
+| Smallest-fit choice with lowest-address tie | The free block chosen is the smallest that fits, and the lowest address wins a tie | U | The source searches an ordered set with `lower_bound`. The comparator was not read, so the address tie-break is the lab's choice |
+| `memory_allocated` counts a block's rounded size | A tensor of 1000 bytes counts 1024 | U | Not stated in the documentation, which says only "memory occupied by tensors". The lab counts block sizes |
+| Release of cached segments after a failed `cudaMalloc` | The allocator frees cached blocks and retries before it raises | C | `release_cached_blocks` and `release_available_cached_blocks` exist [PT-ALLOC-SRC]. The call order in `malloc` was not read, and the lab models "free every segment that is one free block" |
+| Only whole-segment blocks are released | A segment with a live block stays | U | Design knowledge, not read in the source |
+| `PYTORCH_CUDA_ALLOC_CONF` | An alias kept for `PYTORCH_ALLOC_CONF`; comma-separated `option:value` pairs | C | [PT-CUDA-NOTES] |
+| `expandable_segments` | Experimental, default False; one segment per stream that grows | C | [PT-CUDA-NOTES] |
+| `max_split_size_mb` | Blocks larger than this aren't split; default unlimited; ignored with `cudaMallocAsync`; a last resort | C | [PT-CUDA-NOTES] |
+| `garbage_collection_threshold` | A value strictly between 0.0 and 1.0, default 1.0; reclaims unused blocks, preferring old ones; ignored with `cudaMallocAsync` | C | [PT-CUDA-NOTES] |
+| `backend:cudaMallocAsync` | Requires CUDA 11.4 or later; applies to all devices in the process | C | [PT-CUDA-NOTES] |
+| Memory history API | `torch.cuda.memory._record_memory_history(enabled, context, stacks, max_entries, ...)`, `_snapshot()`, `_dump_snapshot(filename)` | C | [PT-MEM-VIZ] |
+| Snapshot fields | `segments` (address, total_size, stream, segment_type, allocated_size, active_size, blocks); block states `active_allocated`, `active_awaiting_free`, `inactive`; `device_traces` actions `alloc`, `free_requested`, `free_completed`, `segment_alloc`, `segment_free`, `oom`, `snapshot`, `annotate`; `oom` entries carry `device_free` | C | [PT-MEM-VIZ] |
+| Viewer | `pytorch.org/memory_viz`, runs locally, does not upload | C | [PT-MEM-VIZ] |
+| Frame order in a snapshot's `frames` | The first frame is the innermost call | U | The fixture uses this order. The documentation doesn't state it |
+| OOM message wording | Reports the request size, free and total bytes, allocated and reserved-but-unallocated, and suggests `expandable_segments` | U | Recalled, not fetched. Read your version's message |
+| CUDA context size | Hundreds of MiB | U | No source read. Measure with `mem_get_info` and `nvidia-smi` |
+| 80 GB card as 80 GiB | 85,899,345,920 bytes | U | The chapter's round number. The usable amount is lower |
+| Stream-ordered allocation | `cudaMallocAsync` and `cudaFreeAsync` order within a stream; the default pool per device; release threshold `cudaMemPoolAttrReleaseThreshold`; `cudaMemPoolTrimTo`; three reuse policies | C | [CUDA-SOA] |
+| Unified memory | `cudaMallocManaged`; page-fault migration; oversubscription on systems with full support; `cudaMemPrefetchAsync`; `cudaMemAdvise` | C | [CUDA-UM] |
+| MPS | Clients have fully isolated GPU address spaces; a fatal fault reaches all clients on the GPU; `CUDA_MPS_PINNED_DEVICE_MEM_LIMIT` limits a client's device memory | C | [MPS-WHEN] |
+| MIG profiles, A100 80GB | 1g.10gb (7), 1g.20gb (4), 2g.20gb (3), 3g.40gb (2), 4g.40gb (1), 7g.80gb (1) | C | The page lists the 40 GB names and says names change with memory size; the 80 GB names follow its mapping [MIG-PROFILES] |
+| Fixture snapshot | Segments 2, 20, 20, 64 MiB = 106 MiB reserved; 55 MiB active; free blocks 1, 4, 6, 8, 8, 24 MiB = 51 MiB; largest 24 MiB; fragmentation 1 - 24/51 = 0.529; peak 79 MiB at `loss.py:31` | D | Synthesized, labeled as such in the file |
+| Simulator trace | Allocated 12, 24, 36, 48, 36, 24, 40, 44, 28, 48 MiB; reserved 12, 24, 36, 48, 48, 48, 64, 64, 64, 84 MiB; with an 80 MiB capacity the last request ends at 56 MiB reserved | D | `ALLOC_TRACE` in the fixture |
+| GPU check prediction | 16 layers, 4096 tokens, h = 2048, fp32: 64 MiB saved per layer, 32 MiB boundary; plain 1024 MiB, all checkpointed 512 + 64 = 576 MiB; predicted reduction 448 MiB | D | A prediction. The lab measures it on the A100 and accepts 35% |
+
+Source keys for this section:
+
+| Key | Source | URL |
+|---|---|---|
+| PT-CUDA-NOTES | PyTorch CUDA semantics, memory management | https://docs.pytorch.org/docs/2.15/notes/cuda.html |
+| PT-MEM-VIZ | PyTorch, Understanding CUDA memory usage | https://docs.pytorch.org/docs/2.15/torch_cuda_memory.html |
+| PT-ALLOC-SRC | `c10/cuda/CUDACachingAllocator.cpp` and `c10/core/AllocatorConfig.h` | https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp |
+| CUDA-SOA | CUDA programming guide, stream-ordered memory allocation | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/stream-ordered-memory-allocation.html |
+| CUDA-UM | CUDA programming guide, unified memory | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/unified-memory.html |
+| MPS-WHEN | NVIDIA MPS, when to use MPS | https://docs.nvidia.com/deploy/mps/when-to-use-mps.html |
+| MIG-PROFILES | NVIDIA MIG user guide, supported profiles | https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-mig-profiles.html |

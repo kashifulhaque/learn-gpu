@@ -895,3 +895,25 @@ Part 6 — Beyond. Numbered 38, because chapters 00 through 29 are not renumbere
 10. **NVIDIA CUDA Tile.** NVIDIA. <https://developer.nvidia.com/cuda/tile>  
     Take: The names CUDA Tile, CUDA Tile IR, cuTile, and cuTile Python. The page gives no release status.
 11. **Chapters 11, 12, 14, 15, 23, 24, and 26 of this course.** The fragment layout, the cp.async pipeline, the Triton model, online softmax, the tile-language survey, the CuTe DSL GEMM, and the Hopper TMA and wgmma details that this chapter builds on.
+
+## 39-memory-consistency-and-atomics: Memory consistency and atomics
+
+Part 2 — CUDA patterns. Numbered 39 because chapters 00 through 29 are not renumbered. Prerequisites are chapters 02, 06, and 07. Nothing here was measured on a GPU.
+
+1. **PTX ISA, Memory Consistency Model.** NVIDIA. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html>  
+   Take: The scopes `.cta`, `.cluster`, `.gpu`, and `.sys`, the strong and weak operations, `.volatile`, morally strong operations, release and acquire patterns, `fence.sc` and `fence.acq_rel`, and the message-passing, store-buffering, and load-buffering examples. Instruction forms and minimum compute capabilities were not read.
+2. **libcu++ memory model and `cuda::atomic_ref`.** NVIDIA CCCL. <https://github.com/NVIDIA/cccl/blob/main/docs/libcudacxx/extended_api/memory_model.rst>, <https://github.com/NVIDIA/cccl/blob/main/docs/libcudacxx/extended_api/synchronization_primitives/atomic_ref.rst>  
+   Take: The thread scopes, the scope-inclusion rule for release and acquire, and the type, alignment, and architecture requirements of `atomic_ref`.
+3. **CUDA Programming Guide, C++ language extensions.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html>  
+   Take: The memory fence functions, the statement that a fence orders and `volatile` makes visible, and the writer and reader example.
+4. **CUDA Programming Guide, Cooperative Groups.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cooperative-groups.html>  
+   Take: `this_grid()`, the requirement to use `cudaLaunchCooperativeKernel` for grid synchronization, the atomic launch, and `cudaDevAttrCooperativeLaunch`. The page does not name `grid.sync()`.
+5. **A Formal Analysis of the NVIDIA PTX Memory Consistency Model.** Lustig, Sahasrabuddhe, Giroux. ASPLOS 2019. <https://research.nvidia.com/publication/2019-04_formal-analysis-nvidia-ptx-memory-consistency-model>  
+   Take: The abstract only: an axiomatic model, a scoped C++ mapping, and a Coq proof.
+6. **GPU concurrency: weak behaviours and programming assumptions.** Alglave and others. ASPLOS 2015.  
+   Take: Cited from memory. The page could not be fetched, so no claim in the chapter depends on its content.
+7. **CMU 15-418 schedule.** <https://www.cs.cmu.edu/~418/schedule.html>  
+   Take: Lecture 16, "Fine-Grained Synchronization, Lock-Free Programming", and lectures 20 and 21, "Memory Consistency".
+8. **Stanford CS149 schedule.** <https://gfxcourses.stanford.edu/cs149/fall24>  
+   Take: The titles "Lock Implementations, Fine-Grained Synchronization and Lock-Free Programming" and "Relaxed Consistency + Domain-Specific Programming Systems". The page has no lecture numbers.
+9. **Chapters 2, 6, and 7 of this course.** Resident blocks, the last-block reduction, work and depth, and decoupled look-back.

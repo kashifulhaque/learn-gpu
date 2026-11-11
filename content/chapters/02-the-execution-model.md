@@ -361,6 +361,12 @@ The second row is NVIDIA's V100 measurement from the [CUDA graphs article](https
 
 Asynchrony has one rule that every measurement obeys. A host timer around a launch measures the time to queue it. To time the GPU, record CUDA events on the stream, as `cuda_time` in the labs does, or call `torch.cuda.synchronize()` before you stop the clock. [Chapter 22](/c/22-overlap-and-parallelism) builds on streams and events to overlap copies with compute.
 
+## Why residency decides whether blocks can wait for each other
+
+This section answers one question: can one block wait for another block in the same launch?
+
+It can only if the other block is running or guaranteed to start. A resident block holds its SM slot until it exits, so a block that spins on a flag from a block that hasn't started can wait forever. With the 864 resident blocks from the vector-add example, a grid of 1,000 blocks that all wait for each other deadlocks, because the last 136 never get a slot. [Chapter 39](/c/39-memory-consistency-and-atomics) turns this into a rule: a grid-wide barrier, including `cooperative_groups` grid sync, needs every block resident, and a cooperative launch is what guarantees it. The same chapter states the memory-ordering rules that a flag between blocks needs.
+
 ## What goes wrong
 
 - **Reading divergence off the source line.** A condition on `blockIdx.x` is free, and so is one on `threadIdx.x / 32`. One on `threadIdx.x % 32` is not. Work out which threads of one warp disagree, not which threads of the block.

@@ -937,3 +937,16 @@ Part 4 — Kernels for ML. Numbered 40 because other chapters fill 33 to 39 and 
    Take: lecture 32 is Unsloth, by Daniel Han. The index lists titles only, so the chapter says nothing about what it covers.
 9. **Stanford CS336 assignment 2.** <https://github.com/stanford-cs336/assignment2-systems>  
    Take: the repository page doesn't mention memory profiling, and the handout PDF wasn't read. The chapter cites the assignment without a section.
+## 41-capstone-kernel-leaderboard: Capstone: a kernel leaderboard
+
+Part 6 — Beyond. Numbered 41 because other chapters fill 33 to 40. Prerequisites are chapters 4, 5, 10, 14, 15, 30, and 31.
+
+1. **GPU MODE reference-kernels.** <https://github.com/gpu-mode/reference-kernels> (key GPUMODE-REF)  
+   Take: The problem structure (`reference.py`, `task.yml`, `task.py`) and KernelBot. The README does not describe how problems are ranked, so the chapter doesn't state a ranking rule for GPU MODE.
+2. **Stanford CS149 assignment 5.** <https://github.com/stanford-cs149/asst5-kernels> (key CS149-A5)  
+   Take: The kernel options, PyTorch baselines, the `test` and `benchmark` modes, the per-kernel leaderboard, and the statement that no performance bar sets the grade and a work log carries most of it. The page was read through a summary.
+3. **CUDA C++ Best Practices Guide.** <https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html> (key CUDA-BPG)  
+   Take: Section 9.1, Timing: asynchronous launches and CUDA event timers. Only the first 100,000 characters of the page were read.
+4. **Roofline: An Insightful Visual Performance Model for Multicore Architectures.** Williams, Waterman, Patterson, Communications of the ACM, 2009. Not fetched: the DOI page returned HTTP 403. Cited by title only.
+5. **`torch.topk`.** <https://docs.pytorch.org/docs/2.14/generated/torch.topk.html>  
+   Take: The tie order isn't guaranteed. Read for chapter 30 and reused here.

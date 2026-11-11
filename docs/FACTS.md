@@ -1449,6 +1449,27 @@ Every row is arithmetic on a formula in the chapter, arithmetic on `content/labs
 | Simulator trace | Allocated 12, 24, 36, 48, 36, 24, 40, 44, 28, 48 MiB; reserved 12, 24, 36, 48, 48, 48, 64, 64, 64, 84 MiB; with an 80 MiB capacity the last request ends at 56 MiB reserved | D | `ALLOC_TRACE` in the fixture |
 | GPU check prediction | 16 layers, 4096 tokens, h = 2048, fp32: 64 MiB saved per layer, 32 MiB boundary; plain 1024 MiB, all checkpointed 512 + 64 = 576 MiB; predicted reduction 448 MiB | D | A prediction. The lab measures it on the A100 and accepts 35% |
 
+## 27. Capstone: a kernel leaderboard (chapter 41)
+
+Every row is arithmetic on the A100 constants in section 1 and `content/labs/lab_common.py`, or a statement from a page read on the date the chapter was written. Nothing here was measured on a GPU. `scripts/figures/41-capstone-kernel-leaderboard.py` prints the floors.
+
+| Fact | Value | Source | Notes |
+|---|---|---|---|
+| Floor definition | max(FLOPs / peak, bytes / bandwidth) for the ideal fused kernel | D | Memory time at the 1275 GB/s copy ceiling; peak is 312 TFLOP/s bf16 for the MLP and 19.5 TFLOP/s fp32 for the others |
+| Grayscale and blur, 4096 by 4096 | 16 bytes and 22 FLOP per pixel: 268,435,456 bytes, 369,098,752 FLOP; memory floor 0.2105 ms, compute 0.0189 ms | D | A prediction; 0.1387 ms at the 1935 GB/s rating |
+| Unfused grayscale and blur | 24 bytes per pixel, 402,653,184 bytes, 0.3158 ms; the intermediate image is 134,217,728 bytes, 0.1053 ms | D | A lower bound for the eager pair |
+| Row-wise top-8 on (4096, 32000) | In 524,288,000 bytes, out 393,216 (12 bytes per kept element); 524,681,216 bytes; floor 0.4115 ms, 0.2712 ms at the rating | D | A prediction; comparisons are not counted as FLOPs |
+| Fused MLP, M 4096, d 1024, h 4096 | 4 M d h = 68,719,476,736 FLOP; 33,564,672 bytes; compute floor 0.2203 ms, memory 0.0263 ms; intensity 2047 FLOP per byte against a ridge of 244.7 | D | A prediction; assumes the rated peak, which no GEMM reaches |
+| MLP hidden-layer traffic | 33,554,432 bytes per transfer; eager moves it four times (134,217,728 bytes, 0.1053 ms); a GELU epilogue removes two (67,108,864 bytes, 0.0526 ms) | D | |
+| Why not fuse the whole MLP block | A 128-row fp32 output tile at d = 1024 is 524,288 bytes against a 262,144-byte register file; a 16-row tile re-reads 16,777,216 bytes of weights 256 times, 4.3 GB | D | |
+| Wave counts on 108 SMs, one tile per SM | 256 tiles: 2.37 waves, 79%; 512 tiles: 4.74, 95%; 1024 tiles: 9.48, 95% | D | |
+| Lab score | log(ref / t) / log(ref / floor), clipped to [0, 1]; geometric mean over the three tasks | D | The lab's own design; the linear form gives 0.667 where the log form gives 0.5 at t = 2, ref = 4, floor = 1 |
+| Timing guard | A time below 95% of the floor at the rated 1935 GB/s and 312 TFLOP/s fails | D | |
+| MLP check tolerance | 2% of max abs output against a float64 reference | D | The eager bf16 block measured 0.3% on the CPU with the lab's seeded inputs, and 45% with b1 dropped |
+| GPU MODE reference-kernels | Each problem has a PyTorch `reference.py`, a `task.yml` that generates test shapes, and a `task.py` schema; runs on KernelBot; the page does not state a ranking rule | GPUMODE-REF | |
+| Stanford CS149 assignment 5 | Kernel options include histogram, FlashAttention, a 3D heat equation, and SwiGLU; PyTorch baselines; `popcorn-cli` queue on H100; `test` and `benchmark` modes; class leaderboard per kernel; the page says no performance bar sets the grade, and a work log carries most of it | CS149-A5 | Title and year not recorded from the page |
+| CUDA Best Practices, section 9.1 | 9.1.1 CPU timers: kernel launches are asynchronous; 9.1.2 GPU timers with events | CUDA-BPG | |
+
 Source keys for this section:
 
 | Key | Source | URL |
@@ -1460,3 +1481,6 @@ Source keys for this section:
 | CUDA-UM | CUDA programming guide, unified memory | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/unified-memory.html |
 | MPS-WHEN | NVIDIA MPS, when to use MPS | https://docs.nvidia.com/deploy/mps/when-to-use-mps.html |
 | MIG-PROFILES | NVIDIA MIG user guide, supported profiles | https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-mig-profiles.html |
+
+| GPUMODE-REF | GPU MODE reference-kernels | https://github.com/gpu-mode/reference-kernels |
+| CS149-A5 | Stanford CS149 assignment 5 | https://github.com/stanford-cs149/asst5-kernels |

@@ -1,0 +1,28 @@
+{
+  "id": "41-capstone",
+  "title": "Capstone: a kernel leaderboard",
+  "brief": "Write the leaderboard's arithmetic on the CPU: traffic and roofline floors for three tasks, a warmup-dropping median, a log-headroom score, and a tie-rule top-k grader. Then optimize three kernels from correct eager baselines: a fused RGB-to-grayscale and 3x3 blur, a row-wise top-8 over a (4096, 32000) tensor, and a fused MLP block in bf16 with fp32 accumulation. The GPU checks compare each kernel with a float64 reference and report GB/s or TFLOP/s against the roofline floor. They skip on a machine without a GPU.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "gray_ms", "gray_gbs", "gray_fraction_of_ceiling", "gray_speedup", "gray_score",
+    "topk_ms", "topk_gbs", "topk_speedup", "topk_score", "topk_torch_topk_ms",
+    "mlp_ms", "mlp_tflops", "mlp_fraction_of_peak", "mlp_speedup", "mlp_score",
+    "capstone_score"
+  ],
+  "hints": [
+    "Check 1 needs only traffic. For the 3 by 3 blur at (3, 5): 15 pixels, 22 FLOP each is 330 FLOP, and 16 bytes each is 240 bytes. For mlp at (1, 2, 3), the bytes are 2 * (2*1*2 + 2*2*3 + 3 + 2) = 42.",
+    "speed_of_light is max(flops / peak, bytes / bandwidth), not their sum. A100.TENSOR_BF16_TFLOPS is in TFLOP/s, so multiply by 1e12. Bandwidth is A100.COPY_CEILING_GBS times 1e9. Convert seconds to milliseconds at the end.",
+    "robust_time sorts the times that remain after times_ms[warmup:], then takes the middle value, or the mean of the two middle values when the count is even. statistics.median does this.",
+    "score is log(ref_ms / time_ms) / log(ref_ms / floor_ms). Clip it to [0, 1] after the division. The check includes a time below the floor and a time above the reference.",
+    "geomean is exp(mean(log(v))). Return 0.0 first if any value is 0, because log(0) fails.",
+    "topk_matches: compute the stable descending sort of each row of x, take its first k indices, sort both index rows, and compare. Sorting the indices turns the comparison into a set comparison.",
+    "The GPU kernels run only on an A100. The first Triton call compiles for several seconds, and a CUDA source built with load_cuda needs 30 to 60 seconds for nvcc.",
+    "grayscale_blur: one program per row and column block. For each of the nine neighbors, load R, G, and B with a mask that gives 0 outside the image, compute the luma, and add it times its blur weight. The border rule is zero padding, so a corner pixel of an all-ones image is 9/16.",
+    "topk_rows: a block that holds a whole row in registers can find the maximum, take the lowest index among the tied maxima, store both, set that element to minus infinity, and repeat k times. The lowest-index rule is the tie rule.",
+    "mlp_block: two Triton GEMM kernels with an epilogue each. The first adds b1 and applies GELU before it stores bf16. The second adds b2. Accumulate in fp32 with tl.dot, and mask the loads so that sizes which are not multiples of the tile still work.",
+    "The timing guard fails a kernel that is faster than the rated hardware allows, which means the timing is wrong, and one more than twice as slow as the eager baseline."
+  ]
+}

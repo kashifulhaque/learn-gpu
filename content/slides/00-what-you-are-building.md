@@ -344,24 +344,24 @@ The ridge point depends on which units run. The same matmul in fp32 has a floor 
 
 # The course and the labs
 
-Six parts, 35 labs, one GPU.
+Six parts, 36 labs, one GPU.
 
 Note:
 Section divider. We close with the map and with how a lab runs.
 
 ### The six parts {#six-parts}
 
-| Part | Chapters | Labs build |
-|---|---|---|
-| 1. The machine | 0 to 5, 27, 28 | Roofline, profiling, sanitizer |
-| 2. CUDA patterns | 6 to 9, 30, 31, 32 | Reduce, scan, transpose, sort, conv, SpMV |
-| 3. Matrix multiplication | 10 to 14, 24, 26, 29, 34 | SGEMM, Triton, CuTe, Hopper, clusters |
-| 4. Kernels for ML | 15 to 20, 33 | Softmax, FlashAttention, MoE, FP8 |
-| 5. Many GPUs | 21, 22, 25 | All-reduce, overlap, DDP |
-| 6. Beyond | 23 | Reading only |
+| Part | Chapters |
+|---|---|
+| 1. The machine | 0 to 5, 27, 28 |
+| 2. CUDA patterns | 6 to 9, 30, 31, 32 |
+| 3. Matrix multiplication | 10 to 14, 24, 26, 29, 34, 35 |
+| 4. Kernels for ML | 15 to 20, 33 |
+| 5. Many GPUs | 21, 22, 25 |
+| 6. Beyond | 23 |
 
 Note:
-Part 1 is the machine and everything else leans on it. Part 2 teaches the patterns most kernels reuse. Part 3 is the longest, because matmul is where a model spends its arithmetic. Part 4 applies it to transformer kernels, and Part 5 adds more than one GPU. Chapter 26 builds a Hopper TMA box and one wgmma, gated on an H100. Blackwell stays in prose.
+Part 1 is the machine and everything else leans on it. Part 2 teaches the patterns most kernels reuse. Part 3 is the longest, because matmul is where a model spends its arithmetic. Part 4 applies it to transformer kernels, and Part 5 adds more than one GPU. Chapter 26 builds a Hopper TMA box and one wgmma, gated on an H100. Chapter 35 models Blackwell tensor memory in Python and gates its one kernel on a B200.
 
 ### How a lab runs {#lab-loop}
 

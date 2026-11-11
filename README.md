@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 35 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 35 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 36 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 36 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -69,6 +69,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 32 | [Sparse and irregular work](content/chapters/32-sparse-and-irregular-work.md) | Part 2 — CUDA patterns | COO, CSR, ELL, and hybrid byte costs, three CSR SpMV kernels and merge path, frontier and direction-optimizing BFS, and an atomic work queue. The CPU checks run anywhere. |
 | 33 | [FP8, MXFP4, and NVFP4](content/chapters/33-fp8-and-fp4.md) | Part 4 — Kernels for ML | Bit-exact E4M3, E5M2, and E2M1 encoders against torch, MXFP4 and NVFP4 quantizers, stochastic rounding, and an emulated block-scaled GEMM, plus a Triton check on the A100. The CPU checks run anywhere. |
 | 34 | [Clusters and distributed shared memory](content/chapters/34-clusters-and-distributed-shared-memory.md) | Part 3 — Matrix multiplication | Cluster launch and `map_shared_rank` addressing, a DSMEM histogram and reduction, cluster-fit and TMA-multicast byte models, and sm_90 kernels gated on an H100. |
+| 35 | [Blackwell tcgen05 and tensor memory](content/chapters/35-blackwell-tcgen05.md) | Part 3 — Matrix multiplication | A TMEM allocator, address, and descriptor model in Python, per-CTA traffic for a CTA pair, and a tcgen05 kernel gated on a B200. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 

@@ -262,3 +262,4 @@ The lab reports one metric:
 - [GPU MODE, lecture 36: CUTLASS and FlashAttention-3](https://github.com/gpu-mode/lectures/tree/main/lecture_036), Jay Shah. The lecture index titles this session CUTLASS and FlashAttention-3. The slides cover WGMMA, TMA, and warp specialization.
 - [GPU MODE, lecture 23: Tensor Cores](https://github.com/gpu-mode/lectures#lecture-23-tensor-cores), Vijay Thakkar and Pradeep Ramani. The lecture index titles this session Tensor Cores. It is the series' tensor-core lecture, not the TMA session.
 - [Chapter 12](/c/12-pipelining-and-async-copies), for the ring this chapter does not rebuild, and [chapter 24](/c/24-cute-dsl-gemm), for the Ampere atom the same layout algebra targets on `sm_80`.
+- [Chapter 35](/c/35-blackwell-tcgen05), for the Blackwell version of this chapter: tensor memory, the `tcgen05` descriptors, and CTA pairs, with a Blackwell descriptor that differs from this one in its version field and a 3-bit layout type.

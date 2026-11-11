@@ -1,0 +1,21 @@
+{
+  "id": "35-blackwell-tmem",
+  "title": "Blackwell tensor memory: allocator, addresses, and descriptors",
+  "brief": "Model tensor-memory allocation, the lane and column address, the warp-to-lane rule, the accumulator footprint, both tcgen05 descriptors, and per-CTA operand traffic for a CTA pair. The same file carries an sm_100a tcgen05 kernel that runs only on a B200.",
+  "gpu": "B200-180GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "arch": "sm_100a",
+  "timeout": 1200,
+  "metrics": ["tmem_values_roundtripped"],
+  "hints": [
+    "tmem_alloc_columns rounds up to a power of two with a floor of 32. Rounding up to a multiple of 32 passes small cases and fails 129, which is 256 columns.",
+    "tmem_address puts the lane in bits 31:16 and the column in bits 15:0. Lane 32, column 5 is 0x200005.",
+    "warp_lane_range uses warp_id % 4. Warp 5 of an eight-warp CTA reaches lanes 32 to 63.",
+    "accumulator_footprint: M rows are lanes and N columns are columns. A CTA pair splits M, so each CTA holds m // 2 lanes and still holds N columns.",
+    "instr_descriptor stores N >> 3 at bit 17 and M >> 4 at bit 24. M=128, N=256, bf16 in and fp32 out is 0x8400490.",
+    "smem_descriptor sets version 1 at bit 46 and shifts the 3-bit layout type by 61. The 128B mode is 2, 64B is 4, 32B is 6. A Hopper packer shifts by 62 and leaves the version at 0.",
+    "per_cta_operand_bytes: in a pair, each CTA stages its own M rows of A and half of B. B falls from 32768 to 16384 bytes per K=64 slice, and A stays at 16384.",
+    "tmem_roundtrip compiles with arch sm_100a. On a machine without a B200 it prints a skip message and returns None. It is not compiled for sm_80 and is not sent to the A100 endpoint."
+  ]
+}

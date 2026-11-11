@@ -1,0 +1,22 @@
+{
+  "id": "34-clusters-dsmem",
+  "title": "Clusters and distributed shared memory",
+  "brief": "Build a pure-Python cluster simulator: map_shared_rank addressing, a DSMEM histogram equal to torch.bincount, a cluster reduction, a cluster-fit calculator, and a TMA-multicast traffic model. The same file carries two sm_90 kernels, a cluster histogram and a cluster reduction, that run only on an H100.",
+  "gpu": "H100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "arch": "sm_90",
+  "timeout": 1200,
+  "metrics": ["hist_speedup_vs_global_atomics", "reduce_gbs"],
+  "hints": [
+    "cluster_rank is the block's index inside its cluster: block_idx % cluster_size for a 1D cluster. It is not the block's index in the grid.",
+    "peer_block returns the grid index of the block that cluster.map_shared_rank(ptr, target_rank) addresses. Start from the first block of your own cluster, block_idx - cluster_rank, then add target_rank. Block 5 in clusters of 4 addressing rank 2 reaches block 6.",
+    "bin_owner splits the bins into equal slices of ceil(num_bins / cluster_size). Rank r owns bins r * bins_per_rank up to the next slice, and the offset is the bin minus the start of the slice.",
+    "In simulate_dsmem_histogram, every update goes to the owner's slice in the shared memory of peer_block(...). Flush each slice to the global histogram once, after the cluster-wide barrier.",
+    "exit_steps: with a final cluster.sync, every block exits at the step the slowest block finishes. Without it a block exits as soon as it finishes, and a slower block's remote write lands on shared memory that no longer exists.",
+    "simulate_cluster_reduction is a tree over ranks: at stride s, rank r with r % (2s) == 0 adds rank r + s, if r + s is below the cluster size. One cluster.sync follows each level.",
+    "blocks_per_sm uses the compute capability 9.0 limits: 2048 threads, 65536 registers, 228 KiB of shared memory with 1 KiB reserved per block, and 32 blocks. max_active_clusters packs clusters per GPC, so the answer is not total slots divided by cluster size.",
+    "multicast_l2_bytes: a tile of A is shared by the blocks in one cluster row, and a tile of B by the blocks in one cluster column. With multicast, one block loads each distinct tile once for the cluster.",
+    "The kernels compile with arch sm_90 and run only on an H100. On any other machine they are skipped, and the job is not sent to the A100. The first compile takes 30 to 60 seconds."
+  ]
+}

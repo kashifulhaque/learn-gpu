@@ -778,3 +778,30 @@ Part 4 — Kernels for ML. Numbered 33, after chapter 27, because chapters 00 th
    Take: owns weight quantization for serving (GPTQ, AWQ, KV-cache quantization). Linked, not read again.
 7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
    Take: the research report named lectures 84, 30, and 69 for numerics and quantization. The index was not fetched for this chapter, so the chapter cites no lecture number.
+
+## 34-clusters-and-distributed-shared-memory: Clusters and distributed shared memory
+
+Part 3 — Matrix multiplication. Numbered 34 because chapters 00 through 27 are not renumbered. Prerequisites are chapters 7, 12, and 26. Hardware: H100 only, gated like lab 26. Every URL below was fetched while the chapter was written.
+
+1. **CUDA Programming Guide, programming model.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html> (key CUDA-PG-MODEL)  
+   Take: All blocks of a cluster execute in a single GPC and are scheduled simultaneously. The page says the maximum cluster size is hardware dependent and does not give 8 or 16.
+2. **CUDA Programming Guide, C++ language extensions.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html> (key CUDA-PG-EXT)  
+   Take: `__cluster_dims__`, the `cudaLaunchKernelEx` example with `cudaLaunchAttributeClusterDimension`, and the multiple-of-cluster-size guidance. Only the first 100,000 characters were read.
+3. **CUDA Programming Guide, Cooperative Groups.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cooperative-groups.html> (key CUDA-PG-CG)  
+   Take: `this_cluster()` and the `barrier_arrive` and `barrier_wait` pair. The page does not cover `map_shared_rank`.
+4. **CUDA C++ Programming Guide 12.4, archived.** NVIDIA. <https://docs.nvidia.com/cuda/archive/12.4.0/cuda-c-programming-guide/index.html> (key CUDA-CPG-124)  
+   Take: The portable cluster size of 8, `map_shared_rank`, and the rule that all distributed shared memory operations finish before a block exits. The non-portable 16 and `cudaFuncAttributeNonPortableClusterSizeAllowed` were not in the text range read, so they come from the tuning guide.
+5. **CUDA Hopper tuning guide.** NVIDIA. <https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html> (key HOPPER-TUNING)  
+   Take: The portable size of 8, the opt-in to 16, the occupancy warning, `cudaOccupancyMaxActiveClusters`, and the DSMEM access advice.
+6. **NVIDIA Hopper architecture in depth.** NVIDIA. <https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/> (key HOPPER-BLOG)  
+   Take: 8 GPCs and 132 SMs on the H100 SXM5, clusters run within a GPC, and the 7x DSMEM claim. The blog's cluster section does not mention multicast.
+7. **Benchmarking and dissecting the Nvidia Hopper GPU architecture.** Luo and others. <https://arxiv.org/abs/2402.13499> (key LUO-HOPPER)  
+   Take: The 180-cycle SM-to-SM latency and the throughput at cluster sizes 2 and 4, on an H800 PCIe. Not re-fetched for this chapter; the figures come from docs/FACTS.md section 3.
+8. **CUTLASS tutorial: mastering the Tensor Memory Accelerator.** Colfax Research. <https://research.colfax-intl.com/tutorial-hopper-tma/> (key COLFAX-TMA)  
+   Take: TMA multicast, the 16-bit mask, the cluster-shape constraint on the grid, and the CuTe API names. The page does not quantify the traffic reduction, so the chapter derives it.
+9. **FlashAttention-3.** Shah and others. <https://arxiv.org/abs/2407.08608> (key FA3)  
+   Take: The hierarchy table with the 12 TB/s L2 figure and the statement that CTAs of a cluster are co-scheduled on one GPC. A text search of the paper finds no multicast or distributed shared memory.
+10. **GPU MODE, lecture 36: CUTLASS and FlashAttention-3.** Jay Shah. <https://github.com/gpu-mode/lectures/tree/main/lecture_036>  
+    Take: The lecture index titles this session CUTLASS and FlashAttention-3. Not re-fetched for this chapter, and the slides were not read, so the chapter does not cite them for clusters.
+11. **CUTLASS pipeline documentation.** NVIDIA. <https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/pipeline.md>  
+    Take: It lists thread block cluster synchronization and query APIs among the CUTLASS abstractions. It does not mention multicast.

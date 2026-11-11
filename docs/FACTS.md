@@ -1085,19 +1085,7 @@ Every row is arithmetic on the lab's seeded inputs (`content/labs/32-spmv-bfs/fi
 | CSR scalar and vector kernels | Scalar: one thread per row. Vector: one warp per row | BG08 | |
 | GPU MODE lecture 11 | Sparsity, Jesse Cai | GPUMODE-IDX | Not an SpMV or graph lecture |
 
-Source keys for this section:
-
-| Key | Source | URL |
-|---|---|---|
-| PT-CONV2D | PyTorch `torch.nn.Conv2d` | https://docs.pytorch.org/docs/2.15/generated/torch.nn.Conv2d.html |
-| CUDA-BPG | CUDA C++ Best Practices Guide | https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html |
-| CUDNN-CONV | NVIDIA Deep Learning Performance, convolutional layers | https://docs.nvidia.com/deeplearning/performance/dl-performance-convolutional/index.html |
-| CUTLASS-IGEMM | CUTLASS 3.9.2, implicit GEMM convolution | https://github.com/NVIDIA/cutlass/blob/v3.9.2/media/docs/cpp/implicit_gemm_convolution.md |
-| CS149-F24 | Stanford CS149 Fall 2024 | https://gfxcourses.stanford.edu/cs149/fall24 |
-
-| BG08 | Bell and Garland, Efficient Sparse Matrix-Vector Multiplication on CUDA, NVIDIA technical report NVR-2008-004 | https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf |
-| BEAMER11 | Beamer, Asanovic, and Patterson, Searching for a Parent Instead of Fighting Over Children, UCB/EECS-2011-117 | https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html |
-
+---
 
 ## 19. FP8, MXFP4, and NVFP4 numerics (chapter 33)
 
@@ -1136,3 +1124,57 @@ Source keys D (arithmetic on the chapter's examples), T (checked against torch 2
 - The `satfinite` conversion name comes from the PTX ISA and was not re-read for this chapter.
 - Stochastic rounding on gradients, the use of Philox, and the range of recipe choices are described in general terms and not cited to a source.
 - The Triton block-scaled kernel was written without access to an A100 and has not been run. Its check is skipped on a CPU.
+
+| CUDA-PG-MODEL | CUDA Programming Guide, programming model (thread block clusters) | https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html |
+| CUDA-PG-CG | CUDA Programming Guide, Cooperative Groups | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cooperative-groups.html |
+| CUDA-PG-CLC | CUDA Programming Guide, cluster launch control | https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html |
+| CUDA-CPG-124 | CUDA C++ Programming Guide 12.4 (archived), sections 2.2.1 and 3.2.5 | https://docs.nvidia.com/cuda/archive/12.4.0/cuda-c-programming-guide/index.html |
+| COLFAX-TMA | Colfax Research, CUTLASS tutorial: mastering the Tensor Memory Accelerator | https://research.colfax-intl.com/tutorial-hopper-tma/ |
+
+## 20. Thread block clusters and distributed shared memory (chapter 34)
+
+Rows tagged C were read on the date the chapter was written. Rows tagged D are arithmetic on the chapter's examples. Rows tagged U are not confirmed in a primary source. Nothing here was measured on a lab GPU.
+
+| Fact | Value | Source | Tag |
+|---|---|---|---|
+| Cluster scheduling | all thread blocks of a cluster "are executed in a single GPC" and are "scheduled simultaneously"; clusters need compute capability 9.0 or higher | CUDA-PG-MODEL | C |
+| Blocks of a cluster | adjacent in the grid; DSMEM lets threads access the shared memory of all blocks in the cluster | CUDA-PG-MODEL | C |
+| H100 GPC and SM counts | full GH100: 8 GPCs, 9 TPCs per GPC, 2 SMs per TPC, 144 SMs; H100 SXM5: 8 GPCs, 132 SMs (66 TPCs); H100 PCIe: 7 or 8 GPCs, 114 SMs | HOPPER-BLOG | C |
+| SMs per GPC on the H100 SXM5 | not published; the chapter assumes six GPCs of 16 and two of 18 (sum 132) | chapter 34 | U |
+| Portable and non-portable cluster size | 8 portable; 16 on the H100 with `cudaFuncAttributeNonPortableClusterSizeAllowed`; larger clusters "may reduce the maximum number of active blocks across the GPU"; use `cudaOccupancyMaxActiveClusters` | HOPPER-TUNING | C |
+| Portable size, older guide | "a maximum of 8 thread blocks in a cluster is supported as a portable cluster size"; the maximum is architecture specific and `cudaOccupancyMaxPotentialClusterSize` queries it | CUDA-CPG-124 | C |
+| Compile-time launch | `__cluster_dims__([x, [y, [z]]])`, compute capability 9.0 and higher; the grid dimension "should be a multiple of cluster size"; with no compile-time shape, a launch without a cluster dimension is a launch error | CUDA-PG-EXT | C |
+| Runtime launch | `cudaLaunchKernelEx` with `cudaLaunchConfig_t` and a `cudaLaunchAttributeClusterDimension` attribute (`val.clusterDim.x/y/z`) | CUDA-PG-EXT | C |
+| Grid not a multiple of the cluster shape | the kernel does not launch ("the cluster dimensions must evenly divide into the grid dimensions") | COLFAX-TMA | S |
+| Cooperative Groups | `cg::this_cluster()` needs compute capability 9.0 or greater and assumes a 1x1x1 cluster on a non-cluster launch; `barrier_arrive()` and `barrier_wait()` on a cluster; `cluster_group::sync()` | CUDA-PG-CG, CUDA-PG-CLC | C |
+| `map_shared_rank` | `int *dst_smem = cluster.map_shared_rank(smem, dst_block_rank);` in the DSMEM histogram example | CUDA-CPG-124 | C |
+| Exit rule | the user must ensure all distributed shared memory operations happen before the exit of a thread block | CUDA-CPG-124 | C |
+| DSMEM operations | blocks can read, write, and do atomics on distributed shared memory | CUDA-CPG-124, HOPPER-TUNING | C |
+| DSMEM access advice | coalesced, aligned to 32-byte segments, avoid non-unit strides | HOPPER-TUNING | C |
+| DSMEM versus global memory | "accelerates data exchange between thread blocks by about 7x" | HOPPER-BLOG | C |
+| DSMEM latency and throughput (H800 PCIe) | SM-to-SM latency 180 cycles against 263 for L2 (32% lower) and 29 for shared memory; peak SM-to-SM throughput about 3.27 TB/s at cluster size 2, 2.65 TB/s at size 4 | LUO-HOPPER | C |
+| TMA multicast | one load fills a tile in several CTAs of one cluster; a 16-bit mask marks the receiving CTAs; the maximum cluster is 16 CTAs; each CTA slices the copy by its rank | COLFAX-TMA | C |
+| Whether blocks of one cluster can share an SM | not confirmed; the occupancy model assumes they can when resources allow | chapter 34 | U |
+| FlashAttention-3 and clusters | the paper's hierarchy table lists threadblock clusters and says CTAs of a cluster are co-scheduled on one GPC; its text has no mention of multicast or distributed shared memory | FA3 | C |
+| H100 SXM5 L2 bandwidth | 12 TB/s, in the FlashAttention-3 hierarchy table (50 MiB L2, 80 GiB HBM at 3.35 TB/s) | FA3 | C |
+| Resident clusters, assumed split | `sum(floor(S_g * q / c))`; one block per SM: c=1 132, c=2 66, c=3 42, c=4 32, c=5 24, c=6 18, c=8 16, c=16 8; idle SMs 0, 0, 6, 4, 12, 24, 4, 4 | D, scripts/figures/34-clusters-and-distributed-shared-memory.py | D |
+| Max shared memory per block | 227 KiB = 232,448 bytes = 58,112 int32 counters; a cluster of 8 holds 464,896 | D | D |
+| Histogram flush atomics, 2^24 values, 1,024 bins, 1,056 blocks | global atomics 16,777,216; per-block private copy 1,056 x 1,024 = 1,081,344; clusters of 4: 264 x 1,024 = 270,336 | D | D |
+| Skewed input floor(1024 u^4) | P(bin < 256) = (1/4)^(1/4) = 0.7071; ranks 0 to 3 receive 70.7%, 13.4%, 9.0%, 6.9% | D | D |
+| Cluster reduction syncs | 1 + ceil(log2 c) per cluster; 1,056 blocks with c = 8 do 132 global atomics instead of 1,056 | D | D |
+| 4096 cubed bf16 GEMM, 128x256 tiles | 512 blocks; A slice 1 MiB, B slice 2 MiB per block; 1536 MiB without multicast; cluster (cm, cn): 1x1 1536, 2x1 1024, 2x2 768, 4x1 768, 4x2 512, 4x4 384 MiB | D, scripts/figures/34-clusters-and-distributed-shared-memory.py | D |
+| Multicast saving | A_tot (cn - 1) / cn + B_tot (cm - 1) / cm; for 2x1 it is a third of the total and half of B | D | D |
+| L2 demand at the tensor rate | 132 SMs x 48 B per clock x 1.83 GHz (implied clock) = 11.6 TB/s; with 2x1 multicast 32 B per clock gives 7.7 TB/s | D, chapter 12 | D |
+
+Source keys for this section:
+
+| Key | Source | URL |
+|---|---|---|
+| PT-CONV2D | PyTorch `torch.nn.Conv2d` | https://docs.pytorch.org/docs/2.15/generated/torch.nn.Conv2d.html |
+| CUDA-BPG | CUDA C++ Best Practices Guide | https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html |
+| CUDNN-CONV | NVIDIA Deep Learning Performance, convolutional layers | https://docs.nvidia.com/deeplearning/performance/dl-performance-convolutional/index.html |
+| CUTLASS-IGEMM | CUTLASS 3.9.2, implicit GEMM convolution | https://github.com/NVIDIA/cutlass/blob/v3.9.2/media/docs/cpp/implicit_gemm_convolution.md |
+| CS149-F24 | Stanford CS149 Fall 2024 | https://gfxcourses.stanford.edu/cs149/fall24 |
+
+| BG08 | Bell and Garland, Efficient Sparse Matrix-Vector Multiplication on CUDA, NVIDIA technical report NVR-2008-004 | https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf |
+| BEAMER11 | Beamer, Asanovic, and Patterson, Searching for a Parent Instead of Fighting Over Children, UCB/EECS-2011-117 | https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html |

@@ -370,6 +370,8 @@ The section answers one question: how do the pieces combine into a kernel that k
 
 **Multicast.** A cluster lets one TMA load deliver the same tile to several blocks. Take 128 x 256 x 64 tiles: A is 16 KiB and B is 32 KiB, 48 KiB per stage. At 4,096 FLOP per clock the tile's $2 \times 128 \times 256 \times 64 = 4{,}194{,}304$ FLOP take 1,024 clocks, so one SM pulls $49{,}152 / 1024 = 48$ bytes per clock from L2. If two blocks in a cluster compute neighboring M tiles that share the same B columns, each can fetch half of B and multicast it to both: 16 KiB for A plus 16 KiB for its half of B is 32 KiB, or 32 bytes per clock. L2 traffic drops by a third. That arithmetic is why multicast matters at Hopper's tensor rate.
 
+[Chapter 34](/c/34-clusters-and-distributed-shared-memory) builds the cluster machinery this section only names: the `map_shared_rank` addressing rule, the two `cluster.sync()` barriers, a cluster histogram and reduction, why a large cluster lowers occupancy, and the multicast byte count for a whole tile grid.
+
 **Warp specialization.** Because TMA needs one thread and `wgmma` is asynchronous, a block no longer needs every thread to do both jobs. A *producer* warp runs the loop that waits for a free slot and issues TMA. One or two *consumer* warpgroups wait for a full slot, run `wgmma`, and release the slot. The two groups communicate through pairs of mbarriers per slot, a "full" barrier the producer's copies complete, and an "empty" barrier the consumers arrive on. In pseudocode:
 
 ```cuda

@@ -1,0 +1,24 @@
+{
+  "id": "38-tile-languages",
+  "title": "Tile languages: the abstractions, in Python",
+  "brief": "Model what every tile language abstracts: a Pallas-style block index map, a masked tile-loop GEMM and an online softmax written against a tiny tile API, a Gluon-style register layout, and a software-pipeline schedule. The checks run on a CPU. An optional Triton softmax runs on the A100.",
+  "gpu": "A100-80GB",
+  "needs_gpu": false,
+  "device_agnostic": true,
+  "timeout": 300,
+  "metrics": [
+    "tile_gemm_loads",
+    "pipeline_steps",
+    "triton_softmax_gbs"
+  ],
+  "hints": [
+    "grid_shape is ceil(array / block) in each dimension. A 10 by 20 array in 4 by 8 blocks is a 3 by 3 grid, because the last block hangs over the edge.",
+    "A BlockSpec index map returns a block index. Multiply it by the block shape to get the first element: block 2 of width 8 starts at element 16. The slice stops at min(start + block, array size), so the last block of 10 rows in blocks of 4 is rows 8 to 10.",
+    "pallas_call loops over itertools.product of the grid. For each point, slice every input with its spec, copy the part into a zero block of the full block shape, call the kernel with those blocks and a zero output block, and copy the in-bounds part of the output block back.",
+    "tile_gemm needs a mask on every load and on the store. The mask for an A tile is (rows < M) and (ks < K), and for a B tile (ks < K) and (cols < N). The fixture raises OutOfBounds when an unmasked index leaves the array. Masked loads return 0, which adds nothing to the accumulator.",
+    "online_softmax keeps a running maximum m and a running sum l. When a tile raises the maximum to m_new, multiply l by exp(m - m_new) before you add exp(tile - m_new).sum(). Load the masked tail with other=-inf, so it neither wins the maximum nor adds to the sum.",
+    "blocked_owner splits each coordinate three ways: coordinate mod size_per_thread is the register inside the thread's run, the next digit mod threads_per_warp is the lane coordinate, and the next mod warps_per_cta is the warp coordinate. Anything above is a repeat. Linearize the lane coordinates with order[0] as the fastest dimension, and do the same for warps and for registers.",
+    "pipeline_schedule(n, S): step s loads tile s while s < n and runs the MMA of tile s - (S - 1) once that index is 0 or more. There are n + S - 1 steps. A tile is resident from its load step through its MMA step, so at most S tiles are resident.",
+    "softmax_triton is the one GPU check. It needs triton and a CUDA device. On a machine without them the check is skipped with a message. The kernel is one program per row: load with mask and other=-inf, subtract tl.max, exponentiate, divide by tl.sum, store with the mask."
+  ]
+}

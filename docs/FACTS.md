@@ -1287,3 +1287,66 @@ Fetched 2026-11-11 (abstract pages only for the papers). Inputs already in this 
 | GPU MODE scan lectures | The index lists lecture 20 (Scan Algorithm) and 21 (Scan Algorithm Part 2) by Izzat El Haj, and lecture 24 (Scan at the Speed of Light) by Jake Hemstad and Georgii Evtushenko. It lists no lecture on Mamba or state-space models | C | [GPUMODE-INDEX] |
 
 Source keys: [KATHAROPOULOS-2020] https://arxiv.org/abs/2006.16236. [GLA] https://arxiv.org/abs/2312.06635. [MAMBA2] https://arxiv.org/abs/2405.21060. [MAMBA] https://arxiv.org/abs/2312.00752. [RETNET] https://arxiv.org/abs/2307.08621. [FLA] https://github.com/fla-org/flash-linear-attention. [TRITON-API] https://triton-lang.org/main/python-api/triton.language.html. [GPUMODE-INDEX] https://github.com/gpu-mode/lectures.
+
+## 24. Tile languages (chapter 38)
+
+Facts that `38-tile-languages` and its lab rely on. Read on 2026-11-10 from each project's own page or file. Tag U means the detail was not on a page read, or the pages disagree. The lab models the abstractions in plain Python and runs none of these languages, so no row is a measurement.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| Pallas backends | GPU and TPU; "build on shared ideas (Refs, BlockSpecs, and pipelining)" with distinct hardware-specific APIs. The GPU quickstart covers Hopper (H100) and Blackwell (B200); the TPU quickstart covers TensorCore and SparseCore | C | [PALLAS-INDEX] |
+| Pallas `BlockSpec` | `pl.BlockSpec(block_shape, index_map)`. The index map takes the grid indices and returns **block indices**, not element offsets; each is multiplied by the matching `block_shape` entry. `block_shape=None` is the whole array | C | [PALLAS-GRID] |
+| Pallas edge blocks | A block that does not divide the array is padded on input and discarded on output. Padding values are unspecified (NaN for floats under `interpret=True`, not to be relied on). Each block needs at least one in-bounds element | C | [PALLAS-GRID] |
+| Pallas indexing modes | `pl.Blocked` is the default; `pl.Element(block_size, padding)` uses index-map values as array indices and is supported only on TPUs | C | [PALLAS-GRID] |
+| Pallas shape rules | TPU: the last two block dimensions equal the array's or are divisible by 8 and 128. GPU (Mosaic GPU): the minormost dimension is a multiple of 16 bytes | C | [PALLAS-GRID] |
+| Pallas TPU matmul | Kernel `matmul_kernel(x_ref, y_ref, z_ref, acc_ref, *, nsteps)` with `pl.when(pl.program_id(2) == 0)`, `jnp.dot(..., preferred_element_type=jnp.float32)`, `pltpu.PrefetchScalarGridSpec`, `scratch_shapes=[pltpu.VMEM((bm, bn), jnp.float32)]`, `grid=(m // bm, n // bn, k // bk)`, `dimension_semantics=("parallel", "parallel", "arbitrary")` | C | [PALLAS-TPU-MM] |
+| Pallas GPU names | `from jax.experimental.pallas import mosaic_gpu as plgpu`; `plgpu.kernel`, `plgpu.emit_pipeline`, `plgpu.BlockSpec(..., delay_release=1)`, `plgpu.wgmma`, `plgpu.wgmma_wait`. The quickstart covers Mosaic GPU only, and Blackwell uses `tcgen05` | C | [PALLAS-GPU] |
+| Gluon tutorials | 14 files, `01-intro.py` through `14-multicta.py`: intro, layouts, async copy, TMA, wgmma, tcgen05, persistence, warp specialization, TMA gather and scatter, tcgen05 copy, scaled MMA, cluster launch control, conv im2col, multicta | C | [TRITON-GLUON] |
+| Gluon imports and names | `from triton.experimental import gluon`; `from triton.experimental.gluon import language as gl`; `@gluon.jit`; `gl.constexpr`; `gl.program_id`, `gl.load`, `gl.store`; `gl.arange(..., layout=)`; `gl.convert_layout`; launch as `kernel[grid](..., num_warps=n)` | C | [TRITON-GLUON] |
+| Gluon blocked layout | `gl.BlockedLayout(size_per_thread, threads_per_warp, warps_per_cta, order)`; "Layouts specify how the elements of the tensor are distributed among the threads in a thread block" | C | [TRITON-GLUON] |
+| Gluon vs Triton | Gluon is "a lower-level language that gives the user more control and responsibility"; Triton defers layouts, memory allocation, data movement, and asynchrony to the compiler | C | [TRITON-GLUON] |
+| Gluon async copy | `from triton.experimental.gluon.language.nvidia.ampere import async_copy as cp`; `gl.allocate_shared_memory(dtype, [num_buffers, ...], layout=)`; `gl.SwizzledSharedLayout(vec, per_phase, max_phase, order)`; `cp.async_load`, `cp.commit_group`, `cp.wait_group(n)` | C | [TRITON-GLUON] |
+| Gluon warp specialization | `gl.warp_specialize` takes (function, args) tuples, warp counts, and register budgets (for example `[1, 1], [24, 24]`); the default partition has `num_warps` warps and takes the leftover registers; workers cannot take tensor arguments; `mbarrier.init`, `.expect`, `.wait`, `.arrive`; Hopper and newer only | C | [TRITON-GLUON] |
+| Gluon reductions | `gl.max`, `gl.exp`, `gl.sum` and `gl.expand_dims` were not used in the tutorials read; the chapter writes them by analogy with `tl` | U | [TRITON-GLUON] |
+| Triton softmax tutorial | `tl.program_id`, `tl.num_programs`, `tl.range(..., num_stages=)`, `tl.arange`, `tl.load(..., mask=, other=-float('inf'))`, `tl.max`, `tl.exp`, `tl.sum`, `tl.store(..., mask=)`; `kernel.warmup(...)`, `kernel._init_handles()`, `n_regs`, `kernel.metadata.shared` | C | [TRITON-SOFTMAX] |
+| Triton debug variables | `TRITON_KERNEL_DUMP` (IR of each stage and the final PTX or AMDGCN), `TRITON_DUMP_DIR`, `MLIR_ENABLE_DUMP` (all kernels, or `=kernelName`), `LLVM_IR_ENABLE_DUMP`, `TRITON_ALWAYS_COMPILE`, `TRITON_INTERPRET`, `TRITON_PRINT_AUTOTUNING` | C | [TRITON-README] |
+| Triton compiled-kernel stages | `CompiledKernel.asm` holds `ttir`, `ttgir`, `llir`, and `ptx`; read as `asm["ptx"]`. Key names for a given Triton version not checked in `compiler.py` | S, U | [PT-TRITON-STAGES] |
+| TileLang | "concise domain-specific language" for GPU, CPU, and NPU kernels, built on top of TVM. README GEMM example: `@tilelang.jit`, `T.Tensor`, `T.Kernel(..., threads=128)`, `T.alloc_shared`, `T.alloc_fragment`, `T.clear`, `T.Pipelined(..., num_stages=3)`, `T.copy`, `T.gemm`, `T.Parallel` | C | [TILELANG] |
+| TileLang backends | Primary: NVIDIA CUDA (SM70 through SM120). Supported: AMD ROCm and HIP, Huawei Ascend 950, Apple Metal. Experimental: LLVM CPU, NVIDIA CuTe DSL, WebGPU | C | [TILELANG] |
+| TileLang version | The README lists v0.1.13 (2026-08-03) as the latest numbered release; chapter 23 says v0.1.15 on 2026-10-22. The two disagree, so chapter 38 states no version | U | [TILELANG] |
+| TileLang details not found | `T.annotate_layout`, `T.use_swizzle`, a way to print generated CUDA source, and ragged-K masking are not in the README | U | [TILELANG] |
+| ThunderKittens | Header-only C++ (`kittens.cuh`), CUDA 12.8 and C++20. Register tiles `rt_bf<R,C>`, `rt_fl`; shared tiles `st_bf`, `st_hf`; row and column layouts; tiles no smaller than 16 by 16; destination first (`kittens::mul(c, a, b)`); most ops warp-level, `mma_AB` on a warpgroup | C | [TK] |
+| ThunderKittens hardware | "mainly built and tested for Hopper and Blackwell"; "no longer actively support Ampere"; Vera Rubin is mentioned in the updates | C | [TK] |
+| ThunderKittens matmul | README example under 100 lines: `matmul_template<M_BLOCK, N_BLOCK, SUPER_M>`, `INPUT_PIPE_STAGES=4`, `producer::load` with `tma::expect` and `tma::load_async`, `consumer::compute` with `warpgroup::mma_AB` and `mma_async_wait`; README quotes about 855 TFLOPs on an H100, 86% of theoretical | C | [TK] |
+| ThunderKittens API not found | `kittens::warp::load`, `mma_ABt`, and `sv` were not in the README | U | [TK] |
+| cuTile naming | CUDA Tile is the model; CUDA Tile IR is the virtual ISA; cuTile is the language (cuTile Python, and a C++ expression); the PyPI package is `cuda-tile`, imported as `cuda.tile` | C | [CUDA-TILE], [CUTILE-QS] |
+| cuTile kernel API | `@ct.kernel`, `ct.bid(0)`, `ct.load(a, index=(pid,), shape=(tile_size,))`, `ct.store(c, index=(pid,), tile=result)`, `ct.Constant[int]`, `ct.cdiv`, `ct.launch(stream, grid, kernel, args)`; tile dimensions are compile-time powers of two | C | [CUTILE-QS], [CUTILE-DOCS] |
+| cuTile requirements | Compute capability 8.x, 9.x, 10.x, 11.x, or 12.x; driver r580 or later; Python 3.11 or later; CUDA Toolkit 13.1 or later, or the `[tileiras]` extra for the CUDA TileIR compiler | C | [CUTILE-QS] |
+| cuTile operations | `mma` ("Matrix multiply-accumulate"), `matmul`, `full`, `zeros`, `num_tiles`, `astype`, `max`, `sum`, `exp` exist. `ct.PaddingMode` has `UNDETERMINED`, `ZERO`, `NEG_ZERO`, `NAN`, `POS_INF`, `NEG_INF` | C | [CUTILE-OPS], [CUTILE-DATA] |
+| cuTile details not found | Signatures of `mma` and the reductions, the keyword that selects a padding mode for `ct.load`, the default out-of-bounds behavior, whether stores are masked, and any pipeline knob | U | [CUTILE-OPS], [CUTILE-DATA] |
+| cuTile release status | NVIDIA's overview page does not say released, beta, or experimental, and lists no architectures; a search listing shows PyPI releases through 1.3.0 (20 Apr 2026) | U, S | [CUDA-TILE] |
+| Lab image vs cuTile | The worker image has CUDA 13.0 and does not install `cuda-tile` or the `[tileiras]` extra, so lab 38 does not use cuTile | D | section 1, [CUTILE-QS] |
+| Softmax bytes, 4096 by 4096 fp32 | $2 \times 4096 \times 4096 \times 4 = 134{,}217{,}728$ bytes, one read and one write | D | arithmetic |
+| Softmax floor, A100 80GB PCIe | 134,217,728 / 1,935 GB/s = 69.4 microseconds; at the 1,275 GB/s copy ceiling, 105.3 microseconds | D | section 2, section 10 |
+| Pipeline steps | $n + S - 1$ for $n$ tiles and $S$ stages, against $2n$ serial, one tile-time per step; 8 tiles and 3 stages is 10 against 16. At most $\min(S, n)$ tiles resident | D | `scripts/figures/38-tile-languages.py` |
+| Stage cost, 128 by 128 by 32 fp16 | $(128 \times 32 + 32 \times 128) \times 2 = 16{,}384$ bytes per stage; 3 stages 49,152 bytes | D | arithmetic |
+| Blocked layout, register numbering | The (warp, lane, register) assignment of lab 38's `blocked_owner` is the lab's convention. The Gluon tutorial states that layouts distribute elements among threads; the order in which a thread's registers are numbered was not confirmed | U | [TRITON-GLUON] |
+| Ragged GEMM, 37 by 50 by 29 with 16-wide tiles | 6 programs, 4 K steps, 48 tile loads (27 hang over an edge); useful FLOP $2 \times 37 \times 50 \times 29 = 107{,}300$ over $2 \times 48 \times 64 \times 32 = 196{,}608$ padded, 54.6% | D | arithmetic, lab 38 |
+
+| Key | Source | URL |
+|---|---|---|
+| PALLAS-INDEX | Pallas overview, JAX documentation | https://docs.jax.dev/en/latest/pallas/index.html |
+| PALLAS-GRID | Pallas grids and BlockSpecs | https://docs.jax.dev/en/latest/pallas/grid_blockspec.html |
+| PALLAS-TPU-MM | Pallas TPU matrix multiplication | https://docs.jax.dev/en/latest/pallas/tpu/matmul.html |
+| PALLAS-GPU | Pallas GPU quickstart | https://docs.jax.dev/en/latest/pallas/gpu/quickstart.html |
+| TRITON-GLUON | Gluon tutorials (01-intro, 02-layouts, 03-async-copy, 08-warp-specialization read) | https://github.com/triton-lang/triton/tree/main/python/tutorials/gluon |
+| TRITON-SOFTMAX | Triton fused softmax tutorial | https://github.com/triton-lang/triton/blob/main/python/tutorials/02-fused-softmax.py |
+| TRITON-README | Triton README, debugging environment variables | https://github.com/triton-lang/triton |
+| PT-TRITON-STAGES | PyTorch blog, Triton kernel compilation stages (read as a search result, not fetched) | https://pytorch.org/blog/triton-kernel-compilation-stages/ |
+| TILELANG | TileLang README | https://github.com/tile-ai/tilelang |
+| TK | ThunderKittens README | https://github.com/HazyResearch/ThunderKittens |
+| CUDA-TILE | NVIDIA CUDA Tile overview | https://developer.nvidia.com/cuda/tile |
+| CUTILE-QS | cuTile Python quickstart | https://docs.nvidia.com/cuda/cutile-python/quickstart.html |
+| CUTILE-DOCS | cuTile Python documentation | https://docs.nvidia.com/cuda/cutile-python/ |
+| CUTILE-OPS | cuTile Python operations | https://docs.nvidia.com/cuda/cutile-python/operations.html |
+| CUTILE-DATA | cuTile Python data model, padding modes | https://docs.nvidia.com/cuda/cutile-python/data.html |

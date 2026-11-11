@@ -343,6 +343,10 @@ Every tool abstracts the work between "I want this tile product" and "these inst
 
 One caution belongs here because of the lab card. ThunderKittens is described by its repository as tested on Hopper and Blackwell, with Ampere no longer actively supported. An A100 is Ampere. Before adopting any tile language, read which hardware its maintainers test and for how long they plan to keep supporting it.
 
+### Going further
+
+This section is a survey. [Chapter 38](/c/38-tile-languages) writes the same row softmax and GEMM tile loop in several of these languages, computes a Pallas block index map, a Gluon-style layout, and a pipeline schedule in a CPU lab, and shows how to read the PTX each one emits.
+
 ## Choosing and keeping things portable
 
 You can plan a kernel project so that most of it survives a change of hardware. This section answers one question: what do you keep agnostic, and how do you choose a target?

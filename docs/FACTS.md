@@ -1097,3 +1097,42 @@ Source keys for this section:
 
 | BG08 | Bell and Garland, Efficient Sparse Matrix-Vector Multiplication on CUDA, NVIDIA technical report NVR-2008-004 | https://www.nvidia.com/docs/IO/66889/nvr-2008-004.pdf |
 | BEAMER11 | Beamer, Asanovic, and Patterson, Searching for a Parent Instead of Fighting Over Children, UCB/EECS-2011-117 | https://www2.eecs.berkeley.edu/Pubs/TechRpts/2011/EECS-2011-117.html |
+
+
+## 19. FP8, MXFP4, and NVFP4 numerics (chapter 33)
+
+Source keys D (arithmetic on the chapter's examples), T (checked against torch 2.11 on a CPU, the `torch.float8_*` casts and `torch.float8_e8m0fnu`), OCP-MX-PAPER, NVFP4-BLOG, DSV3 (see the source list in docs/SOURCES.md). "Unconfirmed" rows are in section 19.1 and in the chapter's wording.
+
+| Fact | Value | Source | Notes |
+|---|---|---|---|
+| E4M3 (fn) layout | 1/4/3, bias 7, no infinity, NaN only at `S.1111.111` (`0x7F`, `0xFF`), largest `0x7E` = 448, smallest subnormal $2^{-9}$ | T, D | The lab's decoder equals torch on all 256 codes |
+| E5M2 layout | 1/5/2, bias 15, infinity `0x7C`/`0xFC`, NaN `0x7D` to `0x7F`, largest `0x7B` = 57,344, smallest subnormal $2^{-16}$ | T, D | Equals torch on all 256 codes |
+| Plain E4M3 cast overflow | 464 gives `0x7E` (448), 465 and above give NaN | T | 464 is a tie between 448 and 480, and the even mantissa is 448's |
+| Plain E5M2 cast overflow | 61,439 gives 57,344, 61,440 and above give infinity | T | 61,440 is the midpoint of 57,344 and 65,536 |
+| Dynamic range | E4M3: 448 / $2^{-9}$ = 229,376. E5M2: 57,344 / $2^{-16}$ = about 3.76e9 | D | |
+| E2M1 values | 0, 0.5, 1, 1.5, 2, 3, 4, 6, sign in bit 3, $e_{\max}$ = 2 | NVFP4-BLOG (values), D ($e_{\max}$) | Ties to even: 0.25 gives 0, 0.75 gives 1, 1.25 gives 1, 1.75 gives 2, 2.5 gives 2, 3.5 gives 4, 5 gives 4 (D) |
+| E8M0 | Byte $c$ means $2^{c-127}$, 255 is NaN, 0 is $2^{-127}$ | T | The OCP MX paper page read for this chapter did not state the bias or the NaN code |
+| MX conversion | Shared exponent = floor(log2(max abs)) - $e_{\max}$ of the element format, scale $2^{\text{exp}}$, elements divided and rounded, overflow clamped | OCP-MX-PAPER (Algorithm 1) | Block size 32 for MXFP8, MXFP6, MXFP4, MXINT8 |
+| MXFP4 worst-case error | A quarter of the block amax (amax/scale in [4, 8), clamp to 6) | D | The lab asserts it |
+| NVFP4 structure | 16-element blocks, E4M3 block scale, one fp32 per-tensor scale, 4.5 bits per value (scale only) | NVFP4-BLOG | |
+| NVFP4 illustrative MSE | 0.72 with an E8M0 scale and 0.08 with an E4M3 scale, in the post's Figure 4 example | NVFP4-BLOG | One example in the post, not a general result |
+| NVFP4 scale formulas | tensor scale = amax_T / (448 x 6), block scale = E4M3(amax_b / 6 / tensor scale) | D (convention) | See 14.1: the post prints no formulas |
+| NVFP4 block-scale underflow | Raw block scale = 448 x amax_b / amax_T, subnormal in E4M3 when amax_T / amax_b > 448 x 512 = 229,376 | D | |
+| DeepSeek-V3 scaling | Activations 1x128 tiles (per token per 128 channels), weights 128x128 blocks, E4M3 for all tensors, scales computed online from the current amax | DSV3 section 3.3 | |
+| DeepSeek-V3 accumulation | FP8 GEMM accumulation on H800 retains around 14 bits, partial results promoted to FP32 on CUDA cores every N_C = 128 elements | DSV3 section 3.3 | The authors give 128 elements as 4 `wgmma` instructions |
+| FP8 `wgmma` K per instruction | 32 | D (128 / 4, from the DSV3 statement) | Not read from the PTX ISA |
+| Limited-accumulator model (lab) | Round to 14 significant bits after every 32 products, promote every N_C | D (a model) | Not the hardware's exact rounding |
+| Worst-case accumulation error, K = 8192, products near 1 | No promotion: 2^-14 x 32 x 32,896 = 64.2 (0.78% of 8192). Promotion every 128: 64 x 2^-14 x 320 = 1.25 (0.015%) | D | Ratio 51 |
+| Lab accumulation error, seeded, K = 8192 | 7e-4 with no promotion, 1.5e-5 with promotion every 128, relative to the largest output | D (CPU run of the lab solution, seed 2) | A model, deterministic |
+| Lab GEMM error, seeded 70x300x130, outlier rows 1e5 | Per-tensor 0.404, 1x128 and 128x128 0.034, mean per-row relative error over rows without an outlier | D (CPU run, seed 0) | |
+| Figure data, 64x512, outlier rows 1e0 to 1e6 | Per-tensor E4M3: 2.6%, 2.7%, 2.6%, 2.7%, 4.8%, 47.6%, 100%. 1x128: 2.6% throughout. MXFP4: 11.5%. NVFP4: 9.5% through 1e4, 14.1% at 1e5, 100% at 1e6 | D, scripts/figures/33-fp8-and-fp4.py | |
+| Delayed against current scale | History [1, 0.9, 1], amax 4: delayed scale 1/448, 4.0 saturates to 448 and returns as 1.0 | D | |
+| `torch._scaled_mm` | Needs compute capability 8.9 or higher, second operand column-major | chapter 18, D | Not re-verified on a GPU |
+
+### 19.1 Unconfirmed
+
+- The NVFP4 scale formulas (tensor scale amax / (448 x 6)) are the widely used convention. The NVIDIA post read for this chapter doesn't print them.
+- The E8M0 bias of 127 and NaN code 255 were confirmed with torch's `float8_e8m0fnu`, not read from the OCP MX specification PDF. The arXiv HTML page of the MX paper did not state them.
+- The `satfinite` conversion name comes from the PTX ISA and was not re-read for this chapter.
+- Stochastic rounding on gradients, the use of Philox, and the range of recipe choices are described in general terms and not cited to a source.
+- The Triton block-scaled kernel was written without access to an A100 and has not been run. Its check is skipped on a CPU.

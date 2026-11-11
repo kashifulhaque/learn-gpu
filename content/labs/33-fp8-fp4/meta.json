@@ -1,0 +1,33 @@
+{
+  "id": "33-fp8-fp4",
+  "title": "FP8, MXFP4, and NVFP4 numerics",
+  "brief": "Encode and decode E4M3, E5M2, and E2M1 bit by bit and match torch's fp8 casts exactly. Build MXFP4 (E8M0 scales on blocks of 32) and NVFP4 (E4M3 scales on blocks of 16), a stochastic rounder, and an emulated block-scaled GEMM, and measure why scale granularity and accumulator precision decide the error. A Triton block-scaled GEMM runs on the A100 against the CPU emulation.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "mxfp4_mse",
+    "nvfp4_mse",
+    "gemm_rel_err_tensor",
+    "gemm_rel_err_block",
+    "acc_err_nc128",
+    "acc_err_nc_k",
+    "triton_max_rel_err",
+    "triton_ms",
+    "scaled_mm_max_rel_err"
+  ],
+  "hints": [
+    "Do the functions in file order. The first check needs only e2m1_decode. The CPU checks need no GPU, and the Triton kernel check is skipped on a machine without CUDA.",
+    "round_minifloat: for |x| in the binade [2**e, 2**(e+1)) the gap between neighbours is 2**(e - m_bits). Below the smallest normal number, e is pinned at emin, so the gap stops shrinking. torch.round rounds exact ties to even. Floor(x / gap + 0.5) rounds ties up, so E2M1 encodes 0.25 as 0.5 instead of 0, and 1.25 as 1.5 instead of 1.",
+    "A value overflows when its rounded magnitude is above max_finite. E4M3 (fn) turns that into NaN under a plain cast, and 464.0 is still 448 because the tie goes to the even mantissa. E5M2 turns it into infinity, and 61440 is the tie that goes to infinity.",
+    "encode_fp8: after rounding, the value is either subnormal (exponent field 0, mantissa = value / 2**(emin - m)) or normal (exponent field = e + bias, mantissa = value / 2**(e - m) - 2**m).",
+    "e8m0_exponent: floor(log2(5.2)) is 2, and E2M1's largest exponent is 2, so the exponent is 0 and the scale is 1. A ceil gives 1, a scale of 2, and the block loses a bit of range.",
+    "MXFP4 error: after the scale, the block's largest value lies in [4, 8). Values above 6 clamp. The worst case is therefore 0.25 of the block amax, which is the bound the test uses.",
+    "nvfp4_quantize: the tensor scale is amax / 2688, because 448 * 6 = 2688. The block scale is amax_block / 6 / tensor_scale, rounded to E4M3. Data that is already on the grid after scaling round-trips exactly.",
+    "stochastic_round_e2m1: P(round up) = (x - lo) / (hi - lo), so the mean over many draws is x. Always rounding to nearest is biased: it returns 0.5 for every 0.3.",
+    "fp8_scale: a delayed scale uses the amax of earlier steps. When the tensor grows, x / scale passes 448 and saturates, and the error is the whole overshoot.",
+    "gemm_limited_accumulator: reset the accumulator to zero after each promotion. If you don't, the fp32 total counts every earlier chunk again.",
+    "triton_block_scaled_gemm needs CUDA and Triton and is skipped on a CPU. The fp16 inputs hold exact fp8 grid values, so the fp32 dot of one K block is exact up to the accumulation order."
+  ]
+}

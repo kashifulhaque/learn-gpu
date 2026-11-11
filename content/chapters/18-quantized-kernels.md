@@ -337,6 +337,9 @@ The rates are rated per GPU in an 8-GPU HGX B200 at 1,000 W: 4,500 TFLOP/s dense
 
 In Triton, `tl.dot_scaled` exposes block-scaled products with E8M0 scales on a group of 32 and the formats E2M1, E4M3, E5M2, bf16, and fp16. It is experimental. PyTorch 2.14 describes `torch.float4_e2m1fn_x2`, which stores two 4-bit values per byte, as a shell dtype with limited operator support. You can read it as the same packing as the lab's, standardized.
 
+> [!NOTE] Where the FP8 and FP4 numerics are built
+> This section describes the formats in prose. [Chapter 33](/c/33-fp8-and-fp4) encodes E4M3, E5M2, and E2M1 bit by bit, builds MXFP4 and NVFP4 quantizers, and measures the error of a block-scaled GEMM and of a narrow accumulator, all on a CPU.
+
 ## What goes wrong
 
 - **Packing along the wrong axis.** If the packed pairs lie along $N$, one thread needs two weight rows' worth of accumulators, and the activation reuse the kernel relies on disappears. The lab's test checks the nibble order directly: code $2j$ low, code $2j+1$ high.

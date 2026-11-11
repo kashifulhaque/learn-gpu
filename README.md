@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 33 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 33 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 34 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 34 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -67,6 +67,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 30 | [Radix sort, top-k, and sampling](content/chapters/30-sort-top-k-and-sampling.md) | Part 2 — CUDA patterns | Order-preserving float keys, a stable LSD radix sort, merge path, top-k by radix select, top-p without a sort, and Philox seeded sampling, with a CUDA digit histogram. |
 | 31 | [Convolution and stencils](content/chapters/31-convolution-and-stencils.md) | Part 2 — CUDA patterns | Tiled conv2d with halo cells and a constant-memory filter, a z-coarsened 3D stencil, im2col, implicit GEMM, and a fused conv, ReLU, and maxpool. The CPU checks run anywhere. |
 | 32 | [Sparse and irregular work](content/chapters/32-sparse-and-irregular-work.md) | Part 2 — CUDA patterns | COO, CSR, ELL, and hybrid byte costs, three CSR SpMV kernels and merge path, frontier and direction-optimizing BFS, and an atomic work queue. The CPU checks run anywhere. |
+| 33 | [FP8, MXFP4, and NVFP4](content/chapters/33-fp8-and-fp4.md) | Part 4 — Kernels for ML | Bit-exact E4M3, E5M2, and E2M1 encoders against torch, MXFP4 and NVFP4 quantizers, stochastic rounding, and an emulated block-scaled GEMM, plus a Triton check on the A100. The CPU checks run anywhere. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 
@@ -82,6 +83,8 @@ Chapter 30 belongs to Part 2, with chapters 6 to 9. It is numbered 30 because ch
 Chapter 31 belongs to Part 2, with chapters 6 to 9. It is numbered 31, after chapter 27, because chapters 00 through 27 stay where they are. Prerequisites are chapters 3, 8, 10, and 14.
 
 Chapter 32 belongs to Part 2, with chapters 6 to 9. It is numbered 32 because other chapters fill the numbers 28 to 31. Prerequisites are chapters 3, 6, and 7.
+
+Chapter 33 belongs to Part 4, with chapters 15 to 20. It is numbered 33, after chapter 27, because chapters 00 through 27 stay where they are. Filename order places 33 after 27. Prerequisites are chapters 9 and 18.
 
 ## Run it locally
 

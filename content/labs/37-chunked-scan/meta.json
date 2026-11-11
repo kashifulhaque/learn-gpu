@@ -1,0 +1,27 @@
+{
+  "id": "37-chunked-scan",
+  "title": "Chunked scans for linear attention",
+  "brief": "Build the associative operator of a linear recurrence and scan it in parallel, write the sequential and the chunked forms of decayed linear attention, keep the decay in log space so that long chunks stay finite, and check a cost model whose minimum is the chunk size. All of that runs in torch float64 on a CPU. Then run a Triton chunked forward on the A100 and sweep the chunk size.",
+  "gpu": "A100-80GB",
+  "needs_gpu": true,
+  "device_agnostic": true,
+  "timeout": 900,
+  "metrics": [
+    "ms_c16",
+    "ms_c32",
+    "ms_c64",
+    "ms_c128",
+    "best_chunk"
+  ],
+  "hints": [
+    "Check 1 needs only combine. Applying (a1, b1) and then (a2, b2) maps h to a2 * (a1 * h + b1) + b2, so the pair is (a1 * a2, a2 * b1 + b2). The order matters: combine((2, 3), (4, 5)) is (8, 17).",
+    "scan_parallel is Hillis-Steele. For d = 1, 2, 4, ... replace elements d to T - 1 by combine(element i - d, element i), reading from the old arrays. The first operand is the earlier one. The b component of the result is h.",
+    "linear_attention_sequential decays the old state before it adds the new token: S = exp(logg_t) * S + outer(k_t, v_t), then o_t = q_t @ S. The token does not decay itself.",
+    "decay_matrix: D[i, j] = exp(b_i - b_j) for j <= i, with b the cumulative sum of logg. Replace the exponent above the diagonal with -inf before you call exp. Multiplying an overflowed exp by a zero mask gives NaN.",
+    "chunk_states: with b the cumulative log decay inside the chunk, A = exp(b[-1]) and U = sum_j exp(b[-1] - b[j]) outer(k_j, v_j). The last token has weight 1, so b[-1] - b[j], not b[-1] - b[j-1].",
+    "entering_states: scan_parallel over (A, U) gives the state after each chunk. The state entering chunk c is the scan's result at c - 1, and zeros for c = 0.",
+    "chunked_linear_attention: the output at position i of a chunk is the intra term ((Q K^T) * D) V plus the inter term exp(b_i) * (q_i @ S_in). The inter term decays by b_i, including position i's own step, not by b_{i-1}.",
+    "chunk_flops counts full C by C blocks: 2 C^2 dk, 2 C^2 dv, 2 C dk dv, and 2 C dk dv per chunk. chunk_bytes charges 2 * N * dk * dv * state_bytes for writing and reading back the N chunk states. FLOPs rise with C and state bytes fall with C, so the roofline time has an interior minimum.",
+    "The Triton kernel needs an A100 and Triton. The first call compiles for each chunk size, which takes several seconds. On a machine without them the kernel check is skipped and the nine CPU checks run."
+  ]
+}

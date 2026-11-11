@@ -722,3 +722,26 @@ Part 2 — CUDA patterns. Numbered 30, because chapters 00 through 26 are not re
 10. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
     Take: Lecture 19 is Data Processing on GPUs (Devavret Makkar). Lectures 20 and 21 are Scan Algorithm and Scan Algorithm Part 2 (Izzat El Haj). Lecture 24 is Scan at the Speed of Light (Jake Hemstad and Georgii Evtushenko). Titles only; the slides were not read.
 11. **Programming Massively Parallel Processors**, fourth edition. Hwu, Kirk, and Hajj. Take: The merge and sorting chapters. The table of contents could not be fetched, so no chapter numbers are cited.
+
+## 31-convolution-and-stencils: Convolution and stencils
+
+Part 2 — CUDA patterns. Numbered 31, after chapter 27. Prerequisites are chapters 3, 8, 10, and 14.
+
+1. **CUDA C++ Best Practices Guide.** NVIDIA. <https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html> (key CUDA-BPG)  
+   Take: The constant memory section: 64 KB, cached, as fast as a register when a warp reads one address, serialized when the addresses differ. The section's position in the page was read from characters 100,000 to 200,000.
+2. **Convolutional layers user's guide.** NVIDIA Deep Learning Performance. <https://docs.nvidia.com/deeplearning/performance/dl-performance-convolutional/index.html> (key CUDNN-CONV)  
+   Take: Implicit GEMM, the forward-pass GEMM dimensions, NHWC against NCHW, and the channel alignment.
+3. **Implicit GEMM convolution.** NVIDIA, CUTLASS 3.9.2. <https://github.com/NVIDIA/cutlass/blob/v3.9.2/media/docs/cpp/implicit_gemm_convolution.md> (key CUTLASS-IGEMM)  
+   Take: The mapping of M, N, K to the convolution, the index decomposition, the activation tile iterators, and the precomputed pointer deltas. The fetch returned a summary, so the reference loop's R - r - 1 form is stated with that caveat.
+4. **`torch.nn.Conv2d`.** PyTorch 2.15. <https://docs.pytorch.org/docs/2.15/generated/torch.nn.Conv2d.html> (key PT-CONV2D)  
+   Take: The output-size formula with dilation, and the cross-correlation statement. The stable URL redirects to this one.
+5. **cuDNN: Efficient Primitives for Deep Learning.** Chetlur, Woolley, Vandermersch, Cohen, Tran, Catanzaro, Shelhamer, 2014. <https://arxiv.org/abs/1410.0759>  
+   Take: The library behind PyTorch's convolutions. The abstract does not mention matrix-multiplication lowering, so the chapter does not attribute that to it.
+6. **Stanford CS149, Fall 2024.** <https://gfxcourses.stanford.edu/cs149/fall24> (key CS149-F24)  
+   Take: The lecture titled "Efficiently Evaluating DNNs (Software Solutions)". The page does not number lectures, so no number is cited. Its assignment 4 title does not mention convolution.
+7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures> (key GPUMODE-IDX)  
+   Take: No lecture title mentions convolution, stencils, or implicit GEMM, so the chapter cites no GPU MODE lecture.
+8. **Programming Massively Parallel Processors, 4th edition.** Hwu, Kirk, El Hajj, 2022.  
+   Take: Chapters 7, 8, and 16, from the research plan. Not re-fetched or re-checked against the book. ECE 408 was named in the plan, and its site could not be reached.
+9. **The ml course.** <https://ml.ifkash.dev/lessons/038-convolution-and-receptive-field> and <https://ml.ifkash.dev/lessons/039-im2col-and-convolution-backward>  
+   Take: The layer arithmetic, im2col in NumPy, and the backward pass, which this chapter links to and does not repeat. The lesson slugs come from the ml repository's content directory.

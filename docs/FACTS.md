@@ -1022,3 +1022,45 @@ Fetched 2026-11-10. Inputs already in this file: the 1,275 GB/s measured copy ce
 | Chi-square critical value, 3 degrees of freedom, p = 0.001 | 16.27 | S | Standard statistical table, not fetched |
 
 Source keys: [PT-SORT] https://docs.pytorch.org/docs/2.14/generated/torch.sort.html. [PT-TOPK] https://docs.pytorch.org/docs/2.14/generated/torch.topk.html. [CUB-RADIX] https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceRadixSort.html. [CUB-TOPK] https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceTopK.html. [ONESWEEP] https://arxiv.org/abs/2206.01784. [FLASHINFER-SAMPLING] https://flashinfer.ai/2025/03/10/sampling.html. [CURAND-DEVICE] https://docs.nvidia.com/cuda/curand/device-api-overview.html. [TRITON-RAND] https://triton-lang.org/main/python-api/generated/triton.language.rand.html. [PT-RANDOMNESS] https://docs.pytorch.org/docs/2.14/notes/randomness.html. [RANDOM123] https://www.thesalmons.org/john/random123/papers/random123sc11.pdf.
+
+## 17. Convolution, stencils, and implicit GEMM (chapter 31)
+
+Every row is arithmetic on the chapter's examples, or a statement from NVIDIA's or PyTorch's documentation, read on the date the chapter was written. Nothing here was measured on the lab A100. The ratios and byte counts come from `scripts/figures/31-convolution-and-stencils.py`.
+
+| Fact | Value | Source | Notes |
+|---|---|---|---|
+| Output size of a convolution | floor((H + 2 pad - dilation (R - 1) - 1) / stride) + 1 | PT-CONV2D | 224 input, 7 filter, stride 2, padding 3: 112 |
+| PyTorch convolution convention | Cross-correlation: the filter is not flipped | PT-CONV2D | The docs call it the valid 2D cross-correlation operator |
+| Constant memory size | 64 KB for the device | CUDA-BPG | Section 10.2.6 of the Best Practices Guide as fetched |
+| Constant memory access | A warp reading one address can be as fast as a register access; accesses to different addresses by threads of a warp are serialized; the space is cached | CUDA-BPG | |
+| Ideal intensity of a single-channel k by k fp32 convolution | (2 k^2) / 8 = k^2 / 4 FLOP per byte: 2.25, 6.25, 12.25, 20.25 for k = 3, 5, 7, 9 | D | One read and one write per output |
+| No-reuse intensity | 2 k^2 / (4 k^2 + 4): 0.45, 0.48, 0.49, 0.49 | D | |
+| A100 fp32 ridge | 19.5 TFLOP/s over 1935 GB/s = 10.08; over 1275 GB/s = 15.29 | D | Inputs from sections 2 and 10 of this file |
+| ResNet-style layer | N = 32, C = K = 64, 56 by 56, 3 by 3, padding 1, fp32: 7,398,752,256 FLOP, 51,527,680 ideal bytes, 143.6 FLOP per byte | D | |
+| That layer's fp32 compute floor | 7.40e9 / 19.5e12 = 0.379 ms | D | CUDA-core rating; a prediction |
+| That layer's im2col matrix | 231,211,008 bytes, 9 times the 25,690,112-byte input; write plus read 462,422,016 bytes, 0.363 ms at 1275 GB/s | D | A prediction from the copy ceiling |
+| Halo loads per output, output-tile strategy | ((T + k - 1) / T)^d: 1.2656 for T = 16, k = 3, d = 2; 1.5625 for k = 5; 1.9531 for T = 8, k = 3, d = 3 | D | |
+| Active fraction, input-tile strategy | ((B - k + 1) / B)^d: 0.7656 for B = 16, k = 3, d = 2; 0 when k exceeds B | D | |
+| im2col blow-up | R S P Q / (H W): 9 for 3 by 3 at stride 1 with same padding; 12.25 for 7 by 7, stride 2, padding 3, on 224 | D, checked against `F.unfold` shapes | |
+| Forward implicit-GEMM dimensions | M = N P Q, GEMM N = K, GEMM K = C R S | CUDNN-CONV, CUTLASS-IGEMM | The convolution's N and K are not the GEMM's |
+| cuDNN layout guidance | NHWC is recommended for tensor-core convolutions; NCHW adds transposes; channels multiples of 8 for fp16 and 4 for TF32; pad C = 3 to 4 | CUDNN-CONV | |
+| CUTLASS reference index | The reference loop writes the filter index as R - r - 1, the flipped form | CUTLASS-IGEMM | Read from a summary of the page, not the raw file (U) |
+| 7-point stencil cost | 8 FLOP and 8 bytes per interior cell at ideal reuse: intensity 1.0 | D | One multiply, five adds, one multiply, one add |
+| 256 cubed stencil floor | 134,217,728 bytes; 0.1053 ms at 1275 GB/s; 0.0694 ms at 1935 GB/s | D | A prediction |
+| Coarsened stencil, 32 by 8 block, ZC = 16 | 180 of 256 threads write (70.3%); 1.42 reads per output per plane; 18 planes per 16 outputs; 1.6 global reads per output; grid 9 by 43 by 16 = 6192 blocks for 256 cubed | D | Requests issued, not DRAM bytes |
+| Faces-only 3D halo | 1 + 6 / T loads per output: 1.75, 1.375, 1.1875 for T = 8, 16, 32; the box formula gives 1.95, 1.42, 1.20 | D | |
+| Fusion traffic, N = 32, K = 64, 56 by 56 output, 2 by 2 pool, fp32 | Unfused extra traffic 109,182,976 bytes (0.0856 ms at 1275 GB/s); fused 6,422,528 bytes (0.0050 ms) | D | A prediction |
+| `torch.backends.cudnn.allow_tf32` | Defaults to True, so fp32 `F.conv2d` on an A100 may use TF32 | Section 1 of this file | The lab compares against float64 |
+| Stanford CS149 Fall 2024 | The schedule page lists a lecture titled "Efficiently Evaluating DNNs (Software Solutions)"; the page lists conv-to-matmul mapping and layer fusion; the page does not number lectures | CS149-F24 | |
+| GPU MODE lecture index | No lecture title mentions convolution, stencils, im2col, or implicit GEMM | GPUMODE-IDX | |
+| Programming Massively Parallel Processors, 4th edition | Chapters 7, 8, and 16 cover convolution, stencils, and the deep learning chapter, per the research plan | Research report | Not re-checked against the book (U) |
+
+Source keys for this section:
+
+| Key | Source | URL |
+|---|---|---|
+| PT-CONV2D | PyTorch `torch.nn.Conv2d` | https://docs.pytorch.org/docs/2.15/generated/torch.nn.Conv2d.html |
+| CUDA-BPG | CUDA C++ Best Practices Guide | https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html |
+| CUDNN-CONV | NVIDIA Deep Learning Performance, convolutional layers | https://docs.nvidia.com/deeplearning/performance/dl-performance-convolutional/index.html |
+| CUTLASS-IGEMM | CUTLASS 3.9.2, implicit GEMM convolution | https://github.com/NVIDIA/cutlass/blob/v3.9.2/media/docs/cpp/implicit_gemm_convolution.md |
+| CS149-F24 | Stanford CS149 Fall 2024 | https://gfxcourses.stanford.edu/cs149/fall24 |

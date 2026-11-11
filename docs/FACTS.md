@@ -1256,3 +1256,34 @@ Facts that `36-symmetric-memory-and-nvshmem` and its lab rely on. Tags: C is con
 | NVSHMEM-SIGNAL | NVSHMEM API, signaling operations | https://docs.nvidia.com/nvshmem/api/latest/gen/api/signal.html |
 | PT-SYMM | PyTorch symmetric memory (2.14 docs) | https://docs.pytorch.org/docs/2.14/symmetric_memory.html |
 | DEEPEP | DeepEP README | https://github.com/deepseek-ai/DeepEP |
+
+## 23. Chunked scans and linear attention (chapter 37)
+
+Fetched 2026-11-11 (abstract pages only for the papers). Inputs already in this file: the A100 80GB PCIe tensor-core rate of 312 TFLOP/s dense bf16, the 1,275 GB/s measured copy ceiling (section 10), the 164 KiB shared memory per A100 SM, and the 108 SMs. Chapter 37 adds no measured value. Every time below is a byte or FLOP count divided by a rate, which is a prediction, not a lab result.
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| Linear recurrence as a scan | $h_t = a_t h_{t-1} + b_t$ is the scan of pairs under $(a_1, b_1) \circ (a_2, b_2) = (a_1 a_2,\; a_2 b_1 + b_2)$, associative, not commutative, identity $(1, 0)$. Worked example: $a = [0.5, 0.5, 2, 1]$, $b = [1, 2, 1, 3]$ gives $h_4 = 9$ | D | `content/labs/37-chunked-scan/tests.py` |
+| Linear attention from kernel feature maps | Rewrites attention as a dot product of feature maps and uses the associativity of the matrix product to reach cost linear in sequence length. The abstract also links it to RNNs | C | [KATHAROPOULOS-2020] |
+| GLA | A hardware-efficient linear-attention algorithm that trades memory movement against parallelizability, with a data-dependent gate. Implementation named FlashLinearAttention. The abstract claims it is faster than FlashAttention-2 as a standalone layer, even at 1K length, and that the GLA Transformer has higher training throughput than a similarly sized Mamba. The abstract names no GPU and no speedup number | C | [GLA] |
+| Mamba-2 and structured state space duality | The abstract connects SSMs and attention through decompositions of structured semiseparable matrices, and claims a core layer 2 to 8 times faster than Mamba's. The abstract does not describe the chunk decomposition | C | [MAMBA2] |
+| Mamba | Input-dependent SSM parameters rule out an efficient convolution, so the authors design a hardware-aware parallel algorithm in recurrent mode | C | [MAMBA] |
+| RetNet | Three computation modes: parallel, recurrent, and chunkwise recurrent. The abstract does not describe the decay. The chapter's statement that the decay is a scalar per head is not confirmed from the abstract | C (modes); U (scalar decay) | [RETNET] |
+| flash-linear-attention | A library of Triton implementations of linear attention and related layers, including RetNet, GLA, and Mamba-2 layers | C | [FLA] |
+| Triton 3.8.0 constructs the lab kernel uses | `tl.cumsum`, `tl.dot(..., input_precision="ieee")`, and `tl.associative_scan(inputs, axis, combine_fn)` are used from memory of the Triton API. The kernel was not run on this Mac, because Triton is not installed here | U | [TRITON-API] |
+| TF32 in a float32 `tl.dot` | A float32 dot uses TF32 unless the precision is set to ieee. TF32 keeps 10 explicit mantissa bits | U (default); C (format) | [TRITON-API], chapter 9 |
+| Float underflow floors | float32: smallest subnormal about $1.4 \times 10^{-45}$. float64: about $4.9 \times 10^{-324}$ | C | IEEE 754 formats, chapter 9 |
+| First step at which `torch.cumprod` of a constant decay is 0 | $g = 0.1$: step 46 in float32, 324 in float64. $g = 0.5$: 150 and 1075. $g = 0.9$: 987 and none by 4096. $g = 0.99$: none by 4096 in either | D | `scripts/figures/37-chunked-scans.py` |
+| Decay matrix on 200 tokens at $e^{-6}$ per step, float64 | The cumprod ratio has 2,926 NaN entries. The masked-exponent log form is finite and equals $e^{-6(i-j)}$ | D | `content/labs/37-chunked-scan/tests.py` |
+| Worked chunk example | $g = 0.5$, $T = 6$, $C = 3$, scalar state: loop outputs $[1, 5, 3.25, 4.625, 9.9375, 3.65625]$. Chunk pair $A = 0.125$, $U = 3.25$ for both chunks. Final state 3.65625 | D | `scripts/figures/37-chunked-scans.py` |
+| State size, $d_k = d_v = 128$, fp32 | 65,536 bytes, 64 KiB, per head. A bf16 KV cache at $T = 4096$ holds 2,097,152 bytes, 2 MiB, per head. Storing every per-token state at $T = 4096$ takes 256 MiB. Chunk states at $T = 4096$: 4 MiB at $C = 64$, 1 MiB at $C = 256$ | D | Arithmetic in chapter 37 |
+| Chunked FLOPs | $F = T\,(2C(d_k + d_v) + 4 d_k d_v)$, counting every full $C \times C$ block. Causal softmax: $T^2 (d_k + d_v)$. Crossover $T^{\ast} = 2C + 4 d_k d_v/(d_k + d_v)$: 384 at $C = 64$ and $d_k = d_v = 128$ | D | `content/labs/37-chunked-scan/solution.py` |
+| FLOPs at $d_k = d_v = 128$, $C = 64$ | $T = 4096$: 0.403 GFLOP chunked, 4.295 GFLOP softmax. $T = 16384$: 1.611 and 68.719. $T = 65536$: 6.442 and 1099.512 | D | `scripts/figures/37-chunked-scans.py` |
+| Chunk bytes, three-phase form | $2T(d_k + d_v)$ bf16 elements plus $2 (T/C)\, d_k d_v$ fp32 state elements. $T = 16384$, $C = 64$: 50.332 MB | D | `scripts/figures/37-chunked-scans.py` |
+| Roofline time against $C$, $d_k = d_v = 128$ | The minimum is at $C = 512$ for $T = 4096$, $16384$, and $65536$, at 312 TFLOP/s and 1,275 GB/s. At $T = 16384$, $C = 64$: FLOP time 5.162 us, byte time 39.476 us. A model that ignores shared memory and parallelism | D | `scripts/figures/37-chunked-scans.py` |
+| A scan of $2^{26}$ fp32 pairs | 12 bytes per element: 805,306,368 bytes, 0.632 ms at 1,275 GB/s | D | Arithmetic in chapter 37 |
+| Lab kernel parallelism | One program per head: 16 heads use 16 of 108 SMs, 14.8%. The three-phase form at $T = 8192$, $C = 64$: 2,048 programs for 16 heads | D | Arithmetic in chapter 37 |
+| A $C \times C$ fp32 score block | $C = 128$: 64 KiB. $C = 512$: 1 MiB | D | Arithmetic in chapter 37 |
+| GPU MODE scan lectures | The index lists lecture 20 (Scan Algorithm) and 21 (Scan Algorithm Part 2) by Izzat El Haj, and lecture 24 (Scan at the Speed of Light) by Jake Hemstad and Georgii Evtushenko. It lists no lecture on Mamba or state-space models | C | [GPUMODE-INDEX] |
+
+Source keys: [KATHAROPOULOS-2020] https://arxiv.org/abs/2006.16236. [GLA] https://arxiv.org/abs/2312.06635. [MAMBA2] https://arxiv.org/abs/2405.21060. [MAMBA] https://arxiv.org/abs/2312.00752. [RETNET] https://arxiv.org/abs/2307.08621. [FLA] https://github.com/fla-org/flash-linear-attention. [TRITON-API] https://triton-lang.org/main/python-api/triton.language.html. [GPUMODE-INDEX] https://github.com/gpu-mode/lectures.

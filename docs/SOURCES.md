@@ -850,3 +850,22 @@ Part 5 — Many GPUs. Numbered 36 because chapters 30 to 35 are numbered by othe
 7. **GPU MODE, lectures 67, 78, and 79.** <https://github.com/gpu-mode/lectures>  
    Take: the lecture index lists the titles NCCL and NVSHMEM, Iris: Multi-GPU Programming in Triton, and Mirage (MPK): Compiling LLMs into Mega Kernels. This chapter did not read the lectures.
 8. **Chapters 21, 22, and 25 of this course.** The alpha-beta model, the "Overlap inside a kernel" section this chapter expands, and the gated two-GPU pattern the lab copies.
+## 37-chunked-scans: Chunked scans for linear attention
+
+Part 4 — Kernels for ML. Numbered 37 because chapters 00 through 30 are numbered and chapters 31 to 36 belong to other topics. Prerequisites are chapters 07, 14, and 16. Linear attention and state-space models as models belong to the ml course's state-space models lesson. This chapter owns the chunked-scan kernel. Only the abstract pages of the papers were read.
+
+1. **Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention.** Katharopoulos, Vyas, Pappas, and Fleuret, ICML 2020. <https://arxiv.org/abs/2006.16236>  
+   Take: Kernel feature maps and the associativity of the matrix product give cost linear in sequence length, and the recurrent form follows.
+2. **Gated Linear Attention Transformers with Hardware-Efficient Training.** Yang, Wang, Shen, Panda, and Kim. <https://arxiv.org/abs/2312.06635>  
+   Take: A hardware-efficient linear-attention algorithm with a gate, trading memory movement against parallelizability. No GPU or speedup number appears in the abstract.
+3. **Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality.** Dao and Gu, ICML 2024. <https://arxiv.org/abs/2405.21060>  
+   Take: Connects SSMs and attention through structured matrices. The abstract claims a core layer 2 to 8 times faster than Mamba's.
+4. **Mamba: Linear-Time Sequence Modeling with Selective State Spaces.** Gu and Dao. <https://arxiv.org/abs/2312.00752>  
+   Take: Input-dependent parameters rule out a convolution, so a hardware-aware parallel algorithm in recurrent mode replaces it.
+5. **Retentive Network: A Successor to Transformer for Large Language Models.** Sun and colleagues, 2023. <https://arxiv.org/abs/2307.08621>  
+   Take: Parallel, recurrent, and chunkwise recurrent computation modes.
+6. **flash-linear-attention.** fla-org. <https://github.com/fla-org/flash-linear-attention>  
+   Take: Triton implementations of linear attention and related layers, including RetNet, GLA, and Mamba-2 layers.
+7. **GPU MODE lecture index.** <https://github.com/gpu-mode/lectures>  
+   Take: Lectures 20 and 21 are Scan Algorithm and Scan Algorithm Part 2 (Izzat El Haj). Lecture 24 is Scan at the Speed of Light (Jake Hemstad and Georgii Evtushenko). The index lists no lecture on Mamba. Titles only; the slides were not read.
+8. **Prefix sums and their applications.** Blelloch. The PDF at <https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf> was fetched but its text could not be read, so the chapter takes no claim from it.

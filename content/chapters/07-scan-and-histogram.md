@@ -706,6 +706,12 @@ This section answers what changes when the keys have more bits than a histogram 
 
 A histogram of 32-bit keys needs $2^{32}$ bins, so a real sort splits the key into digits and runs your counting sort once per digit, lowest digit first. Each pass must be stable, which is why `counting_sort` scatters in input order. [Chapter 30](/c/30-sort-top-k-and-sampling) builds that radix sort, maps signed integers and floats to sortable keys, and uses the same histogram to select the top-k and the top-p nucleus without sorting the vocabulary.
 
+## A scan with a different operator
+
+This section answers what a scan can do besides add. Any associative operator works, and one of them runs a recurrence in parallel.
+
+The recurrence $h_t = a_t h_{t-1} + b_t$ looks sequential. Each step is a function of $h$, and two steps compose into another step of the same kind: $(a_1, b_1) \circ (a_2, b_2) = (a_1 a_2,\; a_2 b_1 + b_2)$. That operator is associative, so the Kogge-Stone network of this chapter scans it unchanged. [Chapter 37](/c/37-chunked-scans) uses it to run the state update of linear attention and state-space layers, and builds the chunked scan that turns the work between scan steps into tensor-core matmuls.
+
 ## What goes wrong
 
 - **Mixing up inclusive and exclusive.** An off-by-one in a compaction, or a

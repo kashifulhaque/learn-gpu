@@ -697,6 +697,14 @@ the compiler doesn't.
 
 The lab compares the two on the chain and reports the speedups and the launches each saves.
 
+## Memory under compile and CUDA graphs
+
+This section answers where the memory goes when you compile or capture, and points to the chapter that accounts for it.
+
+Fusion lowers the peak because a fused kernel never writes the intermediate tensor, and `reduce-overhead` raises it because the graph keeps static buffers and a private pool reserved for its lifetime. Both effects show up in `torch.cuda.memory_allocated()` and in `memory_reserved()`, and a captured graph's pool stays out of reach of the rest of the program.
+
+[Chapter 40](/c/40-memory-management-and-oom) writes down every byte a training step holds, models the caching allocator that serves these buffers, and shows how to read a memory snapshot. Read it when a compiled or captured run fits in eager mode and runs out of memory under `reduce-overhead`.
+
 ## What goes wrong
 
 - **Timing the compile.** The first call to a compiled function includes seconds of compilation, and the first call to

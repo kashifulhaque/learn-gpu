@@ -15,8 +15,8 @@ that one touches.
 
 | Path | Contents |
 |---|---|
-| `content/chapters/` | 40 chapters, in Markdown with YAML front matter. |
-| `content/labs/` | 40 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
+| `content/chapters/` | 41 chapters, in Markdown with YAML front matter. |
+| `content/labs/` | 41 labs, one per chapter: a starter file, a test harness, and a worked solution. `lab_common.py` holds the shared GPU helpers. |
 | `content/slides/` | One slide deck per chapter. |
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
@@ -74,6 +74,7 @@ that endpoint is configured. Blackwell stays in prose, figures, and slides.
 | 37 | [Chunked scans for linear attention](content/chapters/37-chunked-scans.md) | Part 4 — Kernels for ML | The associative operator of a linear recurrence, a parallel scan over it, chunked decayed linear attention with a log-space decay, a cost model, and a Triton chunked forward. The CPU checks run in torch float64. |
 | 38 | [Tile languages in practice](content/chapters/38-tile-languages.md) | Part 6 — Beyond | A block index map, a masked tile-loop GEMM, an online softmax, a Gluon-style layout, and a pipeline schedule against a tiny tile API. The checks run without a GPU, and an optional Triton softmax runs on the A100. |
 | 39 | [Memory consistency and atomics](content/chapters/39-memory-consistency-and-atomics.md) | Part 2 — CUDA patterns | Amdahl and Brent bounds, a litmus-test enumerator under sequential consistency and a weak model, a generation-counter grid barrier, and CUDA kernels gated on a GPU. |
+| 40 | [GPU memory management and OOM debugging](content/chapters/40-memory-management-and-oom.md) | Part 4 — Kernels for ML | Byte formulas for a training step, a caching-allocator simulator, a memory-snapshot parser, and a checkpoint chooser that fits a byte budget. A GPU check measures the peak. |
 
 Chapter 24 belongs to Part 3. It is numbered 24, after chapter 23, because chapters 00 through 23 stay where they are.
 

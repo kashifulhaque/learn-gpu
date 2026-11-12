@@ -392,5 +392,6 @@ FP8 doubles the dense tensor-core rate relative to bf16 on Hopper and halves the
 - [Introducing NVFP4 for Efficient and Accurate Low-Precision Inference](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/), NVIDIA: 16-element blocks, E4M3 scales, and the second-level fp32 scale.
 - [DeepSeek-V3 Technical Report](https://arxiv.org/abs/2412.19437), section 3.3: 1x128 and 128x128 scaling, online quantization, and the 128-element promotion interval.
 - [Quantization](https://qwen.ifkash.dev/c/18-quantization), the companion course: weight quantization, GPTQ and AWQ, and KV-cache quantization for serving.
+- [Scaling Laws for Precision](https://arxiv.org/abs/2411.04330), Kumar and others, 2024: how training precision shrinks a model's effective parameter count, and which bit width is compute-optimal. The [paper page](https://papers.ifkash.dev/precision-scaling/) fits the law in NumPy.
 - [GPU MODE lecture index](https://github.com/gpu-mode/lectures): the numerics and quantization sessions. The index was not fetched for this chapter, so it cites no lecture number.
 - [Chapter 9](/c/09-floating-point-on-the-gpu) for the format table and the accumulation argument, and [chapter 18](/c/18-quantized-kernels) for where a scale enters a GEMM and for the Hopper and Blackwell hardware.

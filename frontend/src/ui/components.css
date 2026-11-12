@@ -1,4 +1,4 @@
-/* Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here. */
+/* Generated from weights-and-wires/sites ui/ at b3af704 by scripts/sync-ui.sh. Do not edit here. */
 
 /*
  * Components ported from arm64 Fieldnotes. Every rule reads tokens.css, so
@@ -563,7 +563,7 @@
   }
 
   /* "On this page" table of contents. */
-  .toc-title {
+  .toc-label {
     margin: 0 0 12px;
     color: var(--muted);
     font-family: var(--mono);

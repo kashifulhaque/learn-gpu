@@ -1,4 +1,4 @@
-// Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here.
+// Generated from weights-and-wires/sites ui/ at b3af704 by scripts/sync-ui.sh. Do not edit here.
 
 /*
  * Theme boot and toggle. Load it as a blocking <script> in <head>, before the

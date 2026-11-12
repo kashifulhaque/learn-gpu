@@ -1,4 +1,4 @@
-// Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here.
+// Generated from weights-and-wires/sites ui/ at b3af704 by scripts/sync-ui.sh. Do not edit here.
 
 /**
  * Monaco themes that match the dark-green code slab in components.css.
@@ -51,6 +51,10 @@ export const slab = {
   title: "#b6d3b2",
   type: "#9fd0bd",
   punct: "#c3d1c0",
+  error: "#f0a49a",
+  // Bracket pair colours, cycled by nesting depth. They reuse the syntax
+  // hues so brackets sit in the same palette as the code around them.
+  brackets: ["#efb48b", "#b6d3b2", "#9fd0bd", "#e7c9a0", "#d7e4b9", "#c9a3e0"],
 } as const;
 
 const strip = (hex: string) => hex.replace("#", "");
@@ -90,7 +94,20 @@ function colors(shade: { background: string; activeLine: string }) {
     "editorIndentGuide.activeBackground1": slab.gutter,
     "editorWhitespace.foreground": slab.line,
     "editorBracketMatch.background": `${slab.selection}80`,
-    "editorBracketMatch.border": slab.gutter,
+    "editorBracketMatch.border": slab.muted,
+    "editorBracketHighlight.foreground1": slab.brackets[0],
+    "editorBracketHighlight.foreground2": slab.brackets[1],
+    "editorBracketHighlight.foreground3": slab.brackets[2],
+    "editorBracketHighlight.foreground4": slab.brackets[3],
+    "editorBracketHighlight.foreground5": slab.brackets[4],
+    "editorBracketHighlight.foreground6": slab.brackets[5],
+    "editorBracketHighlight.unexpectedBracket.foreground": slab.error,
+    "editorBracketPairGuide.background1": `${slab.brackets[0]}55`,
+    "editorBracketPairGuide.background2": `${slab.brackets[1]}55`,
+    "editorBracketPairGuide.background3": `${slab.brackets[2]}55`,
+    "editorBracketPairGuide.activeBackground1": slab.brackets[0],
+    "editorBracketPairGuide.activeBackground2": slab.brackets[1],
+    "editorBracketPairGuide.activeBackground3": slab.brackets[2],
     "editorGutter.background": shade.background,
     "editorWidget.background": shade.activeLine,
     "editorWidget.border": slab.line,

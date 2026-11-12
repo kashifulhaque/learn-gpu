@@ -1,4 +1,4 @@
-<!-- Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here. -->
+<!-- Generated from weights-and-wires/sites ui/ at b3af704 by scripts/sync-ui.sh. Do not edit here. -->
 
 # Course design system
 
@@ -34,6 +34,9 @@ mode is one re-declaration of the same names.
 | `--line`, `--strong-line` | Hairline borders |
 | `--error`, `--error-soft` | Failed checks and warnings |
 | `--code-*`, `--hl-*` | The code slab and its syntax colours, the same in both themes |
+| `--code-ok`, `--code-error` | Pass and fail text on the slab (`#b5d49b` and `#f0a49a`) |
+| `--slab-ok`, `--slab-bad` | Compatibility names for `--code-ok` and `--code-error`. Apps can delete their own definitions |
+| `--hl-c` | The third maths colour. It is `--series-2`, the figures' terracotta, in both themes. Don't redefine it |
 | `--series-1` to `--series-6`, `--demo` | Plot and figure colours |
 
 With no `data-theme` attribute on `<html>`, the page follows the system
@@ -46,6 +49,21 @@ learn-inference) uses `--well`, `--card`, `--tint`, `--fg` to `--fg-faint`,
 `--ok`, and `--syn-*`. Neither family's `--accent` is aliased, because both apps
 use it for interactive colour. Map the app's Tailwind accent colour to
 `--forest` in its `index.css`.
+
+## Light code slab for print
+
+The code slab is dark in both themes. To draw it as a light panel with
+matching syntax colours, add `class="code-light"` or `data-code="light"` to
+any container, such as the `.book` root. Under `@media print` the kit applies
+the same palette to the whole page, so a print stylesheet needs no `--code-*`
+or `--hl-*` overrides of its own. The panel stays light even when the page
+theme is dark.
+
+## Table of contents label
+
+The "On this page" label is `.toc-label`. It was `.toc-title` in earlier
+versions. Apps use `.toc-title` for their own purposes, so the kit no longer
+defines it. Rename any use of the kit's label when you sync.
 
 ## Layers
 

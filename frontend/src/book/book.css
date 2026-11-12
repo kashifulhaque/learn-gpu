@@ -123,22 +123,6 @@ body {
 
 .book {
   --paper: var(--surface);
-  /* The site draws code on the dark-green slab. Paper takes a light panel
-     with dark ink instead, so code prints on any printer and reads in
-     greyscale. The syntax colours come from the palette's darker tones. */
-  --code-bg: var(--surface-muted);
-  --code-ink: var(--ink);
-  --code-line: var(--line);
-  --code-muted: var(--muted);
-  --code-button-line: var(--line);
-  --slab-bad: var(--error);
-  --syn-keyword: var(--accent-ink);
-  --syn-string: var(--series-6);
-  --syn-number: var(--series-2);
-  --syn-comment: var(--muted);
-  --syn-function: var(--series-3);
-  --syn-type: var(--series-4);
-  --syn-punct: var(--muted);
 }
 
 /* ------------------------------------------------------------------------
@@ -275,15 +259,6 @@ body {
 }
 .toc-title {
   min-width: 0;
-  /* The design system's .toc-title is the mono "On this page" label. A
-     contents entry here is ordinary text, so undo that. */
-  margin: 0;
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  letter-spacing: normal;
-  text-transform: none;
-  color: inherit;
 }
 /* The dot leader between a title and its page number. */
 .toc-leader {

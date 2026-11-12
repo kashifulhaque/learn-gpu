@@ -22,19 +22,6 @@
    The theme follows the system unless the reader picks one; the choice is an
    attribute on <html>, set before first paint by the script in index.html. */
 
-:root {
-  /* Status colours on the dark-green code slab, the same in both themes. The
-     design system has no slab status tokens yet; these are arm64's status dot
-     and its dark-theme error. */
-  --slab-ok: #b5d49b;
-  --slab-bad: #f0a49a;
-
-  /* The design system maps \hlc to --series-2, the same terracotta the
-     figures use for their highlight. Olive keeps the four maths colours apart
-     from it and from each other. */
-  --hl-c: var(--series-6);
-}
-
 @theme inline {
   --color-paper: var(--paper);
   --color-surface: var(--surface);

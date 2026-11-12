@@ -501,7 +501,7 @@ export default function ChapterPage({ chapters, progress, onProgress }: Props) {
           )}
           {sections.length > 0 && (
             <section className="mb-10 rounded-[5px] border border-line bg-surface px-3 pb-3 pt-3.5">
-              <h2 className="toc-title px-2">In this chapter</h2>
+              <h2 className="toc-label px-2">In this chapter</h2>
               {sectionList(false)}
             </section>
           )}

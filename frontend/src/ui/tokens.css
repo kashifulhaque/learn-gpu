@@ -1,4 +1,4 @@
-/* Generated from weights-and-wires/sites ui/ at b8952d8 by scripts/sync-ui.sh. Do not edit here. */
+/* Generated from weights-and-wires/sites ui/ at b3af704 by scripts/sync-ui.sh. Do not edit here. */
 
 /*
  * Design tokens for every ifkash.dev course site.
@@ -67,6 +67,14 @@
   --code-gutter: #6f8d78;
   --code-selection: #2f5a45;
   --code-active-line: #1e4134;
+
+  /* Pass and fail text on the slab, such as console output. Both read at
+     4.5:1 or better on either slab shade. The --slab-* names are for apps
+     that defined them locally before the kit had these tokens. */
+  --code-ok: #b5d49b;
+  --code-error: #f0a49a;
+  --slab-ok: var(--code-ok);
+  --slab-bad: var(--code-error);
 
   /* Syntax colours on the slab. */
   --hl-keyword: #efb48b;
@@ -138,6 +146,85 @@
 }
 
 /*
+ * Light code slab, for the printed book and for any block that opts in.
+ *
+ * Add class="code-light" or data-code="light" to a container to turn the
+ * slabs inside it into light panels with their own syntax colours. In print,
+ * the same palette applies to the whole page with no markup. Every colour
+ * reads at 4.5:1 or better on the panel (#eeeee5) and on white.
+ *
+ * The values are fixed hex rather than palette variables, so the panel stays
+ * light even when the page theme is dark. The alias names are restated here
+ * because an alias set on :root has already resolved against the dark slab.
+ */
+.code-light,
+[data-code="light"] {
+  --code-bg: #eeeee5;
+  --code-ink: #263e33;
+  --code-line: #d9ddd1;
+  --code-muted: #5a675c;
+  --code-button-line: #b8c2b3;
+  --code-hover: #e3e4d9;
+  --code-gutter: #5a675c;
+  --code-selection: #dfe6d6;
+  --code-active-line: #e5e6dc;
+  --code-ok: #3d6a1f;
+  --code-error: #a33832;
+  --slab-ok: var(--code-ok);
+  --slab-bad: var(--code-error);
+
+  --hl-keyword: #97512b;
+  --hl-string: #4f6d26;
+  --hl-number: #9c5424;
+  --hl-comment: #5a675c;
+  --hl-title: #1d4939;
+  --hl-builtin: #386790;
+  --hl-type: #386790;
+  --hl-meta: #5a675c;
+  --hl-punct: #263e33;
+  --hl-attr: #82508f;
+
+  --syn-keyword: var(--hl-keyword);
+  --syn-string: var(--hl-string);
+  --syn-number: var(--hl-number);
+  --syn-comment: var(--hl-comment);
+  --syn-function: var(--hl-title);
+  --syn-type: var(--hl-type);
+  --syn-punct: var(--hl-punct);
+}
+
+/* Print: the light palette on the whole page. The selector list matches the
+   dark-theme blocks above, and this block comes after them, so it wins in a
+   dark theme too. */
+@media print {
+  :root,
+  :root[data-theme="dark"],
+  :root:not([data-theme="light"]) {
+    --code-bg: #eeeee5;
+    --code-ink: #263e33;
+    --code-line: #d9ddd1;
+    --code-muted: #5a675c;
+    --code-button-line: #b8c2b3;
+    --code-hover: #e3e4d9;
+    --code-gutter: #5a675c;
+    --code-selection: #dfe6d6;
+    --code-active-line: #e5e6dc;
+    --code-ok: #3d6a1f;
+    --code-error: #a33832;
+    --hl-keyword: #97512b;
+    --hl-string: #4f6d26;
+    --hl-number: #9c5424;
+    --hl-comment: #5a675c;
+    --hl-title: #1d4939;
+    --hl-builtin: #386790;
+    --hl-type: #386790;
+    --hl-meta: #5a675c;
+    --hl-punct: #263e33;
+    --hl-attr: #82508f;
+  }
+}
+
+/*
  * Compatibility aliases. The course apps already route colour through their
  * own semantic names, so pointing those names at the palette re-skins most
  * components without edits. Aliases resolve on the same element as the
@@ -189,6 +276,8 @@
   --syn-punct: var(--hl-punct);
   --hl-a: var(--series-1);
   --hl-b: var(--series-3);
+  /* The same terracotta as the figures' highlight (--series-2) in both
+     themes. Apps should not redefine it. */
   --hl-c: var(--series-2);
   --hl-d: var(--series-4);
 }

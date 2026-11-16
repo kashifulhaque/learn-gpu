@@ -44,7 +44,7 @@ permissions:
 
 jobs:
   maths:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +70,7 @@ jobs:
         run: npm run typecheck
 
   chapters:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
 
@@ -124,7 +124,7 @@ jobs:
           PY
 
   labs:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
 
@@ -141,7 +141,7 @@ jobs:
         run: python scripts/check_labs.py
 
   book:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
 

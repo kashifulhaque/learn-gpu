@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
       # The CUDA devel base image is large; the runner's free disk isn't enough

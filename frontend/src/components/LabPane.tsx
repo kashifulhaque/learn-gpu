@@ -1,19 +1,17 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import { api, runLab, type Lab, type ProviderInfo, type RunEvent } from "../lib/api";
+import { useEditorLook } from "../lib/editorPrefs";
+import { useTheme } from "../lib/theme";
+import { OutputHeader, useOutputCollapse } from "./CollapsibleOutput";
+import EditorToolbar, { ToolbarPanel, type ToolbarAction } from "./EditorToolbar";
+import { CheckIcon, CloseIcon } from "./icons";
+import { modKey } from "./shellIcons";
 import SplitPane from "./SplitPane";
 import { useIsWide } from "../lib/useMediaQuery";
-import { Button, Dot, Kbd, Notice, Tag } from "./ui";
-import { CheckIcon, CloseIcon, FileIcon, PlayIcon, ResetIcon, StopIcon } from "./icons";
+import { Button, Kbd, Notice, Tag } from "./ui";
 
 // Monaco is heavy, so the editor is its own chunk and loads with the first lab.
 const CodeEditor = lazy(() => import("./CodeEditor"));
-
-// The editor binds Cmd+Enter on a Mac and Ctrl+Enter elsewhere; the hint says
-// whichever this reader will actually press.
-const RUN_KEYS =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
-    ? "⌘↵"
-    : "Ctrl ↵";
 
 /** "wall_seconds" reads as "Wall seconds". */
 function metricLabel(key: string): string {
@@ -23,34 +21,46 @@ function metricLabel(key: string): string {
 
 type Check = { name: string; passed: boolean; detail: string };
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "failed";
-type Tab = "console" | "checks" | "hints" | "solution";
+type Status = "idle" | "running" | "passed" | "failed" | "error";
 
 type Props = {
   lab: Lab;
   onPassed: () => void;
+  /** Folds the lab away so the chapter takes the whole width. */
+  onCollapse?: () => void;
 };
 
-export default function LabPane({ lab, onPassed }: Props) {
+const SAVE_LABEL: Record<SaveState, string> = {
+  idle: "",
+  dirty: "Unsaved",
+  saving: "Saving…",
+  saved: "Saved",
+  failed: "Not saved",
+};
+
+export default function LabPane({ lab, onPassed, onCollapse }: Props) {
   const [code, setCode] = useState(lab.draft || lab.starter);
   const [logs, setLogs] = useState<string[]>([]);
   const [checks, setChecks] = useState<Check[]>([]);
   const [metrics, setMetrics] = useState<Record<string, unknown>>({});
-  const [status, setStatus] = useState<"idle" | "running" | "passed" | "failed" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [provider, setProvider] = useState<string | null>(null);
+  const [ranOn, setRanOn] = useState("");
   const [creditWarning, setCreditWarning] = useState("");
   const [unavailable, setUnavailable] = useState("");
   const [solution, setSolution] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>(lab.draft ? "saved" : "idle");
-  const [tab, setTab] = useState<Tab>("console");
-  // Hints and the solution are opened on purpose, one step at a time, so a
-  // learner takes only as much help as they need.
+  // Which help panel is open under the toolbar. Hints and the solution are
+  // opened on purpose, one step at a time, so a learner takes only as much
+  // help as they need.
+  const [panel, setPanel] = useState<"hints" | "solution" | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
+  // Counts runs, so the output panel opens when one starts.
+  const [runId, setRunId] = useState(0);
   const labId = useRef(lab.id);
   labId.current = lab.id;
 
@@ -58,6 +68,11 @@ export default function LabPane({ lab, onPassed }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const saveTimer = useRef<number | null>(null);
   const wide = useIsWide();
+  const look = useEditorLook(useTheme());
+  const output = useOutputCollapse(runId);
+  const outputId = useId();
+  const panelId = useId();
+  const mod = modKey();
 
   useEffect(() => {
     setCode(lab.draft || lab.starter);
@@ -66,13 +81,14 @@ export default function LabPane({ lab, onPassed }: Props) {
     setMetrics({});
     setStatus("idle");
     setMessage("");
+    setRanOn("");
     setUnavailable("");
     setSolution("");
-    setTab("console");
     setSaveState(lab.draft ? "saved" : "idle");
   }, [lab.id, lab.draft, lab.starter]);
 
   useEffect(() => {
+    setPanel(null);
     setRevealed(0);
     setSolutionShown(false);
   }, [lab.id]);
@@ -144,11 +160,12 @@ export default function LabPane({ lab, onPassed }: Props) {
     setChecks([]);
     setMetrics({});
     setMessage("");
+    setRanOn("");
     setCreditWarning("");
     setUnavailable("");
     setStatus("running");
     setElapsed(0);
-    setTab("console");
+    setRunId((n) => n + 1);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -156,6 +173,7 @@ export default function LabPane({ lab, onPassed }: Props) {
     const handle = (event: RunEvent) => {
       switch (event.type) {
         case "start":
+          setRanOn(event.provider);
           setLogs((lines) => [...lines, `— running on ${event.provider} —`]);
           break;
         case "log":
@@ -168,7 +186,6 @@ export default function LabPane({ lab, onPassed }: Props) {
         case "done":
           setStatus(event.passed ? "passed" : "failed");
           setMessage(`Finished in ${event.seconds}s`);
-          setTab("checks");
           if (event.passed) onPassed();
           break;
         case "out_of_credits":
@@ -207,8 +224,8 @@ export default function LabPane({ lab, onPassed }: Props) {
     setMessage("Cancelled. The GPU job may still be finishing.");
   }
 
-  // The Solution tab only explains itself; the code is fetched and shown once
-  // the learner asks for it.
+  // The solution panel only explains itself at first; the code is fetched and
+  // shown once the learner asks for it.
   async function showSolution() {
     setSolutionShown(true);
     if (!solution) {
@@ -222,315 +239,222 @@ export default function LabPane({ lab, onPassed }: Props) {
   const runnable = providers.find((p) => p.name === provider);
   const canRun = status !== "running" && Boolean(runnable?.available);
   const passedCount = checks.filter((c) => c.passed).length;
+  const running = status === "running";
 
-  const saveLabel: Record<SaveState, string> = {
-    idle: "Autosaves as you type",
-    dirty: "Unsaved edits",
-    saving: "Saving…",
-    saved: "Draft saved",
-    failed: "Could not save the draft",
-  };
-
-  const tabs: { id: Tab; label: string; badge?: string }[] = [
-    { id: "console", label: "Console" },
-    { id: "checks", label: "Checks", badge: checks.length ? `${passedCount}/${checks.length}` : undefined },
-    { id: "hints", label: "Hints", badge: lab.hints.length ? String(lab.hints.length) : undefined },
-    { id: "solution", label: "Solution" },
+  const actions: ToolbarAction[] = [
+    ...(lab.hints.length > 0
+      ? [
+          {
+            id: "hints",
+            label: panel === "hints" ? "Hide the hints" : "Show a hint",
+            icon: "bulb" as const,
+            pressed: panel === "hints",
+            controls: panelId,
+            onClick: () => {
+              setPanel((open) => (open === "hints" ? null : "hints"));
+              setRevealed((count) => Math.max(count, 1));
+            },
+          },
+        ]
+      : []),
+    {
+      id: "reset",
+      label: "Reset to the starter file",
+      icon: "reset",
+      priority: "low",
+      disabled: code === lab.starter,
+      onClick: resetToStarter,
+    },
+    {
+      id: "solution",
+      label: panel === "solution" ? "Hide the solution" : "Show the solution",
+      icon: "key",
+      priority: "low",
+      pressed: panel === "solution",
+      controls: panelId,
+      onClick: () => setPanel((open) => (open === "solution" ? null : "solution")),
+    },
   ];
 
+  const outcome =
+    status === "passed"
+      ? `All ${checks.length} checks passed`
+      : status === "failed"
+        ? checks.length
+          ? `${passedCount} of ${checks.length} checks passed`
+          : "Checks failed"
+        : status === "error"
+          ? "Run failed"
+          : message
+            ? "Stopped"
+            : "";
 
-  const editorPane = (
-    <>
-      <div className="flex h-9 shrink-0 items-center gap-3 border-b border-line bg-paper px-3">
-        <span className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-fg-muted">
-          <FileIcon className="size-3.5 text-fg-subtle" />
-          solution.py
-        </span>
-        <span
-          className={`truncate font-mono text-[10px] uppercase tracking-[0.08em] ${
-            saveState === "failed"
-              ? "text-bad"
-              : saveState === "dirty"
-                ? "text-fg-muted"
-                : "text-fg-subtle"
-          }`}
-          aria-live="polite"
-        >
-          {saveLabel[saveState]}
-        </span>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="hidden items-center gap-1.5 text-[12px] text-fg-subtle xl:flex">
-            <Kbd>{RUN_KEYS}</Kbd>
-            to run
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetToStarter}
-            disabled={code === lab.starter}
-            title="Replace your code with the starter file"
-          >
-            <ResetIcon className="size-3.5" />
-            Reset
-          </Button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 bg-code">
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center bg-code text-[12.5px] text-fg-subtle">
-              Loading the editor…
-            </div>
-          }
-        >
-          <CodeEditor
-            fill
-            path={`${lab.id}/solution.py`}
-            value={code}
-            onChange={handleChange}
-            onRun={() => {
-              if (canRun) run();
-            }}
-          />
-        </Suspense>
-      </div>
-    </>
+  const header = (collapsed: boolean) => (
+    <OutputHeader
+      label={checks.length ? "Checks" : "Output"}
+      detail={running ? `${elapsed}s` : ranOn ? `on ${ranOn}` : undefined}
+      status={outcome ? `${outcome}${message && status !== "error" && status !== "idle" ? ` · ${message.replace(/^Finished in /, "")}` : ""}` : undefined}
+      running={running}
+      collapsed={collapsed}
+      onToggle={output.toggle}
+      controls={outputId}
+    />
   );
 
-  const consolePane = (
+  const editorPane = (
+    <div className="min-h-0 flex-1 bg-code">
+      <Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center bg-code text-[12.5px] text-fg-subtle">
+            Loading the editor…
+          </div>
+        }
+      >
+        <CodeEditor
+          path={`${lab.id}/solution.py`}
+          value={code}
+          onChange={handleChange}
+          onRun={() => {
+            if (canRun) run();
+          }}
+        />
+      </Suspense>
+    </div>
+  );
+
+  const outputPane = (
     <>
-      <div className="flex shrink-0 items-stretch overflow-x-auto border-y border-line bg-paper">
-        <div className="flex shrink-0 items-stretch px-1" role="tablist" aria-label="Lab output">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              onClick={() => setTab(item.id)}
-              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 py-2 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] transition-colors sm:px-3 ${
-                tab === item.id
-                  ? "border-accent text-fg"
-                  : "border-transparent text-fg-subtle hover:text-fg"
-              }`}
-            >
-              {item.label}
-              {item.badge && (
-                <span className="rounded bg-tint px-1 font-mono text-[10px] normal-case leading-4 tabular-nums tracking-normal text-fg-muted">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap px-3 text-[12px]">
-          {status === "running" && (
-            <span className="flex items-center gap-1.5 font-mono tabular-nums text-fg-subtle">
-              <Dot tone="accent" pulse />
-              {elapsed}s
-            </span>
+      {header(false)}
+      <div
+        id={outputId}
+        ref={logRef}
+        className="min-h-0 flex-1 overflow-y-auto bg-paper"
+        data-testid="lab-output"
+      >
+        {checks.length > 0 && (
+          <div className="border-b border-line px-4 py-3.5">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Tag tone={status === "passed" ? "ok" : "bad"} className="tabular-nums">
+                {passedCount}/{checks.length} checks passed
+              </Tag>
+              {message && <span className="text-[12px] tabular-nums text-fg-subtle">{message}</span>}
+            </div>
+            <ul className="space-y-2">
+              {checks.map((check) => (
+                <li key={check.name} className="flex gap-2.5 text-[13px] leading-5">
+                  <span
+                    className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ${
+                      check.passed ? "bg-ok/12 text-ok" : "bg-bad/12 text-bad"
+                    }`}
+                  >
+                    {check.passed ? <CheckIcon className="size-3" /> : <CloseIcon className="size-3" />}
+                    <span className="sr-only">{check.passed ? "Passed:" : "Failed:"}</span>
+                  </span>
+                  <span className="min-w-0 text-fg">
+                    {check.name}
+                    {check.detail && <span className="text-fg-subtle"> — {check.detail}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {Object.keys(metrics).length > 0 && (
+              <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
+                {Object.entries(metrics).map(([key, value]) => (
+                  <div key={key} className="min-w-0 bg-card px-3 py-2">
+                    <dt className="truncate text-[12px] text-fg-subtle" title={key}>
+                      {metricLabel(key)}
+                    </dt>
+                    <dd className="mt-0.5 truncate font-mono text-[13px] tabular-nums text-fg">
+                      {String(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
+
+        <div className="px-4 py-3 font-mono text-[12px] leading-[1.75]">
+          {logs.length === 0 && status !== "running" && (
+            <div className="max-w-md font-sans text-[13px] leading-5 text-fg-subtle">
+              <p>
+                Run the lab to send your code to a GPU. Output streams here as it runs, and the
+                checks appear above it when it finishes.
+              </p>
+              <p className="mt-2 flex items-center gap-1.5 text-[12px] text-fg-faint">
+                <Kbd>{`${mod} ↵`}</Kbd> runs it from the editor.
+              </p>
+            </div>
           )}
-          {status === "passed" && <span className="font-medium text-ok">All checks passed</span>}
-          {status === "failed" && <span className="font-medium text-bad">Checks failed</span>}
+          {logs.map((line, index) => (
+            <div
+              key={index}
+              className={
+                line.startsWith("[PASS]")
+                  ? "text-ok"
+                  : line.startsWith("[FAIL]")
+                    ? "text-bad"
+                    : line.startsWith("—")
+                      ? "text-fg-subtle"
+                      : "whitespace-pre-wrap text-fg-muted"
+              }
+            >
+              {line}
+            </div>
+          ))}
+          {status === "running" && <div className="text-fg-subtle">▍ waiting on the GPU…</div>}
+          {status === "error" && message && (
+            <Notice tone="bad" className="mt-3 font-sans">
+              {message}
+            </Notice>
+          )}
+          {status === "idle" && message && (
+            <p className="mt-2 font-sans text-[12.5px] text-fg-subtle">{message}</p>
+          )}
         </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto bg-paper" data-testid="lab-output">
-        {tab === "console" && (
-          <div
-            ref={logRef}
-            className="h-full overflow-y-auto px-4 py-3 font-mono text-[12px] leading-[1.75]"
-          >
-            {logs.length === 0 && status !== "running" && (
-              <div className="max-w-md font-sans text-[13px] leading-5 text-fg-subtle">
-                <p>
-                  Run the lab to send your code to a GPU. Output streams here as it runs, and the
-                  checks open when it finishes.
-                </p>
-                <p className="mt-2 flex items-center gap-1.5 text-[12px] text-fg-faint">
-                  <Kbd>{RUN_KEYS}</Kbd> runs it from the editor.
-                </p>
-              </div>
-            )}
-            {logs.map((line, index) => (
-              <div
-                key={index}
-                className={
-                  line.startsWith("[PASS]")
-                    ? "text-ok"
-                    : line.startsWith("[FAIL]")
-                      ? "text-bad"
-                      : line.startsWith("—")
-                        ? "text-fg-subtle"
-                        : "whitespace-pre-wrap text-fg-muted"
-                }
-              >
-                {line}
-              </div>
-            ))}
-            {status === "running" && <div className="text-fg-subtle">▍ waiting on the GPU…</div>}
-            {status === "error" && message && (
-              <Notice tone="bad" className="mt-3 font-sans">
-                {message}
-              </Notice>
-            )}
-          </div>
-        )}
-
-        {tab === "checks" && (
-          <div className="px-4 py-3.5">
-            {checks.length === 0 ? (
-              <p className="text-[13px] text-fg-subtle">No results yet. Run the lab.</p>
-            ) : (
-              <>
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <Tag tone={status === "passed" ? "ok" : "bad"} className="tabular-nums">
-                    {passedCount}/{checks.length} checks passed
-                  </Tag>
-                  {message && (
-                    <span className="text-[12px] tabular-nums text-fg-subtle">{message}</span>
-                  )}
-                </div>
-                <ul className="space-y-2">
-                  {checks.map((check) => (
-                    <li key={check.name} className="flex gap-2.5 text-[13px] leading-5">
-                      <span
-                        className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ${
-                          check.passed ? "bg-ok/12 text-ok" : "bg-bad/12 text-bad"
-                        }`}
-                      >
-                        {check.passed ? (
-                          <CheckIcon className="size-3" />
-                        ) : (
-                          <CloseIcon className="size-3" />
-                        )}
-                        <span className="sr-only">{check.passed ? "Passed:" : "Failed:"}</span>
-                      </span>
-                      <span className="min-w-0 text-fg">
-                        {check.name}
-                        {check.detail && <span className="text-fg-subtle"> — {check.detail}</span>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {Object.keys(metrics).length > 0 && (
-                  <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
-                    {Object.entries(metrics).map(([key, value]) => (
-                      <div key={key} className="min-w-0 bg-card px-3 py-2">
-                        <dt className="truncate text-[12px] text-fg-subtle" title={key}>
-                          {metricLabel(key)}
-                        </dt>
-                        <dd className="mt-0.5 truncate font-mono text-[13px] tabular-nums text-fg">
-                          {String(value)}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {tab === "hints" && (
-          <div className="px-4 py-3.5">
-            {lab.hints.length === 0 ? (
-              <p className="text-[13px] text-fg-subtle">This lab ships without hints.</p>
-            ) : (
-              <>
-                {revealed === 0 && (
-                  <p className="mb-3 max-w-md text-[13px] leading-5 text-fg-subtle">
-                    Each hint is a nudge, not the answer. Open one, try again, and open the next
-                    only if you're still stuck.
-                  </p>
-                )}
-                {revealed > 0 && (
-                  <ol className="mb-3 space-y-2.5">
-                    {lab.hints.slice(0, revealed).map((hint, index) => (
-                      <li key={hint} className="flex gap-2.5 text-[13px] leading-5 text-fg-muted">
-                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded bg-tint font-mono text-[10.5px] tabular-nums text-fg-subtle">
-                          {index + 1}
-                        </span>
-                        <span className="min-w-0">{hint}</span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                {revealed < lab.hints.length ? (
-                  <Button size="sm" onClick={() => setRevealed((count) => count + 1)}>
-                    Show hint {revealed + 1} of {lab.hints.length}
-                  </Button>
-                ) : (
-                  <p className="text-[12px] text-fg-faint">That's every hint for this lab.</p>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {tab === "solution" && (
-          <div className="px-4 py-3.5">
-            {!solutionShown ? (
-              <>
-                <p className="mb-3 max-w-md text-[13px] leading-5 text-fg-subtle">
-                  The worked solution passes every check. Looking at it before you've tried the lab
-                  skips the part that teaches.
-                </p>
-                <Button size="sm" onClick={showSolution}>
-                  Show the solution
-                </Button>
-              </>
-            ) : !solution ? (
-              <p className="text-[13px] text-fg-subtle">Loading the worked solution…</p>
-            ) : (
-              <>
-                <Button
-                  size="sm"
-                  onClick={loadSolution}
-                  disabled={code === solution}
-                  className="mb-3"
-                >
-                  Load into the editor
-                </Button>
-                <pre className="overflow-auto rounded-md border border-line bg-card p-3.5 font-mono text-[12px] leading-relaxed text-fg">
-                  {solution}
-                </pre>
-              </>
-            )}
-          </div>
-        )}
       </div>
     </>
   );
 
   return (
-    <section className="@container flex h-full min-h-0 flex-col bg-paper">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 sm:gap-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="kicker hidden shrink-0 @md:inline">Lab</span>
-          <h2 className="truncate text-[13px] font-semibold text-fg" title={lab.brief}>
-            {lab.title}
-          </h2>
-          {/* Tag sets its own display, so the breakpoint lives on a wrapper. */}
-          <span className="hidden shrink-0 @lg:inline-flex">
-            <Tag mono>{lab.gpu}</Tag>
-          </span>
-        </div>
-
-        {/* Spelling out "(not configured)" inside the closed select took 43% of
-            a 375px header and truncated the lab's own title to four letters.
-            A narrow screen gets a marker instead; either way the reason is a
-            line of its own under this bar. An option's text cannot be styled
-            per breakpoint, so this branch is in JavaScript. With one provider
-            there is nothing to pick, so the select stays hidden. */}
+    <section
+      className={`slab flex h-full min-h-0 flex-col ${look === "paper" ? "code-light sh-slab-paper" : ""}`}
+      aria-label={`Lab: ${lab.title}`}
+    >
+      <EditorToolbar
+        title={lab.title}
+        info={
+          <>
+            <p>{lab.brief}</p>
+            <p className="mt-2 text-[12px] text-fg-subtle">
+              Runs on {lab.gpu}, with a {lab.timeout}s limit.
+            </p>
+          </>
+        }
+        meta={lab.gpu}
+        status={SAVE_LABEL[saveState]}
+        running={running}
+        onRun={() => {
+          if (canRun) run();
+        }}
+        onStop={cancel}
+        runLabel="Run"
+        runDisabled={!runnable?.available}
+        actions={actions}
+        onCollapse={onCollapse}
+        collapseShortcut={`${mod} .`}
+      >
+        {/* With one provider there is nothing to pick, so the select stays
+            hidden. A narrow screen marks an unconfigured provider with a sign
+            instead of words; either way the reason is a line under the bar. */}
         {providers.length > 1 && (
           <select
             value={provider ?? ""}
             onChange={(event) => setProvider(event.target.value)}
-            className="h-8 min-w-0 max-w-28 shrink rounded-[5px] border border-line bg-paper px-2 text-[12.5px] text-fg-muted outline-none transition-colors hover:border-line-strong hover:text-fg focus-visible:border-accent @lg:max-w-none"
+            className="sh-select max-w-28!"
             aria-label="GPU provider"
+            title="GPU provider"
           >
             {providers.map((item) => (
               <option key={item.name} value={item.name} disabled={!item.available}>
@@ -540,37 +464,15 @@ export default function LabPane({ lab, onPassed }: Props) {
             ))}
           </select>
         )}
-
-        {status === "running" ? (
-          <Button variant="danger" size="sm" className="h-8 px-3" onClick={cancel}>
-            <StopIcon className="size-3.5" />
-            <span className="tabular-nums">Stop · {elapsed}s</span>
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            className="h-8 px-3"
-            onClick={run}
-            disabled={!canRun}
-            title={`Run on the GPU (${RUN_KEYS})`}
-          >
-            <PlayIcon className="size-3.5" />
-            Run
-          </Button>
-        )}
-      </header>
+      </EditorToolbar>
 
       {runnable && !runnable.available && (
-        <p className="shrink-0 border-b border-line bg-surface-muted px-3 py-1.5 text-[12px] text-fg-muted">
+        <p className="shrink-0 border-b border-line bg-card px-3 py-1.5 text-[12px] text-fg-muted">
           {runnable.reason}
         </p>
       )}
       {unavailable && (
-        <p
-          className="shrink-0 border-b border-line bg-warn/8 px-3 py-1.5 text-[12px] text-warn"
-          role="status"
-        >
+        <p className="shrink-0 border-b border-line bg-warn/8 px-3 py-1.5 text-[12px] text-warn" role="status">
           {unavailable}
         </p>
       )}
@@ -580,16 +482,77 @@ export default function LabPane({ lab, onPassed }: Props) {
         </p>
       )}
 
+      {panel === "hints" && (
+        <ToolbarPanel id={panelId} title="Hints" onClose={() => setPanel(null)}>
+          <ol className="space-y-2.5">
+            {lab.hints.slice(0, revealed).map((hint, index) => (
+              <li key={hint} className="flex gap-2.5 text-[13px] leading-5 text-fg-muted">
+                <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded bg-tint font-mono text-[10.5px] tabular-nums text-fg-subtle">
+                  {index + 1}
+                </span>
+                <span className="min-w-0">{hint}</span>
+              </li>
+            ))}
+          </ol>
+          {revealed < lab.hints.length ? (
+            <button
+              type="button"
+              onClick={() => setRevealed((count) => count + 1)}
+              className="mt-2.5 text-[12.5px] font-medium text-accent hover:underline"
+            >
+              Show hint {revealed + 1} of {lab.hints.length}
+            </button>
+          ) : (
+            <p className="mt-2.5 text-[12px] text-fg-faint">That's every hint for this lab.</p>
+          )}
+        </ToolbarPanel>
+      )}
+
+      {panel === "solution" && (
+        <ToolbarPanel
+          id={panelId}
+          title="Worked solution"
+          onClose={() => setPanel(null)}
+          footer={
+            solution ? (
+              <Button size="sm" onClick={loadSolution} disabled={code === solution} className="ml-auto">
+                Load into the editor
+              </Button>
+            ) : undefined
+          }
+        >
+          {!solutionShown ? (
+            <>
+              <p className="mb-3 max-w-md text-[13px] leading-5 text-fg-subtle">
+                The worked solution passes every check. Looking at it before you've tried the lab
+                skips the part that teaches.
+              </p>
+              <Button size="sm" onClick={showSolution}>
+                Show the solution
+              </Button>
+            </>
+          ) : !solution ? (
+            <p className="text-[13px] text-fg-subtle">Loading the worked solution…</p>
+          ) : (
+            <pre className="overflow-auto rounded-md border border-line bg-card p-3.5 font-mono text-[12px] leading-relaxed text-fg">
+              {solution}
+            </pre>
+          )}
+        </ToolbarPanel>
+      )}
+
       <SplitPane
         direction="column"
         storageKey="lg.lab.console"
         initial={62}
         min={20}
         max={88}
-        className="slab flex-1"
-        label="Resize the editor and the console"
+        className="min-h-0 flex-1"
+        label="Resize the editor and the output"
+        collapsed={output.collapsed}
+        rail={header(true)}
         first={editorPane}
-        second={consolePane}
+        second={outputPane}
       />
     </section>
   );

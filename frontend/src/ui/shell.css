@@ -1,0 +1,2193 @@
+/*
+ * App shell: sidebar, icon rail, search dialog, overview page, and the
+ * editor toolbar, settings, and output panel. Modelled on the tpu reference
+ * site and drawn with the kit's tokens from tokens.css and type.css, so it
+ * follows the course theme in light and dark.
+ *
+ * Portable across the five course apps. It is not part of the synced kit
+ * (scripts/sync-ui.sh does not write it), so a sync never overwrites it.
+ * Every class is prefixed `sh-` so nothing collides with components.css.
+ * Rules are unlayered, so they win over the kit's `components` layer; put
+ * Tailwind utilities on an element only for layout.
+ */
+
+:root {
+  --sh-sidebar-width: 264px;
+  --sh-rail-width: 56px;
+  --sh-sidebar-bg: color-mix(in oklab, var(--surface-muted) 55%, var(--paper));
+  --sh-hover: color-mix(in oklab, var(--forest-soft) 70%, transparent);
+  --sh-active: var(--forest-soft);
+  --sh-faint: color-mix(in oklab, var(--muted) 72%, var(--paper));
+  --sh-hero-bg: color-mix(in oklab, var(--forest-soft) 45%, var(--paper));
+}
+
+.sh-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sh-icon {
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Layout.
+   -------------------------------------------------------------------------- */
+
+.sh-app {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.sh-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The floating menu button needs a strip of its own on a narrow screen. */
+@media (max-width: 1023px) {
+  .sh-main {
+    padding-top: 52px;
+  }
+}
+
+.sh-fab {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 8%);
+}
+
+.sh-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--scrim);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar.
+   -------------------------------------------------------------------------- */
+
+.sh-sidebar {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  width: var(--sh-sidebar-width);
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  background: var(--sh-sidebar-bg);
+  color: var(--ink);
+  transition: width 180ms ease-out;
+}
+
+.sh-sidebar.is-rail {
+  width: var(--sh-rail-width);
+  overflow: visible;
+}
+
+@media (max-width: 1023px) {
+  .sh-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(300px, 86vw);
+    visibility: hidden;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow);
+    transition:
+      transform 200ms ease-out,
+      visibility 200ms;
+  }
+  .sh-sidebar.is-open {
+    visibility: visible;
+    transform: none;
+  }
+}
+
+.sh-full {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: var(--sh-sidebar-width);
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 1023px) {
+  .sh-full {
+    min-width: 0;
+  }
+}
+
+.sh-top {
+  padding: 22px 14px 0;
+}
+
+.sh-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 22px 4px;
+}
+
+.sh-brand {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  border-radius: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sh-brand-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
+.sh-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sh-brand-name {
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-brand small {
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sh-icon-button {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: none;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+.sh-icon-button:hover,
+.sh-icon-button.is-active {
+  background: var(--sh-hover);
+  color: var(--forest);
+}
+
+.sh-icon-button.is-active {
+  background: var(--sh-active);
+}
+
+.sh-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+  transition: border-color 120ms;
+}
+
+.sh-search-trigger:hover {
+  border-color: var(--strong-line);
+  color: var(--ink);
+}
+
+.sh-search-trigger span {
+  flex: 1;
+}
+
+.sh-search-trigger kbd {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--sh-sidebar-bg);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sh-primary-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 18px;
+}
+
+.sh-primary-nav > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sh-primary-nav > a:hover {
+  background: var(--sh-hover);
+  color: var(--ink);
+}
+
+.sh-primary-nav > a.is-active {
+  background: var(--sh-active);
+  color: var(--forest);
+}
+
+.sh-nav-label {
+  flex: 1;
+}
+
+.sh-nav-count {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--sh-active);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.sh-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 10px 14px;
+}
+
+.sh-divider {
+  margin: 18px 6px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.sh-label {
+  margin: 0 8px 12px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sh-module + .sh-module {
+  margin-top: 2px;
+}
+
+.sh-module-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.sh-module-title:hover {
+  background: var(--sh-hover);
+}
+
+.sh-module-number {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent-ink);
+}
+
+.sh-module-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.sh-module-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-module-count.is-done {
+  color: var(--forest);
+}
+
+.sh-module-chevron {
+  align-self: center;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 150ms;
+}
+
+.sh-module.is-open .sh-module-chevron {
+  transform: none;
+}
+
+.sh-lessons {
+  margin: 2px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.sh-lesson {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.sh-lesson:hover {
+  background: var(--sh-hover);
+  color: var(--ink);
+}
+
+.sh-lesson.is-active {
+  background: var(--sh-active);
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.sh-lesson-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 14px;
+  height: 18px;
+}
+
+.sh-lesson-number {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding-top: 1px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--sh-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-lesson.is-active .sh-lesson-number {
+  color: var(--forest);
+}
+
+.sh-lesson-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sh-dot {
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--strong-line);
+  border-radius: 50%;
+}
+
+.sh-dot.is-done {
+  border-color: var(--forest);
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.sh-bottom {
+  padding: 14px 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.sh-progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.sh-progress-label strong {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--forest);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-progress-track {
+  height: 4px;
+  margin: 9px 0 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--line) 80%, var(--paper));
+}
+
+.sh-progress-track > div {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--forest);
+  transition: width 300ms;
+}
+
+.sh-progress-caption {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.sh-utilities {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+
+.sh-utility {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sh-utility:hover {
+  background: var(--sh-hover);
+  color: var(--forest);
+}
+
+.sh-utility-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.sh-utility small {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--sh-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in oklab, var(--forest) 30%, var(--line));
+  border-radius: 999px;
+  background: var(--forest-soft);
+  color: var(--forest);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sh-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--forest);
+}
+
+/* Status tones. "alert" is for something left running that costs money. */
+.sh-status.is-alert {
+  border-color: color-mix(in oklab, var(--error) 35%, var(--line));
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.sh-status.is-neutral {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.is-alert .sh-status-dot {
+  background: var(--error);
+  animation: sh-pulse 1.6s ease-in-out infinite;
+}
+
+.is-neutral .sh-status-dot {
+  background: var(--muted);
+}
+
+@keyframes sh-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-alert .sh-status-dot {
+    animation: none;
+  }
+}
+
+.sh-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sh-theme-switch {
+  display: flex;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.sh-theme-switch button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.sh-theme-switch button:hover {
+  color: var(--ink);
+}
+
+.sh-theme-switch button[aria-checked="true"] {
+  background: var(--sh-active);
+  color: var(--forest);
+}
+
+.sh-pop-root {
+  position: relative;
+}
+
+.sh-account {
+  min-width: 0;
+}
+
+.sh-account-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 8px 3px 3px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.sh-account-button:hover {
+  background: var(--sh-hover);
+}
+
+.sh-account.is-compact .sh-account-button {
+  padding: 3px;
+}
+
+.sh-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--forest-soft);
+  color: var(--forest);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sh-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-popover.sh-account-menu {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: 210px;
+}
+
+.sh-account.is-compact .sh-popover.sh-account-menu {
+  bottom: 0;
+  left: calc(100% + 10px);
+}
+
+/* The icon rail. */
+.sh-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 18px 0 12px;
+}
+
+.sh-rail-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-radius: 7px;
+}
+
+.sh-rail-divider {
+  width: 24px;
+  margin: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.sh-rail-spacer {
+  flex: 1;
+}
+
+.sh-rail-progress {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 4px;
+  height: 44px;
+  margin: 4px 0 8px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--line) 80%, var(--paper));
+}
+
+.sh-rail-progress > span {
+  width: 100%;
+  border-radius: 4px;
+  background: var(--forest);
+}
+
+.sh-rail-status .sh-status-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+
+/* Tooltips: the rail's point right, the toolbar's hang below. */
+.sh-rail [data-tip]:hover::after,
+.sh-rail [data-tip]:focus-visible::after,
+.sh-tb [data-tip]:hover::after,
+.sh-tb [data-tip]:focus-visible::after,
+.sh-theme-switch [data-tip]:hover::after,
+.sh-brand-row [data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 60;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sh-rail [data-tip]:hover::after,
+.sh-rail [data-tip]:focus-visible::after {
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+.sh-tb [data-tip]:hover::after,
+.sh-tb [data-tip]:focus-visible::after {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.sh-tb [aria-expanded="true"][data-tip]::after {
+  display: none;
+}
+
+.sh-tb > [data-tip]:hover::after,
+.sh-tb > [data-tip]:focus-visible::after {
+  right: auto;
+  left: 0;
+}
+
+.sh-theme-switch [data-tip]:hover::after {
+  right: 0;
+  bottom: calc(100% + 6px);
+}
+
+.sh-brand-row [data-tip]:hover::after {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Popovers and menus, shared by the sidebar and the editor.
+   -------------------------------------------------------------------------- */
+
+.sh-popover {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  right: 0;
+  padding: 6px;
+  border: 1px solid var(--strong-line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  animation: sh-fade 120ms ease-out;
+}
+
+.sh-popover-start {
+  right: auto;
+  left: 0;
+}
+
+.sh-menu {
+  min-width: 190px;
+}
+
+.sh-menu-note {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sh-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.sh-menu-item:hover {
+  background: var(--forest-soft);
+  color: var(--forest);
+}
+
+.sh-menu-item[aria-checked="true"] {
+  color: var(--forest);
+  font-weight: 600;
+}
+
+@keyframes sh-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Search dialog.
+   -------------------------------------------------------------------------- */
+
+.sh-search {
+  width: 600px;
+  max-width: calc(100% - 24px);
+  max-height: 85vh;
+  margin: 10vh auto auto;
+  padding: 24px;
+  border: 1px solid var(--strong-line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 100px rgb(20 40 30 / 22%);
+}
+
+.sh-search[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.sh-search::backdrop {
+  background: color-mix(in oklab, var(--scrim) 85%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.sh-search-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.sh-search-heading h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.sh-search-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--strong-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.sh-search-input:focus-within {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+}
+
+.sh-search-input input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  /* 16px stops iOS Safari from zooming into the field. */
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  .sh-search-input input {
+    font-size: 14px;
+  }
+}
+
+.sh-search-input input::placeholder {
+  color: var(--sh-faint);
+}
+
+.sh-search-input input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.sh-search-results {
+  min-height: 0;
+  max-height: 50vh;
+  margin-top: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sh-search-results ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sh-search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sh-search-result:hover,
+.sh-search-result[aria-selected="true"] {
+  background: var(--forest-soft);
+}
+
+.sh-search-result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sh-search-result small {
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+}
+
+.sh-search-result strong {
+  margin-bottom: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sh-search-result-text > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.sh-search-result-text em {
+  font-style: normal;
+  color: var(--ink);
+}
+
+.sh-search-result mark {
+  border-radius: 2px;
+  background: var(--accent-soft);
+  color: inherit;
+}
+
+.sh-search-result > .sh-icon {
+  color: var(--muted);
+}
+
+.sh-search-result[aria-selected="true"] > .sh-icon {
+  color: var(--forest);
+}
+
+.sh-search-empty {
+  margin: 0;
+  padding: 18px 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.sh-search-hint {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  color: var(--sh-faint);
+}
+
+@media (max-width: 560px) {
+  .sh-search {
+    margin-top: 12px;
+    padding: 18px;
+  }
+  .sh-search-heading h2 {
+    font-size: 23px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Overview page.
+   -------------------------------------------------------------------------- */
+
+.sh-page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  container-type: inline-size;
+}
+
+.sh-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 48px 64px;
+}
+
+@container (max-width: 760px) {
+  .sh-page {
+    padding: 22px 16px 48px;
+  }
+}
+
+.sh-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.sh-eyebrow-line {
+  width: 42px;
+  height: 1px;
+  background: var(--strong-line);
+}
+
+.sh-kicker {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.sh-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+  padding: 36px 36px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sh-hero-bg);
+}
+
+@container (max-width: 860px) {
+  .sh-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 26px 22px;
+  }
+}
+
+.sh-hero-pill {
+  display: inline-flex;
+  padding: 5px 11px;
+  border: 1px solid color-mix(in oklab, var(--forest) 22%, var(--line));
+  border-radius: 999px;
+  background: var(--forest-soft);
+  font-size: 11.5px;
+  color: var(--forest);
+}
+
+.sh-hero h1 {
+  margin: 18px 0 16px;
+  font-family: var(--serif);
+  font-size: clamp(34px, 4.4vw, 56px);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.sh-hero h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--forest);
+}
+
+.sh-hero-copy > p {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.sh-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.sh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 17px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+.sh-button-primary {
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.sh-button-primary:hover {
+  background: color-mix(in oklab, var(--forest) 85%, var(--ink));
+  transform: translateY(-1px);
+}
+
+.sh-button-secondary {
+  border-color: var(--strong-line);
+  background: var(--surface);
+  color: var(--forest);
+}
+
+.sh-button-secondary:hover {
+  background: var(--forest-soft);
+}
+
+.sh-hero-actions .sh-button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.sh-hero-side {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.sh-hero-side-detail {
+  margin: 9px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sh-next-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 16px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 150ms,
+    background-color 150ms;
+}
+
+.sh-next-card:hover {
+  border-color: var(--forest);
+  background: var(--forest-soft);
+}
+
+.sh-next-card small {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.sh-next-card strong {
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.sh-next-card > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.sh-next-card em {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--forest);
+}
+
+.sh-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 22px 4px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sh-facts > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.sh-facts .sh-icon {
+  margin-right: 3px;
+  color: var(--forest);
+}
+
+.sh-facts strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sh-block {
+  margin-top: 8px;
+}
+
+.sh-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 32px 0 18px;
+}
+
+.sh-section-heading h2 {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.sh-section-aside {
+  padding-bottom: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sh-module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+@container (max-width: 760px) {
+  .sh-module-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sh-module-card {
+  padding: 22px 24px 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 200ms;
+}
+
+.sh-module-card:hover {
+  border-color: var(--strong-line);
+}
+
+.sh-module-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sh-module-card-number {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--forest-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--forest);
+}
+
+.sh-module-card-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.sh-module-card-count,
+.sh-module-card-done {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-module-card-done {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--forest);
+}
+
+.sh-module-card h3 {
+  margin: 16px 0 6px;
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.sh-module-card > p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.sh-module-card-progress {
+  height: 3px;
+  margin: 12px 0 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--line) 70%, var(--paper));
+}
+
+.sh-module-card-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--forest);
+}
+
+.sh-module-card-lessons > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-bottom: 1px solid color-mix(in oklab, var(--line) 60%, var(--surface));
+  color: var(--ink);
+  font-size: 13.5px;
+  text-decoration: none;
+}
+
+.sh-module-card-lessons > a:last-child {
+  border-bottom: 0;
+}
+
+.sh-module-card-lessons > a:hover {
+  color: var(--forest);
+}
+
+.sh-module-card-lessons > a > .sh-icon {
+  margin-left: auto;
+  color: var(--sh-faint);
+}
+
+.sh-card-index {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center start;
+  min-width: 22px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--sh-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-card-index.is-done {
+  color: var(--forest);
+}
+
+.sh-card-title {
+  min-width: 0;
+  padding: 9px 0;
+  line-height: 1.35;
+}
+
+.sh-card-tag {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.sh-card-tag + .sh-icon {
+  margin-left: 0 !important;
+}
+
+.sh-card-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--forest);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.sh-card-more:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sh-list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.sh-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.sh-list a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 18px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sh-list a:hover {
+  background: var(--forest-soft);
+}
+
+.sh-list a > .sh-icon {
+  color: var(--sh-faint);
+}
+
+.sh-list-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sh-list-text small {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+}
+
+.sh-list-text strong {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sh-list-text > span {
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Editor toolbar. It sits inside the editor pane, which may remap the
+   tokens to the code slab, so it reads the base tokens only.
+   -------------------------------------------------------------------------- */
+
+.sh-tb-wrap {
+  flex-shrink: 0;
+  container-type: inline-size;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.sh-tb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 6px;
+}
+
+.sh-tb-title-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sh-tb-title {
+  min-width: 0;
+  margin: 0 0 0 4px;
+  overflow: hidden;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-tb-meta {
+  flex-shrink: 0;
+  margin-left: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sh-tb-status {
+  flex-shrink: 0;
+  margin-right: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sh-tb-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+}
+
+.sh-tb-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.sh-tb-icon {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+.sh-tb-icon:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sh-tb-icon[aria-pressed="true"],
+.sh-tb-icon[aria-expanded="true"] {
+  background: var(--forest-soft);
+  color: var(--forest);
+}
+
+.sh-tb-icon:disabled {
+  opacity: 0.45;
+}
+
+.sh-tb-info {
+  width: 26px;
+  height: 26px;
+}
+
+.sh-tb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--strong-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--forest);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.sh-tb-btn:hover:not(:disabled) {
+  border-color: var(--forest);
+  background: var(--forest-soft);
+}
+
+.sh-tb-btn:disabled {
+  opacity: 0.5;
+}
+
+.sh-tb-primary {
+  border-color: var(--forest);
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.sh-tb-primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--forest) 85%, var(--ink));
+}
+
+.sh-tb-stop {
+  border-color: color-mix(in oklab, var(--error) 50%, var(--line));
+  color: var(--error);
+}
+
+.sh-tb-stop:hover:not(:disabled) {
+  border-color: var(--error);
+  background: var(--error-soft);
+}
+
+.sh-tb-more {
+  display: none;
+}
+
+@container (max-width: 620px) {
+  .sh-tb-meta {
+    display: none;
+  }
+}
+
+@container (max-width: 560px) {
+  .sh-tb-low {
+    display: none;
+  }
+  .sh-tb-more {
+    display: block;
+  }
+  .sh-tb-status {
+    display: none;
+  }
+}
+
+@container (max-width: 440px) {
+  .sh-tb-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .sh-tb-btn {
+    padding: 0 8px;
+  }
+}
+
+.sh-tb-info-pop {
+  width: min(380px, 80vw);
+  padding: 12px 14px;
+}
+
+.sh-tb-info-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.sh-tb-panel {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  max-height: 42%;
+  min-height: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  animation: sh-fade 120ms ease-out;
+}
+
+.sh-tb-panel-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 4px 0 12px;
+}
+
+.sh-tb-panel-title {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sh-tb-panel-body {
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.sh-editor-rail {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 40px;
+  padding: 12px 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+.sh-editor-rail:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sh-editor-rail-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+
+/* The light paper look of the editor pane. Add it beside the kit's
+   `code-light` class, which swaps the code-slab tokens. */
+.sh-slab-paper {
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   Editor settings.
+   -------------------------------------------------------------------------- */
+
+.sh-settings {
+  width: 280px;
+  padding: 12px 14px 10px;
+}
+
+.sh-settings-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sh-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+fieldset.sh-field {
+  display: block;
+}
+
+.sh-field legend,
+.sh-field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+fieldset.sh-field legend {
+  float: left;
+  margin-bottom: 8px;
+}
+
+fieldset.sh-field .sh-segmented {
+  clear: both;
+}
+
+.sh-field-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.sh-segmented {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+
+.sh-segmented button {
+  flex: 1;
+  height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sh-segmented button:hover {
+  color: var(--ink);
+}
+
+.sh-segmented button[aria-checked="true"] {
+  background: var(--forest-soft);
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.sh-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+
+.sh-stepper button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.sh-stepper button:hover:not(:disabled) {
+  color: var(--forest);
+}
+
+.sh-stepper button:disabled {
+  opacity: 0.4;
+}
+
+.sh-stepper output {
+  min-width: 42px;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-select {
+  max-width: 160px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.sh-switch-row {
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.sh-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  margin: 2px 0 0;
+  border-radius: 999px;
+  background: var(--strong-line);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.sh-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--paper);
+  transition: transform 150ms;
+}
+
+.sh-switch:checked {
+  background: var(--forest);
+}
+
+.sh-switch:checked::after {
+  transform: translateX(14px);
+}
+
+.sh-settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.sh-settings-foot kbd {
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.sh-link-button {
+  border: 0;
+  background: none;
+  color: var(--forest);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sh-link-button:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Output panel and Vim status line.
+   -------------------------------------------------------------------------- */
+
+.sh-out {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sh-out:not(.is-collapsed) {
+  flex: 1;
+}
+
+.sh-out-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sh-out-body[hidden] {
+  display: none;
+}
+
+.sh-out-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px 0 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+
+.sh-out-head:hover {
+  background: var(--surface);
+}
+
+.sh-out-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.sh-out-detail,
+.sh-out-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sh-out-spacer {
+  flex: 1;
+}
+
+.sh-out-status {
+  overflow: hidden;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-out-chevron {
+  color: var(--muted);
+}
+
+.sh-spin {
+  animation: sh-spin 900ms linear infinite;
+}
+
+@keyframes sh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sh-vim-status {
+  flex-shrink: 0;
+  min-height: 24px;
+  padding: 3px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+}
+
+.sh-vim-status input {
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-sidebar,
+  .sh-popover,
+  .sh-tb-panel,
+  .sh-progress-track > div,
+  .sh-button {
+    animation: none;
+    transition: none;
+  }
+}

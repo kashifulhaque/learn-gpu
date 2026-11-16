@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -14,6 +16,20 @@ const devSso =
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: [
+      // monaco-vim imports Monaco by its pre-0.50 path
+      // (monaco-editor/esm/vs/...). Monaco 0.56 exports that tree at
+      // monaco-editor/..., so point the old path there and keep one instance.
+      { find: /^monaco-editor\/esm\/vs\/(.*)$/, replacement: "monaco-editor/$1" },
+      // Its "browser" export is a UMD build that bundles a copy of Monaco
+      // 0.33 internals. Use the ES module build, which imports Monaco.
+      {
+        find: /^monaco-vim$/,
+        replacement: fileURLToPath(new URL("./node_modules/monaco-vim/dist/index.mjs", import.meta.url)),
+      },
+    ],
+  },
   server: {
     port: 5173,
     proxy: {

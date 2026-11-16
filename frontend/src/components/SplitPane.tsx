@@ -20,6 +20,13 @@ type Props = {
   second: ReactNode;
   className?: string;
   label?: string;
+  /**
+   * Fold the second pane away and give the first the whole space. The second
+   * pane stays mounted, hidden, so it keeps its state, and `rail` takes its
+   * place as a slim strip that brings it back.
+   */
+  collapsed?: boolean;
+  rail?: ReactNode;
 };
 
 function remembered(key: string, fallback: number): number {
@@ -47,6 +54,8 @@ export default function SplitPane({
   second,
   className = "",
   label = "Resize the panes",
+  collapsed = false,
+  rail,
 }: Props) {
   const [size, setSize] = useState(() => remembered(storageKey, initial));
   const [dragging, setDragging] = useState(false);
@@ -101,16 +110,21 @@ export default function SplitPane({
     setSize((current) => Math.min(max, Math.max(min, current + delta)));
   }
 
-  const firstStyle: CSSProperties = row
-    ? { width: `${size}%` }
-    : { height: `${size}%` };
+  const firstStyle: CSSProperties | undefined = collapsed
+    ? undefined
+    : row
+      ? { width: `${size}%` }
+      : { height: `${size}%` };
 
   return (
     <div
       ref={container}
       className={`flex min-h-0 min-w-0 ${row ? "flex-row" : "flex-col"} ${className}`}
     >
-      <div className="flex min-h-0 min-w-0 flex-col" style={firstStyle}>
+      <div
+        className={`flex min-h-0 min-w-0 flex-col ${collapsed ? "flex-1" : ""}`}
+        style={firstStyle}
+      >
         {first}
       </div>
 
@@ -121,7 +135,8 @@ export default function SplitPane({
         aria-valuenow={Math.round(size)}
         aria-valuemin={min}
         aria-valuemax={max}
-        tabIndex={0}
+        tabIndex={collapsed ? -1 : 0}
+        aria-hidden={collapsed || undefined}
         onPointerDown={(event) => {
           event.preventDefault();
           // A touch drag that leaves the hairline otherwise stops reporting.
@@ -141,7 +156,7 @@ export default function SplitPane({
         // Without this the browser reads a drag along the divider as a page
         // scroll and the pane never resizes on a touch screen.
         style={{ touchAction: "none" }}
-        className={`group relative shrink-0 transition-colors ${
+        className={`group relative shrink-0 transition-colors ${collapsed ? "hidden" : ""} ${
           row ? "w-px cursor-col-resize" : "h-px cursor-row-resize"
         } ${dragging ? "bg-accent" : "bg-line hover:bg-accent/50"}`}
       >
@@ -165,7 +180,9 @@ export default function SplitPane({
         />
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{second}</div>
+      <div className={collapsed ? "hidden" : "flex min-h-0 min-w-0 flex-1 flex-col"}>{second}</div>
+
+      {collapsed && rail}
     </div>
   );
 }

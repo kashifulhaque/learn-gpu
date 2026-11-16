@@ -3,6 +3,9 @@
 @import "./ui/tokens.css";
 @import "./ui/type.css";
 @import "./ui/components.css";
+/* The app shell: sidebar, search, overview, and editor chrome. Not synced
+   from the kit; see src/ui/SHELL.md. */
+@import "./ui/shell.css";
 
 /* Theme ---------------------------------------------------------------------
 
@@ -83,6 +86,13 @@
   --bad: var(--slab-bad);
   --warn: var(--hl-keyword);
   --info: var(--hl-builtin);
+  /* The kit names the shell's editor chrome reads (src/ui/shell.css). */
+  --surface: var(--code-active-line);
+  --surface-muted: var(--code-active-line);
+  --muted: var(--code-muted);
+  --strong-line: var(--code-button-line);
+  --error: var(--code-error);
+  --error-soft: color-mix(in oklab, var(--code-error) 14%, var(--code-bg));
   color: var(--code-ink);
   background: var(--paper);
   color-scheme: dark;

@@ -7,7 +7,7 @@
 // backend sends, so the real stream parser in lib/api.ts reads them.
 //
 // Query parameters: `?theme=dark` or `?theme=light` pins a theme, and
-// `?tab=checks` (or hints, solution) opens that tab once the run finishes.
+// `?panel=hints` (or solution) opens that panel once the run finishes.
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -125,17 +125,17 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 
-// Press Run once the providers have loaded, then open the requested tab.
-const tab = params.get("tab") ?? "console";
+// Press Run once the providers have loaded (the provider select appears),
+// then open the requested panel.
+const panel = params.get("panel");
 const timer = window.setInterval(() => {
-  const run = document.querySelector<HTMLButtonElement>('button[title^="Run on the GPU"]');
-  if (!run || run.disabled) return;
+  const run = document.querySelector<HTMLButtonElement>('.sh-tb-btn[aria-label="Run"]');
+  if (!run || run.disabled || !document.querySelector('select[aria-label="GPU provider"]')) return;
   window.clearInterval(timer);
   run.click();
+  if (!panel) return;
   window.setTimeout(() => {
-    const target = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-      (button) => button.textContent?.toLowerCase().startsWith(tab),
-    );
-    target?.click();
+    const label = panel === "solution" ? "Show the solution" : "Show a hint";
+    document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)?.click();
   }, 1500);
 }, 100);

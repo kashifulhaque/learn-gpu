@@ -233,6 +233,27 @@ def test_mcp_ignores_sso_headers(client, course_content):
     assert not error and progress["reader"] == "other"
 
 
+def test_hub_secret_acts_as_the_named_reader(client, course_content, monkeypatch):
+    from backend.app.config import get_settings
+
+    hub = {"X-MCP-Hub-Secret": "hub-secret", "X-MCP-Hub-User": "Portal"}
+
+    # Off by default: without MCP_HUB_SECRET the headers grant nothing.
+    assert rpc(client, None, "ping", extra=hub).status_code == 401
+
+    monkeypatch.setenv("MCP_HUB_SECRET", "hub-secret")
+    monkeypatch.setenv("SSO_USERS", "portal:reader")
+    get_settings.cache_clear()
+    wrong = {**hub, "X-MCP-Hub-Secret": "guess"}
+    assert rpc(client, None, "ping", extra=wrong).status_code == 401
+    no_user = {"X-MCP-Hub-Secret": "hub-secret"}
+    assert rpc(client, None, "ping", extra=no_user).status_code == 401
+
+    error, progress = call(client, None, "get_progress", extra=hub)
+    # The Authelia name maps through SSO_USERS, as a browser session does.
+    assert not error and progress["reader"] == "reader"
+
+
 def test_well_known_and_mcp_subpaths_are_not_found(content, tmp_path, monkeypatch):
     """The SPA catch-all answers 404, not index.html, where an MCP client probes."""
     import importlib

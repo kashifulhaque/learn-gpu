@@ -30,6 +30,8 @@ gpu.ifkash.dev {
 		reverse_proxy learn-gpu:8000 {
 			header_up -Remote-User
 			header_up -X-SSO-Proxy
+			header_up -X-MCP-Hub-Secret
+			header_up -X-MCP-Hub-User
 			flush_interval -1
 			transport http {
 				response_header_timeout 30m

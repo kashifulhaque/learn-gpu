@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # The MCP endpoint's public URL, shown on the Agent access page with the
     # client setup. Empty derives it from the request, as `<base URL>/mcp`.
     mcp_public_url: str = ""
+    # Shared with the MCP hub at mcp.ifkash.dev, which calls /mcp over the
+    # internal Docker network with this secret and the reader's Authelia name.
+    # Empty turns hub access off.
+    mcp_hub_secret: str = ""
 
     # App
     data_dir: Path = REPO_ROOT / "data"

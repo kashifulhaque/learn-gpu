@@ -15,6 +15,7 @@ that `auth.current_user` trusts are never read here, because Caddy routes
 from __future__ import annotations
 
 import functools
+import hmac
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -976,8 +977,30 @@ class _Endpoint:
         await _serve(scope, receive, send)
 
 
+def _hub_user(headers: Headers) -> str | None:
+    """The reader the MCP hub vouches for, or None without a valid hub secret.
+
+    The hub sends its shared secret and the reader's Authelia username. The
+    username maps through SSO_USERS, as a signed-in browser session does.
+    Caddy strips both headers from public requests to /mcp.
+    """
+    settings = get_settings()
+    secret = settings.mcp_hub_secret
+    sent = headers.get("x-mcp-hub-secret", "")
+    name = headers.get("x-mcp-hub-user", "").strip()
+    if not secret or not sent or not name:
+        return None
+    if not hmac.compare_digest(sent.encode(), secret.encode()):
+        return None
+    return settings.sso_names.get(name.lower(), name)
+
+
 async def _serve(scope: Scope, receive: Receive, send: Send) -> None:
     headers = Headers(scope=scope)
+    hub_user = _hub_user(headers)
+    if hub_user is not None:
+        await _dispatch(hub_user, scope, receive, send)
+        return
     scheme, _, token = headers.get("authorization", "").partition(" ")
     token = token.strip()
     if scheme.lower() != "bearer" or not token:
@@ -989,6 +1012,10 @@ async def _serve(scope: Scope, receive: Receive, send: Send) -> None:
         response = _unauthorized("invalid_token", "The token is unknown or revoked.")
         await response(scope, receive, send)
         return
+    await _dispatch(user, scope, receive, send)
+
+
+async def _dispatch(user: str, scope: Scope, receive: Receive, send: Send) -> None:
     if _manager is None:
         response = JSONResponse({"error": "The MCP server isn't running."}, status_code=503)
         await response(scope, receive, send)

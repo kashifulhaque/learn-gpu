@@ -2,25 +2,38 @@
 
 Private API routes and the PDF book require a verified identity from the trusted
 reverse proxy. `/api/health` and `/api/me` remain public for health and auth checks.
+The MCP server at `/mcp` is the exception: it ignores the proxy identity and takes
+a bearer token.
 """
 
-import asyncio
 import json
 import os
-import time
-from typing import Any
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import curriculum, db, decks, infra
+from . import course, curriculum, db, decks, infra, mcp_server, mcp_tokens
 from .auth import current_user, sso_user
 from .config import Settings, get_settings
-from .providers import OutOfCredits, ProviderError, get_provider, provider_status
+from .providers import ProviderError, provider_status
+from .runs import start_run
 
-app = FastAPI(title="learn-gpu", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    db.init_db()
+    # Read the slide decks now, so a bad one is logged at startup rather than
+    # on the first deck someone opens.
+    decks.load_decks()
+    async with mcp_server.lifespan():
+        yield
+
+
+app = FastAPI(title="learn-gpu", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
 # The hub at this origin reads the progress summary from the browser.
@@ -42,14 +55,6 @@ async def hub_cors(request: Request, call_next: Any) -> Any:
             response.headers["Access-Control-Allow-Origin"] = HUB_ORIGIN
             response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    db.init_db()
-    # Read the slide decks now, so a bad one is logged at startup rather than
-    # on the first deck someone opens.
-    decks.load_decks()
 
 
 # --- schemas ----------------------------------------------------------------
@@ -74,6 +79,10 @@ class RunBody(BaseModel):
     lab: str
     code: str
     provider: str | None = None
+
+
+class TokenBody(BaseModel):
+    name: str = Field(min_length=1, max_length=mcp_tokens.MAX_NAME_LENGTH)
 
 
 class ActionBody(BaseModel):
@@ -176,40 +185,14 @@ def lab_solution(lab_id: str, user: str = Depends(current_user)) -> dict[str, st
     return {"solution": found["solution"]}
 
 
-def book_info(settings: Settings, manifest: str = "manifest.json") -> dict[str, Any] | None:
-    """A PDF on disk, as its build's manifest describes it.
-
-    Two PDFs can sit in `book/`: the course book (`manifest.json`) and the
-    slide decks (`slides-manifest.json`). The Docker build prints both and
-    copies them into the image, so a fresh checkout that hasn't run the build
-    scripts has neither. Then this is None and the sidebar shows no download
-    link, rather than one that leads to a 404.
-    """
-    try:
-        data = json.loads((settings.book_dir / manifest).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    name = data.get("file")
-    if not isinstance(name, str) or "/" in name or not (settings.book_dir / name).is_file():
-        return None
-    return {
-        "title": data.get("title"),
-        "pages": data.get("pages"),
-        "bytes": data.get("bytes"),
-        "built": data.get("built"),
-        "commit": data.get("commit"),
-        "url": f"/book/{name}",
-    }
-
-
 @app.get("/api/book")
 def book(
     user: str = Depends(current_user), settings: Settings = Depends(get_settings)
 ) -> dict[str, Any]:
     """The course book and the slide deck PDF; either is None when this server has no PDF."""
     return {
-        "book": book_info(settings),
-        "slides": book_info(settings, "slides-manifest.json"),
+        "book": course.book_info(settings),
+        "slides": course.book_info(settings, "slides-manifest.json"),
     }
 
 
@@ -219,7 +202,7 @@ def book_file(
 ) -> FileResponse:
     """A PDF, sent as a download. Only a file a manifest names is served."""
     for manifest in ("manifest.json", "slides-manifest.json"):
-        info = book_info(settings, manifest)
+        info = course.book_info(settings, manifest)
         if info is not None and info["url"] == f"/book/{name}":
             return FileResponse(settings.book_dir / name, media_type="application/pdf", filename=name)
     raise HTTPException(status_code=404, detail="No such book")
@@ -237,14 +220,7 @@ def set_progress(body: ProgressBody, user: str = Depends(current_user)) -> dict[
 @app.get("/api/progress/summary")
 def progress_summary(user: str = Depends(current_user)) -> dict[str, Any]:
     """How far the user is through the course, for the hub."""
-    titles = {c["slug"]: c["title"] for c in curriculum.chapter_list()}
-    rows = [r for r in db.get_progress_rows(user) if r["chapter"] in titles]
-    last = rows[0] if rows else None  # Rows arrive newest first.
-    return {
-        "done": sum(1 for r in rows if r["status"] == "done"),
-        "total": len(titles),
-        "last": {"slug": last["chapter"], "title": titles[last["chapter"]]} if last else None,
-    }
+    return course.progress_summary(user)
 
 
 @app.post("/api/drafts")
@@ -310,88 +286,62 @@ def _sse(event: dict[str, Any]) -> str:
 
 @app.post("/api/run")
 async def run_lab(body: RunBody, user: str = Depends(current_user)) -> StreamingResponse:
-    lab = curriculum.get_lab(body.lab)
-    if not lab:
+    started = start_run(user, body.lab, body.code, body.provider)
+    if started is None:
         raise HTTPException(status_code=404, detail="No such lab")
 
-    db.save_draft(user, body.lab, body.code)
-    provider = get_provider(body.provider)
-    run_id = db.create_run(user, body.lab, provider.name)
-
     async def stream() -> Any:
-        log_lines: list[str] = []
-        result: dict[str, Any] | None = None
-        stream_error: str | None = None
-        started = time.time()
-        yield _sse({"type": "start", "run_id": run_id, "provider": provider.name})
-        try:
-            async for event in provider.run_lab(
-                lab_id=body.lab,
-                code=body.code,
-                gpu=lab["gpu"],
-                timeout=lab["timeout"],
-                gpus=int(lab.get("gpus") or 1),
-            ):
-                kind = event.get("type")
-                if kind == "job":
-                    # The provider's own id for this job. Recorded so the
-                    # compute panel can cancel a run whose tab has gone away.
-                    db.set_run_job(run_id, event.get("job_id", ""))
-                    continue
-                if kind == "log":
-                    log_lines.append(event.get("line", ""))
-                elif kind == "result":
-                    result = event
-                elif kind == "error":
-                    # The provider reports failures as events rather than
-                    # exceptions, so record them as errors, not as a failed run.
-                    stream_error = event.get("message", "")
-                yield _sse(event)
-
-            passed = bool(result.get("passed")) if result else False
-            metrics = result.get("metrics", {}) if result else {}
-            db.finish_run(
-                run_id,
-                status="error" if stream_error else "finished",
-                passed=None if stream_error else passed,
-                metrics=metrics,
-                log="\n".join(log_lines),
-                error=stream_error,
-            )
-            if stream_error:
-                return
-            yield _sse(
-                {
-                    "type": "done",
-                    "run_id": run_id,
-                    "passed": passed,
-                    "seconds": round(time.time() - started, 2),
-                }
-            )
-        except OutOfCredits as exc:
-            db.finish_run(
-                run_id, status="out_of_credits", log="\n".join(log_lines), error=str(exc)
-            )
-            hint = f"{provider.name} is out of credit. Add credit, then run again."
-            yield _sse(
-                {
-                    "type": "out_of_credits",
-                    "provider": provider.name,
-                    "message": str(exc),
-                    "hint": hint,
-                }
-            )
-        except (ProviderError, Exception) as exc:  # noqa: BLE001
-            db.finish_run(
-                run_id, status="error", log="\n".join(log_lines), error=str(exc)
-            )
-            yield _sse({"type": "error", "message": str(exc)})
+        async for event in started.events:
+            yield _sse(event)
 
     return StreamingResponse(
         stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# --- MCP --------------------------------------------------------------------
+
+
+def _token_view(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: record.get(key) for key in ("id", "name", "prefix", "created_at", "last_used_at")}
+
+
+@app.get("/api/mcp/tokens")
+def list_mcp_tokens(
+    request: Request,
+    user: str = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """The MCP endpoint's URL and the caller's active tokens, without secrets."""
+    url = settings.mcp_public_url or str(request.base_url).rstrip("/") + "/mcp"
+    return {"url": url, "tokens": [_token_view(t) for t in db.list_tokens(user)]}
+
+
+@app.post("/api/mcp/tokens")
+def create_mcp_token(body: TokenBody, user: str = Depends(current_user)) -> dict[str, Any]:
+    """Create a token for the caller. The response is the only copy of the secret."""
+    try:
+        record = mcp_tokens.create_token(user, body.name)
+    except mcp_tokens.TokenLimitError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {key: record[key] for key in ("id", "name", "prefix", "created_at", "token")}
+
+
+@app.delete("/api/mcp/tokens/{token_id}")
+def revoke_mcp_token(token_id: int, user: str = Depends(current_user)) -> dict[str, Any]:
+    if not db.revoke_token(token_id, username=user):
+        raise HTTPException(status_code=404, detail="No such token")
+    return {"revoked": True}
+
+
+# Both spellings are routes of their own, so neither redirects: MCP clients
+# don't follow a redirect on POST. They are registered before the SPA catch-all.
+app.router.add_route("/mcp", mcp_server.endpoint, include_in_schema=False)
+app.router.add_route("/mcp/", mcp_server.endpoint, include_in_schema=False)
 
 
 # --- health & static --------------------------------------------------------
@@ -404,7 +354,7 @@ def health(settings: Settings = Depends(get_settings)) -> dict[str, Any]:
         "chapters": len(curriculum.chapter_list()),
         # Set at build time from the commit being deployed.
         "commit": os.environ.get("GIT_SHA", "unknown"),
-        "book_pages": (book_info(settings) or {}).get("pages", 0),
+        "book_pages": (course.book_info(settings) or {}).get("pages", 0),
         "slides": len(decks.load_decks()),
     }
 
@@ -421,7 +371,9 @@ def _mount_frontend() -> None:
 
     @app.get("/{full_path:path}")
     def spa(full_path: str) -> Any:
-        if full_path.startswith("api/"):
+        # .well-known/ too: an MCP client probes it for OAuth metadata, and an
+        # HTML page with 200 there reads as a broken OAuth server.
+        if full_path.startswith(("api/", "mcp/", ".well-known/")):
             return JSONResponse({"detail": "Not found"}, status_code=404)
         candidate = dist / full_path
         if full_path and candidate.is_file():

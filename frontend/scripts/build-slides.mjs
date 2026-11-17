@@ -48,10 +48,32 @@ function fail(message) {
   process.exit(1);
 }
 
-function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+function run(command, args, cwd, env = {}) {
+  const result = spawnSync(command, args, { cwd, stdio: "inherit", env: { ...process.env, ...env } });
   if (result.status !== 0) fail(`${command} ${args.join(" ")} exited with ${result.status ?? result.signal}.`);
 }
+
+// The print layout's sources: src/slides/ and what it imports, not the whole
+// site. The Dockerfile's slides stage copies the same files; keep them in step.
+// The list is the import closure of src/slides/main.tsx, from esbuild's
+// metafile, plus the CSS that index.css imports and every figure that
+// components/viz/ registers with a glob. Type-only imports such as lib/api.ts
+// are erased by Vite, and the print build runs no tsc, so they don't count.
+const SLIDES_SOURCES = [
+  "frontend/src/slides",
+  "frontend/src/ui/components.css",
+  "frontend/src/ui/shell.css",
+  "frontend/src/ui/tokens.css",
+  "frontend/src/ui/type.css",
+  "frontend/src/index.css",
+  "frontend/src/components/DeckPrint.tsx",
+  "frontend/src/components/Markdown.tsx",
+  "frontend/src/components/MermaidBlock.tsx",
+  "frontend/src/components/SlideFrame.tsx",
+  "frontend/src/components/viz",
+  "frontend/src/lib/katexMacros.json",
+  "frontend/src/lib/markdownPlugins.ts",
+];
 
 function inputHash() {
   const hash = createHash("sha256");
@@ -73,7 +95,7 @@ function inputHash() {
     "backend/app/decks.py",
     "backend/app/curriculum.py",
     "scripts/dump_slides.py",
-    "frontend/src",
+    ...SLIDES_SOURCES,
     "frontend/slides.html",
     "frontend/vite.book.config.ts",
     "frontend/package-lock.json",
@@ -200,7 +222,7 @@ async function main() {
     console.log("There are no decks yet, so there is no slides PDF to build.");
     return;
   }
-  run(path.join(FRONTEND, "node_modules", ".bin", "vite"), ["build", "--config", "vite.book.config.ts", "--logLevel", "warn"], FRONTEND);
+  run(path.join(FRONTEND, "node_modules", ".bin", "vite"), ["build", "--config", "vite.book.config.ts", "--logLevel", "warn"], FRONTEND, { PRINT_ENTRY: "slides" });
 
   const root = path.join(FRONTEND, "dist-book");
   const server = await serve(root, data);

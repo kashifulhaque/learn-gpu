@@ -28,6 +28,10 @@ class Settings(BaseSettings):
             if sso.strip() and name.strip()
         }
 
+    # The MCP endpoint's public URL, shown on the Agent access page with the
+    # client setup. Empty derives it from the request, as `<base URL>/mcp`.
+    mcp_public_url: str = ""
+
     # App
     data_dir: Path = REPO_ROOT / "data"
     public_url: str = "http://localhost:8000"

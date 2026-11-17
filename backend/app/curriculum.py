@@ -92,6 +92,7 @@ def load_labs() -> dict[str, dict[str, Any]]:
             "timeout": meta.get("timeout", 900),
             "hints": meta.get("hints", []),
             "metrics": meta.get("metrics", []),
+            "directory": str(path),
             "starter": (path / "starter.py").read_text()
             if (path / "starter.py").is_file()
             else "",
@@ -117,8 +118,8 @@ def get_lab(lab_id: str) -> dict[str, Any] | None:
 
 
 def public_lab(lab: dict[str, Any]) -> dict[str, Any]:
-    """Lab payload for the client, with the solution withheld."""
-    return {k: v for k, v in lab.items() if k != "solution"}
+    """Lab payload for the client, with the solution and the server path withheld."""
+    return {k: v for k, v in lab.items() if k not in ("solution", "directory")}
 
 
 def reload_content() -> None:

@@ -21,7 +21,7 @@ that one touches.
 | `content/STYLE.md` | The chapter style guide, including the accuracy rules. |
 | `docs/` | The curriculum, the slide contract (`SLIDES.md`), and the lab contract (`LABS.md`). |
 | `gpu/` | The RunPod worker image and the lab runner it uses. |
-| `backend/` | FastAPI: auth, content, slides, progress, and the run stream. |
+| `backend/` | FastAPI: auth, content, slides, progress, the run stream, and the MCP server. |
 | `frontend/` | React and Vite: reader, editor, slides, dashboard, and compute panel. |
 | `scripts/` | Content checkers and the deploy script. |
 
@@ -212,7 +212,8 @@ docker compose up -d
 The container joins the external `edge` network and answers on port 8000, which
 is where a reverse proxy should send traffic. See
 [Caddyfile.example](Caddyfile.example) for a Caddy block that keeps server-sent
-events unbuffered, which the lab output stream needs. The compose file also
+events unbuffered, which the lab output stream needs, and that routes `/mcp`
+without Authelia. The compose file also
 publishes `127.0.0.1:8091`, so the app stays reachable through an SSH tunnel.
 
 To build the image locally, run `docker build -t learn-gpu:local .`. The build
@@ -230,6 +231,111 @@ The login screen redirects to the central portal and returns to the exact course
 URL. `SSO_USERS` can map portal usernames to existing progress names.
 Labs execute code you type. That code runs on the RunPod worker, never on the web
 host.
+
+## MCP server for AI agents
+
+The app serves a [Model Context Protocol](https://modelcontextprotocol.io)
+server at `https://gpu.ifkash.dev/mcp`, over the Streamable HTTP transport. An
+agent such as Claude Code can use it to read the course and work through it as
+you.
+
+The server exposes the following tools:
+
+- `course_overview`, `list_chapters`, `get_chapter`, and `search` for the
+  syllabus, chapter text, and full-text search over chapters, labs, and slides.
+- `list_labs`, `get_lab`, `get_lab_file`, and `get_solution` for a lab's brief,
+  hints, starter code, checks, the files the checks import, and worked solution.
+- `list_decks` and `get_deck` for each chapter's slides and speaker notes.
+- `get_providers` and `get_compute_status` for the GPU providers'
+  configuration and what is running on them, as the Compute page shows it.
+  Neither stops anything.
+- `get_document` for the files in `docs/` and `content/STYLE.md`, and
+  `get_book_info` for the PDF book's and slides PDF's details.
+- `get_progress`, `set_progress`, `get_draft`, `save_draft`, `get_note`,
+  `save_note`, `list_runs`, and `get_run` for your progress, drafts, notes, and
+  run history.
+- `run_lab`, which runs code the same way the lab pane's **Run** button does.
+
+Chapters and decks are also resources, at `gpu://chapters/SLUG` and
+`gpu://slides/SLUG`. Reading a chapter through the server doesn't mark it
+started.
+
+An agent can't complete the Authelia sign-in, so Caddy routes `/mcp` without
+`forward_auth`, and the server requires a bearer token instead. A token acts
+as the reader who owns it. The server ignores the `Remote-User` and `X-SSO-Proxy`
+headers.
+
+**Caution:** `run_lab` costs what the **Run** button costs. A lab that needs a
+GPU starts a serverless job on RunPod, which bills for the seconds a worker
+spends on it, and the call waits until the job finishes. A token holder can
+start that job as often as they like. Treat a token like a password, and revoke
+it when you no longer use it.
+
+### Get a token
+
+To create a token, do one of the following:
+
+- On the site, open **Agent access** in the sidebar, at
+  `https://gpu.ifkash.dev/agents`. Enter a name and click **Create token**. The
+  page shows the token once, with ready-to-copy client configurations.
+- On the VM, run the command line in the container:
+
+  ```bash
+  docker exec learn-gpu python -m backend.app.mcp_tokens create USERNAME --name NAME
+  ```
+
+  Replace the following:
+
+  - `USERNAME`: the reader the token acts as, after `SSO_USERS` mapping, for
+    example `alice`.
+  - `NAME`: a label that tells you where the token is used, for example
+    `laptop`.
+
+To see or revoke tokens on the VM, run
+`docker exec learn-gpu python -m backend.app.mcp_tokens list` or
+`docker exec learn-gpu python -m backend.app.mcp_tokens revoke ID`. The server stores
+only a SHA-256 hash of each token, so a lost token can't be recovered; revoke
+it and create another. A token starts with `gpumcp_`.
+
+### Connect a client
+
+To connect Claude Code, complete the following steps:
+
+1. Put the token in an environment variable:
+
+   ```bash
+   export TOKEN=TOKEN_VALUE
+   ```
+
+   Replace `TOKEN_VALUE` with the token.
+
+2. Add the server:
+
+   ```bash
+   claude mcp add --transport http learn-gpu https://gpu.ifkash.dev/mcp \
+     --header "Authorization: Bearer $TOKEN"
+   ```
+
+For a client that reads an `mcpServers` configuration file, add the following
+entry:
+
+```json
+{
+  "mcpServers": {
+    "learn-gpu": {
+      "type": "http",
+      "url": "https://gpu.ifkash.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer TOKEN_VALUE"
+      }
+    }
+  }
+}
+```
+
+The server is stateless and answers with plain JSON, so it needs no session
+and works through a proxy that buffers responses. A `run_lab` call returns
+when the run finishes, which can take up to the lab's timeout plus two minutes.
 
 ## Check the content
 

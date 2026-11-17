@@ -52,10 +52,32 @@ function fail(message) {
   process.exit(1);
 }
 
-function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+function run(command, args, cwd, env = {}) {
+  const result = spawnSync(command, args, { cwd, stdio: "inherit", env: { ...process.env, ...env } });
   if (result.status !== 0) fail(`${command} ${args.join(" ")} exited with ${result.status ?? result.signal}.`);
 }
+
+// The print layout's sources: src/book/ and what it imports, not the whole
+// site. The Dockerfile's book stage copies the same files; keep them in step.
+// The list is the import closure of src/book/main.tsx, from esbuild's metafile,
+// plus the CSS that index.css imports and every figure that components/viz/
+// registers with a glob. Type-only imports such as lib/api.ts are erased by
+// Vite, and the print build runs no tsc, so they don't count.
+const BOOK_SOURCES = [
+  "frontend/src/book",
+  "frontend/src/ui/components.css",
+  "frontend/src/ui/shell.css",
+  "frontend/src/ui/tokens.css",
+  "frontend/src/ui/type.css",
+  "frontend/src/index.css",
+  "frontend/src/components/Brand.tsx",
+  "frontend/src/components/Markdown.tsx",
+  "frontend/src/components/MermaidBlock.tsx",
+  "frontend/src/components/viz",
+  "frontend/src/lib/chapters.ts",
+  "frontend/src/lib/katexMacros.json",
+  "frontend/src/lib/markdownPlugins.ts",
+];
 
 // What the PDF is made from. A change to any of it rebuilds the book.
 function inputHash() {
@@ -77,7 +99,7 @@ function inputHash() {
     "backend/app/curriculum.py",
     "backend/app/config.py",
     "scripts/dump_book.py",
-    "frontend/src",
+    ...BOOK_SOURCES,
     "frontend/book.html",
     "frontend/vite.book.config.ts",
     "frontend/package-lock.json",
@@ -225,7 +247,7 @@ async function main() {
   fs.mkdirSync(WORK, { recursive: true });
   const data = path.join(WORK, "book.json");
   run(findPython(), [path.join(ROOT, "scripts", "dump_book.py"), data], ROOT);
-  run(path.join(FRONTEND, "node_modules", ".bin", "vite"), ["build", "--config", "vite.book.config.ts", "--logLevel", "warn"], FRONTEND);
+  run(path.join(FRONTEND, "node_modules", ".bin", "vite"), ["build", "--config", "vite.book.config.ts", "--logLevel", "warn"], FRONTEND, { PRINT_ENTRY: "book" });
 
   const root = path.join(FRONTEND, "dist-book");
   const server = await serve(root, data);

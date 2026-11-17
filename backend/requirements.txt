@@ -4,3 +4,4 @@ pydantic==2.11.7
 pydantic-settings==2.10.1
 python-frontmatter==1.1.0
 httpx==0.28.1
+mcp==1.30.0

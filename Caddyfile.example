@@ -50,7 +50,7 @@ gpu.ifkash.dev {
 		# the longest lab. The app accepts Remote-User only when Caddy supplies the
 		# shared secret.
 		reverse_proxy learn-gpu:8000 {
-			header_up X-SSO-Proxy {$GPU_SSO_PROXY_SECRET}
+			header_up X-SSO-Proxy {env.SSO_PROXY_SECRET}
 			flush_interval -1
 			transport http {
 				response_header_timeout 30m
